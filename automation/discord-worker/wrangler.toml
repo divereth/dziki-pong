@@ -1,0 +1,9 @@
+name = "dziki-pong-discord"
+main = "src/index.js"
+compatibility_date = "2026-09-22"
+
+[vars]
+GITHUB_REPOSITORY = "divereth/dziki-pong"
+DISCORD_GUILD_ID = "1362446460720779295"
+DISCORD_CHANNEL_ID = "1551969431788453888"
+DISCORD_ADMIN_ROLE_ID = "1550181187685851136"
