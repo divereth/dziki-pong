@@ -12,7 +12,7 @@
     { x: W/2, y: H/2, radius: 30, color: '#55f1ed', splitter: true },
     { x: W/2, y: H-95, radius: 26, color: '#ff9a62' },
   ];
-  function makeBall(x, y, vx, vy, color = '#fffcd9') {
+  function makeBall(x, y, vx, vy, color = '#ffd700') {
     return { x, y, vx, vy, color, trail: [] };
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
