@@ -1,0 +1,130 @@
+name: Dziki Pong Discord request
+
+on:
+  repository_dispatch:
+    types: [dziki_request, dziki_promote]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  request:
+    if: github.event.action == 'dziki_request'
+    runs-on: ubuntu-latest
+    env:
+      REQUEST_ID: ${{ github.event.client_payload.request_id }}
+      REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
+      DISCORD_USER: ${{ github.event.client_payload.discord_user_name }}
+      CF_PROJECT: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate request payload
+        shell: bash
+        run: |
+          test -n "$REQUEST_ID"
+          test -n "$REQUEST_TEXT"
+          case "$REQUEST_ID" in
+            *[!A-Za-z0-9_-]*) echo "Invalid request id"; exit 1 ;;
+          esac
+
+      - name: Create request branch
+        shell: bash
+        run: |
+          git config user.name "dziki-pong automation"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "discord/$REQUEST_ID"
+
+      - name: Build Codex prompt
+        shell: bash
+        run: |
+          {
+            cat .github/codex/discord-request.md
+            printf '%s\n' "$REQUEST_TEXT"
+            printf '\nRequest metadata: Discord user %s, request id %s.\n' "$DISCORD_USER" "$REQUEST_ID"
+          } > .github/codex/runtime-request.md
+
+      - name: Run Codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/runtime-request.md
+          sandbox: workspace-write
+          output-file: codex-output.md
+
+      - name: Check and commit changes
+        shell: bash
+        run: |
+          node --check game.js
+          rm -f .github/codex/runtime-request.md codex-output.md
+          changed="$(git diff --name-only HEAD)"
+          test -n "$changed"
+          while IFS= read -r path; do
+            case "$path" in
+              game.js|index.html|style.css) ;;
+              *) echo "Blocked unexpected file change: $path"; exit 1 ;;
+            esac
+          done <<< "$changed"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Codex made no changes."
+            exit 1
+          fi
+          git commit -m "Discord request $REQUEST_ID"
+          git push --set-upstream origin "discord/$REQUEST_ID"
+
+      - name: Open pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "Requested by $DISCORD_USER. Review the Codex-generated change before publishing.")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy request preview
+        id: preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          npx --yes wrangler@latest pages deploy . --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" 2>&1 | tee cloudflare.log
+          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+pages.dev' cloudflare.log | tail -1 || true)"
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+
+      - name: Report preview
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        shell: bash
+        run: |
+          test -n "$WEBHOOK" || exit 0
+          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" --arg preview "$PREVIEW_URL" '{content: ("Dziki Pong request " + $id + " is ready. PR: " + $pr + " Preview: " + $preview)}')"
+          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
+
+  promote:
+    if: github.event.action == 'dziki_promote' && github.event.client_payload.is_admin == true
+    runs-on: ubuntu-latest
+    env:
+      REQUEST_ID: ${{ github.event.client_payload.request_id }}
+    steps:
+      - name: Find and merge reviewed PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          test -n "$REQUEST_ID"
+          case "$REQUEST_ID" in
+            *[!A-Za-z0-9_-]*) echo "Invalid request id"; exit 1 ;;
+          esac
+          number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "discord/$REQUEST_ID" --json number --jq '.[0].number')"
+          test -n "$number"
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
