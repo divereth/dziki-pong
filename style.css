@@ -24,4 +24,38 @@ body{padding:8px 12px;display:flex;align-items:center;justify-content:center}
 .mode-picker select:focus-visible{outline:3px solid #7451d7;outline-offset:3px}
 .mode-note{display:block;color:#81758e;font-size:11px;margin:0 0 17px}
 @media(max-width:650px){body{padding:6px}.shell{height:calc(100svh - 12px)}.scorebar{padding:13px 11px}.toolbar{padding:10px}.start-card{padding:21px 16px}.mode-picker{align-items:flex-start;flex-direction:column;gap:5px}.mode-picker select{width:100%}.mode-note{margin-bottom:14px}}
+/* Fullscreen and compact mobile layout */
+html:fullscreen body,html:-webkit-full-screen body{padding:env(safe-area-inset-top,8px) env(safe-area-inset-right,8px) env(safe-area-inset-bottom,8px) env(safe-area-inset-left,8px)}
+html:fullscreen .shell,html:-webkit-full-screen .shell{width:100%;max-width:none;height:calc(100svh - env(safe-area-inset-top,8px) - env(safe-area-inset-bottom,8px))}
+html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:none}
+@media(max-width:700px){
+  body{padding:6px}
+  .shell{height:calc(100svh - 12px)}
+  .scorebar{padding:10px 11px;gap:9px}
+  .player{gap:8px}
+  .player-icon{width:32px;height:32px}
+  .player-name{font-size:12px;letter-spacing:1px}
+  .player-detail{font-size:10px}
+  .score{font-size:clamp(30px,8vw,42px);gap:13px}
+  .toolbar{padding:8px 10px;gap:7px}
+  .tools{gap:5px}
+  .tool{padding:7px 8px;font-size:12px}
+  .tool span{display:none}
+  .start-card{width:min(92%,430px);padding:14px 16px}
+  .start-card h2{font-size:clamp(24px,7vw,38px);margin-bottom:7px}
+  .start-card p:not(.eyebrow){font-size:12px;line-height:1.35;margin-bottom:12px}
+  .mode-picker{font-size:12px}
+  .mode-note{font-size:10px;margin-bottom:10px}
+  .primary{padding:10px 18px;font-size:14px}
+}
+@media(max-height:620px){
+  .start-card{padding:10px 14px}
+  .eyebrow{font-size:10px;letter-spacing:1.8px;margin-bottom:6px}
+  .start-card h2{font-size:clamp(22px,5vw,30px);margin-bottom:5px}
+  .start-card p:not(.eyebrow){font-size:11px;line-height:1.25;margin-bottom:7px}
+  .mode-picker{font-size:11px;gap:6px;margin-bottom:4px}
+  .mode-picker select{padding:5px 20px 5px 7px}
+  .mode-note{margin-bottom:7px}
+  .primary{padding:7px 14px;font-size:13px}
+}
 
