@@ -14,7 +14,7 @@ The default flow is:
 
 Create a Discord application and bot, enable the **Message Content Intent**, and invite it with permission to view and send messages in the chosen channel.
 
-Copy `.env.example` to `.env`, fill in the values, then run:
+Run the bot on an always-on Node.js host (a small VPS, container service, or home machine that stays online). Copy `.env.example` to `.env`, fill in the values, then run:
 
 ```sh
 npm install
