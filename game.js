@@ -37,10 +37,8 @@
     $('right-detail').textContent=twoPlayer ? 'Prawa · mysz / dotyk' : 'Prawa strona · gracz';
     $('left-court-label').textContent=twoPlayer ? 'DOTYK / GRACZ 1' : 'CPU / 01';
     $('right-court-label').textContent=twoPlayer ? 'DOTYK / GRACZ 2' : 'PLAYER / 02';
-    $('keyboard-label').textContent=twoPlayer ? 'Gracz 1 · lewa platforma' : 'Twoja platforma, twój ruch';
-    $('pointer-label').textContent=twoPlayer ? 'Gracz 2 · prawa platforma' : 'Wolisz mysz lub dotyk?';
-    $('keyboard-help').textContent=twoPlayer ? 'W / S lub dotyk po lewej' : 'Strzałki ↑ ↓';
-    $('pointer-help').textContent=twoPlayer ? 'Strzałki ↑ ↓, mysz lub dotyk po prawej' : 'Strzałki ↑ ↓, mysz lub dotyk';
+
+
     canvas.setAttribute('aria-label',twoPlayer
       ? 'Gracz 1: W i S lub dotyk lewej połowy planszy. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy. Możecie dotykać obu połówek jednocześnie.'
       : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk.');
