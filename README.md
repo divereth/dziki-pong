@@ -12,3 +12,8 @@ Files:
 - `index.html`
 - `style.css`
 - `game.js`
+
+## Discord
+
+- `/dzika zmiana text:...` — zgłoś pomysł na zmianę w grze.
+- `/dzika promote request_id:...` — opublikuj sprawdzoną zmianę; tylko administrator.
