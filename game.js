@@ -39,11 +39,11 @@
     $('right-court-label').textContent=twoPlayer ? 'DOTYK / GRACZ 2' : 'PLAYER / 02';
     $('keyboard-label').textContent=twoPlayer ? 'Gracz 1 · lewa platforma' : 'Twoja platforma, twój ruch';
     $('pointer-label').textContent=twoPlayer ? 'Gracz 2 · prawa platforma' : 'Wolisz mysz lub dotyk?';
-    $('keyboard-help').textContent=twoPlayer ? '↑ ↓ / W S lub dotyk po lewej' : 'Strzałki ↑ ↓ lub W / S';
-    $('pointer-help').textContent=twoPlayer ? 'Mysz lub dotyk po prawej' : 'Przesuwaj po planszy';
+    $('keyboard-help').textContent=twoPlayer ? 'W / S lub dotyk po lewej' : 'Strzałki ↑ ↓';
+    $('pointer-help').textContent=twoPlayer ? 'Strzałki ↑ ↓, mysz lub dotyk po prawej' : 'Strzałki ↑ ↓, mysz lub dotyk';
     canvas.setAttribute('aria-label',twoPlayer
-      ? 'Gracz 1: strzałki, W i S lub dotyk lewej połowy planszy. Gracz 2: mysz lub dotyk prawej połowy. Możecie dotykać obu połówek jednocześnie.'
-      : 'Komputer po lewej. Twoja platforma po prawej: strzałki, W i S, mysz lub dotyk.');
+      ? 'Gracz 1: W i S lub dotyk lewej połowy planszy. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy. Możecie dotykać obu połówek jednocześnie.'
+      : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk.');
     start();
     state.mode='ready';
     $('round-message').textContent='';$('status').textContent='Czekamy na pierwszy serwis';$('pause').disabled=true;
@@ -155,12 +155,13 @@
       const p=particles[i]; p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
       if(p.life<=0) particles.splice(i,1);
     }
-    const movement = (keys.has('ArrowDown') || keys.has('s') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('w') ? 1 : 0);
+    const leftMovement = (keys.has('s') ? 1 : 0) - (keys.has('w') ? 1 : 0);
+    const rightMovement = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
     if(state.twoPlayer) {
-      movePlayer('left',movement,dt);
-      movePlayer('right',0,dt);
+      movePlayer('left',leftMovement,dt);
+      movePlayer('right',rightMovement,dt);
     } else {
-      movePlayer('right',movement,dt);
+      movePlayer('right',rightMovement,dt);
     }
     if(!state.twoPlayer) {
     state.aiTimer -= dt;
@@ -335,3 +336,4 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden && state.mode==='playing')pause();});
   new ResizeObserver(resize).observe(court); resize(); requestAnimationFrame(frame);
 })();
+
