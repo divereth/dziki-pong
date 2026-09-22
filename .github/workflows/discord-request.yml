@@ -42,13 +42,19 @@ jobs:
 
       - name: Report started
         env:
-          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
-          test -n "$WEBHOOK" || exit 0
-          payload="$(jq -n --arg id "$REQUEST_ID" --arg run "$RUN_URL" '{content: ("🟡 Dziki Pong request " + $id + " started. Codex is working. Run: " + $run)}')"
-          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
+          if [ -n "$MAIN_WEBHOOK" ]; then
+            payload="$(jq -n '{content: "🟡 Przyjęte! Dziki pracuje nad Twoją zmianą."}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
+          fi
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg id "$REQUEST_ID" --arg user "$DISCORD_USER" --arg run "$RUN_URL" '{content: ("🟡 Zlecenie " + $id + " rozpoczęte przez " + $user + ". Codex analizuje repozytorium. GitHub Actions: " + $run)}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
       - name: Build Codex prompt
         shell: bash
         run: |
@@ -71,13 +77,13 @@ jobs:
       - name: Report Codex progress
         if: success()
         env:
-          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
         shell: bash
         run: |
-          test -n "$WEBHOOK" || exit 0
-          payload="$(jq -n --arg id "$REQUEST_ID" '{content: ("🔵 Dziki Pong request " + $id + ": Codex finished. Validating the change and preparing the PR.")}')"
-          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
-
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg id "$REQUEST_ID" '{content: ("🔵 Zlecenie " + $id + ": Codex zakończył pracę. Trwa sprawdzanie zmian i przygotowanie PR-a.")}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
       - name: Check and commit changes
         shell: bash
         run: |
@@ -111,14 +117,14 @@ jobs:
       - name: Report PR ready
         if: success()
         env:
-          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           PR_URL: ${{ steps.pr.outputs.url }}
         shell: bash
         run: |
-          test -n "$WEBHOOK" || exit 0
-          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" '{content: ("🟣 Dziki Pong request " + $id + ": PR ready for review: " + $pr + ". Deploying preview next.")}')"
-          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
-
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" '{content: ("🟣 Zlecenie " + $id + ": PR gotowy do przeglądu: " + $pr + ". Za chwilę uruchamiam podgląd.")}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
       - name: Deploy request preview
         id: preview
         env:
@@ -133,23 +139,32 @@ jobs:
       - name: Report result
         if: always()
         env:
-          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         shell: bash
         run: |
-          test -n "$WEBHOOK" || exit 0
           if [ "$JOB_STATUS" = "success" ] && [ -n "$PREVIEW_URL" ]; then
-            message="✅ Dziki Pong request $REQUEST_ID is ready. Preview: $PREVIEW_URL PR: $PR_URL"
+            main_message="✅ Gotowe! Podgląd zmiany: $PREVIEW_URL"
+            dev_message="✅ Zlecenie $REQUEST_ID gotowe. Podgląd: $PREVIEW_URL | PR: $PR_URL | GitHub Actions: $RUN_URL"
           elif [ "$JOB_STATUS" = "success" ]; then
-            message="✅ Dziki Pong request $REQUEST_ID finished. PR: $PR_URL Preview URL was not detected. Run: $RUN_URL"
+            main_message="✅ Zmiana jest gotowa. Opiekun sprawdzi podgląd."
+            dev_message="✅ Zlecenie $REQUEST_ID zakończone, ale nie udało się odczytać adresu podglądu. PR: $PR_URL | GitHub Actions: $RUN_URL"
           else
-            message="❌ Dziki Pong request $REQUEST_ID failed. Check the GitHub run: $RUN_URL"
+            main_message="⚠️ Coś poszło nie tak. Opiekun zajrzy do kanału deweloperskiego."
+            dev_message="❌ Zlecenie $REQUEST_ID nie powiodło się. Sprawdź GitHub Actions: $RUN_URL | PR: $PR_URL"
           fi
-          payload="$(jq -n --arg content "$message" '{content: $content}')"
-          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
+          if [ -n "$MAIN_WEBHOOK" ]; then
+            payload="$(jq -n --arg content "$main_message" '{content: $content}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
+          fi
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
 
   promote:
     if: github.event.action == 'dziki_promote' && github.event.client_payload.is_admin == true
@@ -173,16 +188,24 @@ jobs:
       - name: Report publish result
         if: always()
         env:
-          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         shell: bash
         run: |
-          test -n "$WEBHOOK" || exit 0
           if [ "$JOB_STATUS" = "success" ]; then
-            message="🚀 Dziki Pong request $REQUEST_ID published to https://dziki-pong.pages.dev/"
+            main_message="🚀 Zmiana trafiła do gry!"
+            dev_message="🚀 Zlecenie $REQUEST_ID opublikowane. Produkcja: https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
           else
-            message="❌ Dziki Pong publish for request $REQUEST_ID failed. Check the GitHub run: $RUN_URL"
+            main_message="⚠️ Publikowanie nie powiodło się. Opiekun sprawdzi sprawę."
+            dev_message="❌ Publikowanie zlecenia $REQUEST_ID nie powiodło się. Sprawdź GitHub Actions: $RUN_URL"
           fi
-          payload="$(jq -n --arg content "$message" '{content: $content}')"
-          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
+          if [ -n "$MAIN_WEBHOOK" ]; then
+            payload="$(jq -n --arg content "$main_message" '{content: $content}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
+          fi
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
