@@ -220,7 +220,7 @@
           if(state.balls.length===0){
             $('round-message').textContent=`${who==='human' ? rightName() : leftName()} +1`;
             $('status').textContent='Gramy! Mecz do 10 punktów';
-            serve(who==='human' ? -1 : 1);return;
+            serve(who==='human' ? 1 : -1);return;
           }
           $('status').textContent='Punkt! Druga piłka nadal w grze';
         }
