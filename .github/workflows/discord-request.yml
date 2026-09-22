@@ -65,7 +65,7 @@ jobs:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: .github/codex/runtime-request.md
           sandbox: workspace-write
-          model: gpt-5.6-luna
+          model: gpt-6-luna
           effort: high
           output-file: codex-output.md
 
