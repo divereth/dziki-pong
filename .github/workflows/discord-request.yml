@@ -40,6 +40,15 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "discord/$REQUEST_ID"
 
+      - name: Report started
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          test -n "$WEBHOOK" || exit 0
+          payload="$(jq -n --arg id "$REQUEST_ID" --arg run "$RUN_URL" '{content: ("🟡 Dziki Pong request " + $id + " started. Codex is working. Run: " + $run)}')"
+          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
       - name: Build Codex prompt
         shell: bash
         run: |
@@ -58,6 +67,16 @@ jobs:
           model: gpt-5.6-luna
           effort: high
           output-file: codex-output.md
+
+      - name: Report Codex progress
+        if: success()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          test -n "$WEBHOOK" || exit 0
+          payload="$(jq -n --arg id "$REQUEST_ID" '{content: ("🔵 Dziki Pong request " + $id + ": Codex finished. Validating the change and preparing the PR.")}')"
+          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
 
       - name: Check and commit changes
         shell: bash
@@ -89,6 +108,17 @@ jobs:
           url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "Requested by $DISCORD_USER. Review the Codex-generated change before publishing.")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      - name: Report PR ready
+        if: success()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        shell: bash
+        run: |
+          test -n "$WEBHOOK" || exit 0
+          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" '{content: ("🟣 Dziki Pong request " + $id + ": PR ready for review: " + $pr + ". Deploying preview next.")}')"
+          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
+
       - name: Deploy request preview
         id: preview
         env:
@@ -100,16 +130,25 @@ jobs:
           preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+pages.dev' cloudflare.log | tail -1 || true)"
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
 
-      - name: Report preview
+      - name: Report result
         if: always()
         env:
           WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
         shell: bash
         run: |
           test -n "$WEBHOOK" || exit 0
-          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" --arg preview "$PREVIEW_URL" '{content: ("Dziki Pong request " + $id + " is ready. PR: " + $pr + " Preview: " + $preview)}')"
+          if [ "$JOB_STATUS" = "success" ] && [ -n "$PREVIEW_URL" ]; then
+            message="✅ Dziki Pong request $REQUEST_ID is ready. Preview: $PREVIEW_URL PR: $PR_URL"
+          elif [ "$JOB_STATUS" = "success" ]; then
+            message="✅ Dziki Pong request $REQUEST_ID finished. PR: $PR_URL Preview URL was not detected. Run: $RUN_URL"
+          else
+            message="❌ Dziki Pong request $REQUEST_ID failed. Check the GitHub run: $RUN_URL"
+          fi
+          payload="$(jq -n --arg content "$message" '{content: $content}')"
           curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
 
   promote:
@@ -130,3 +169,20 @@ jobs:
           number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "discord/$REQUEST_ID" --json number --jq '.[0].number')"
           test -n "$number"
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
+
+      - name: Report publish result
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          test -n "$WEBHOOK" || exit 0
+          if [ "$JOB_STATUS" = "success" ]; then
+            message="🚀 Dziki Pong request $REQUEST_ID published to https://dziki-pong.pages.dev/"
+          else
+            message="❌ Dziki Pong publish for request $REQUEST_ID failed. Check the GitHub run: $RUN_URL"
+          fi
+          payload="$(jq -n --arg content "$message" '{content: $content}')"
+          curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
