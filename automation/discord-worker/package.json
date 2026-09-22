@@ -1,0 +1,8 @@
+{
+  "name": "dziki-pong-discord-worker-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "register": "node register-commands.mjs"
+  }
+}
