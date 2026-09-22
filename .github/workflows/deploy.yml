@@ -25,3 +25,44 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
         run: npx --yes wrangler@latest pages deploy . --project-name "$CLOUDFLARE_PROJECT_NAME"
+
+      - name: Report production deployment result
+        if: always() && github.event_name == 'repository_dispatch' && github.event.action == 'deploy_production'
+        env:
+          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          AUTHOR_ID: ${{ github.event.client_payload.discord_user_id }}
+          PR_NUMBER: ${{ github.event.client_payload.pr_number }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          if [ -z "$REQUEST_ID" ]; then
+            echo "Missing request ID; skipping Discord completion notice."
+            exit 0
+          fi
+          case "$AUTHOR_ID" in
+            *[!0-9]*) AUTHOR_ID="" ;;
+          esac
+          if [ "$JOB_STATUS" = "success" ]; then
+            if [ -n "$AUTHOR_ID" ]; then
+              main_message="✅ Zmiana zlecona przez <@$AUTHOR_ID> została scalona i opublikowana! Zagraj: https://dziki-pong.pages.dev/"
+              payload="$(jq -n --arg content "$main_message" --arg id "$AUTHOR_ID" '{content:$content,allowed_mentions:{parse:[],users:[$id]}}')"
+            else
+              main_message="✅ Zmiana została scalona i opublikowana! Zagraj: https://dziki-pong.pages.dev/"
+              payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
+            fi
+            dev_message="✅ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony i produkcja wdrożona. https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
+          else
+            main_message="⚠️ Zmiana została scalona, ale publikacja gry nie powiodła się. Opiekun sprawdzi problem."
+            payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
+            dev_message="❌ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony, ale wdrożenie Cloudflare nie powiodło się. GitHub Actions: $RUN_URL"
+          fi
+          if [ -n "$MAIN_WEBHOOK" ]; then
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
+          fi
+          if [ -n "$DEV_WEBHOOK" ]; then
+            payload="$(jq -n --arg content "$dev_message" '{content:$content}')"
+            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
+          fi
