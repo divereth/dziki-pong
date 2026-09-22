@@ -9,17 +9,17 @@ for (const [name, value] of Object.entries({ DISCORD_BOT_TOKEN, DISCORD_APPLICAT
 }
 
 const commands = [{
-  name: 'dziki',
-  description: 'Submit or publish a Dziki Pong change',
+  name: 'dzika',
+  description: 'Zgłoś lub opublikuj zmianę w Dziki Pong',
   type: 1,
   options: [
     {
-      name: 'request',
-      description: 'Submit a game change request',
+      name: 'zmiana',
+      description: 'Zaproponuj zmianę w grze',
       type: 1,
       options: [{
         name: 'text',
-        description: 'What should change in the game?',
+        description: 'Co ma się zmienić w grze?',
         type: 3,
         required: true,
         min_length: 8,
@@ -28,11 +28,11 @@ const commands = [{
     },
     {
       name: 'promote',
-      description: 'Publish a reviewed request to production (admin only)',
+      description: 'Opublikuj sprawdzoną zmianę (tylko administrator)',
       type: 1,
       options: [{
         name: 'request_id',
-        description: 'The request ID returned by the bot',
+        description: 'Oznaczenie prośby z kanału deweloperskiego',
         type: 3,
         required: true,
         min_length: 3,
@@ -53,4 +53,4 @@ const response = await fetch(`https://discord.com/api/v10/applications/${DISCORD
 });
 
 if (!response.ok) throw new Error(`Command registration failed: ${response.status} ${await response.text()}`);
-console.log('Registered /dziki request and /dziki promote.');
+console.log('Registered /dzika zmiana and /dzika promote.');
