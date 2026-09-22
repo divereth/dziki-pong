@@ -63,9 +63,9 @@ function isAdmin(interaction, env) {
 }
 
 function validRequest(text) {
-  if (!text || text.length < 8) return 'Request is too short.';
-  if (text.length > 2000) return 'Request is limited to 2000 characters.';
-  if (blockedPatterns.some((pattern) => pattern.test(text))) return 'This request matches a blocked security or destructive pattern.';
+  if (!text || text.length < 8) return 'Napisz trochę więcej — prośba powinna mieć co najmniej 8 znaków.';
+  if (text.length > 2000) return 'Prośba może mieć maksymalnie 2000 znaków.';
+  if (blockedPatterns.some((pattern) => pattern.test(text))) return 'Nie mogę przyjąć tej prośby, bo wygląda na niebezpieczną lub destrukcyjną.';
   return null;
 }
 
@@ -104,10 +104,10 @@ async function processRequest(interaction, env, requestText) {
       is_admin: isAdmin(interaction, env),
       received_at: new Date().toISOString(),
     });
-    await followup(interaction, `Queued as \`${requestId}\`. Progress updates and the Cloudflare Pages preview URL will be posted in this channel. An admin can publish it with \`/dziki promote request_id:${requestId}\` after reviewing the PR.`);
+    await followup(interaction, '✅ Przyjęte! Dziki pracuje nad Twoją zmianą. Wkrótce pojawi się wiadomość z podglądem gry.');
   } catch (error) {
     console.error(error);
-    await followup(interaction, 'The request could not be queued. Check the Worker logs.');
+    await followup(interaction, '⚠️ Nie udało się przyjąć prośby. Opiekun sprawdzi, co się stało.');
   }
 }
 
@@ -120,10 +120,10 @@ async function processPromotion(interaction, env, requestId) {
       discord_user_name: userName(interaction),
       received_at: new Date().toISOString(),
     });
-    await followup(interaction, `Publish queued for request \`${requestId}\`. GitHub will merge it and deploy production after checks.`);
+    await followup(interaction, '✅ Publikowanie uruchomione. Wkrótce dam znać, gdy zmiana będzie w grze.');
   } catch (error) {
     console.error(error);
-    await followup(interaction, 'The request could not be promoted. Check the Worker logs.');
+    await followup(interaction, '⚠️ Nie udało się uruchomić publikowania. Opiekun sprawdzi, co się stało.');
   }
 }
 
@@ -141,13 +141,13 @@ export default {
     }
 
     if (interaction.type === 1) return json({ type: 1 });
-    if (interaction.type !== 2) return ephemeral('Unsupported Discord interaction.');
-    if (env.DISCORD_GUILD_ID && interaction.guild_id !== env.DISCORD_GUILD_ID) return ephemeral('This command is not enabled in this server.');
-    if (env.DISCORD_CHANNEL_ID && interaction.channel_id !== env.DISCORD_CHANNEL_ID) return ephemeral('Use this command in #dziki-pong.');
-    if (interaction.data?.name !== 'dziki') return ephemeral('Unknown command.');
+    if (interaction.type !== 2) return ephemeral('Ta akcja Discorda nie jest obsługiwana.');
+    if (env.DISCORD_GUILD_ID && interaction.guild_id !== env.DISCORD_GUILD_ID) return ephemeral('Ta komenda nie jest dostępna na tym serwerze.');
+    if (env.DISCORD_CHANNEL_ID && interaction.channel_id !== env.DISCORD_CHANNEL_ID) return ephemeral('Użyj tej komendy na kanale #dziki-pong.');
+    if (interaction.data?.name !== 'dziki') return ephemeral('Nie znam tej komendy.');
 
     const subcommand = interaction.data.options?.[0];
-    if (!subcommand) return ephemeral('Choose request or promote.');
+    if (!subcommand) return ephemeral('Wybierz prośbę albo publikowanie.');
 
     if (subcommand.name === 'request') {
       const requestText = String(option(subcommand.options, 'text') || '').trim();
@@ -158,13 +158,13 @@ export default {
     }
 
     if (subcommand.name === 'promote') {
-      if (!isAdmin(interaction, env)) return ephemeral('Only the configured Discord admin role can publish a request live.');
+      if (!isAdmin(interaction, env)) return ephemeral('Tylko administrator może opublikować zmianę na żywo.');
       const requestId = String(option(subcommand.options, 'request_id') || '');
-      if (!/^[A-Za-z0-9_-]{3,80}$/.test(requestId)) return ephemeral('Invalid request ID.');
+      if (!/^[A-Za-z0-9_-]{3,80}$/.test(requestId)) return ephemeral('Nieprawidłowe oznaczenie prośby.');
       ctx.waitUntil(processPromotion(interaction, env, requestId));
       return json({ type: 5, data: { flags: 64 } });
     }
 
-    return ephemeral('Unknown Dziki command.');
+    return ephemeral('Nie znam tej komendy.');
   },
 };
