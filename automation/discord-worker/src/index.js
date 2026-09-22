@@ -97,7 +97,7 @@ async function followup(interaction, content) {
   });
 }
 
-async function postStatus(env, content) {
+async function postStatus(env, content, mentionUserId) {
   if (!env.DISCORD_STATUS_WEBHOOK_URL) return;
   const response = await fetch(env.DISCORD_STATUS_WEBHOOK_URL, {
     method: 'POST',
@@ -105,7 +105,7 @@ async function postStatus(env, content) {
     body: JSON.stringify({
       content,
       embeds: [{ image: { url: 'https://dziki-pong.pages.dev/assets/dziki-request.gif' } }],
-      allowed_mentions: { parse: [] },
+      allowed_mentions: mentionUserId ? { users: [mentionUserId] } : { parse: [] },
     }),
   });
   if (!response.ok) throw new Error(`Discord status webhook failed: ${response.status}`);
