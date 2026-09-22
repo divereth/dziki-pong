@@ -5,15 +5,19 @@
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, R = 9, LX = 30, RX = W - 30 - PW;
-  const MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
+  const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const obstacles = [
     { x: W/2, y: 95, radius: 26, color: '#ff9a62' },
     { x: W/2, y: H/2, radius: 30, color: '#55f1ed', splitter: true },
     { x: W/2, y: H-95, radius: 26, color: '#ff9a62' },
   ];
-  function makeBall(x, y, vx, vy, color = '#ffd700') {
-    return { x, y, vx, vy, color, trail: [] };
+  function makeBall(x, y, vx, vy) {
+    return { x, y, vx, vy, trail: [] };
+  }
+  function ballColor(ball) {
+    const red = clamp((Math.hypot(ball.vx, ball.vy)-SERVE_SPEED)/(MAX_SPEED-SERVE_SPEED),0,1);
+    return `hsl(${51*(1-red)} 100% 50%)`;
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
     balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false,
@@ -93,7 +97,7 @@
   function serve(direction) {
     const angle = Math.random()*.7-.35;
     // Start outside the splitter so a new serve never activates it automatically.
-    state.balls = [makeBall(W/2+direction*90,H/2,direction*420*Math.cos(angle),420*Math.sin(angle))];
+    state.balls = [makeBall(W/2+direction*90,H/2,direction*SERVE_SPEED*Math.cos(angle),SERVE_SPEED*Math.sin(angle))];
     state.delay = 1; state.rally = 0; state.splitUsed = false;
   }
   function start() {
@@ -160,7 +164,7 @@
     b.trail=[];
     const copy=makeBall(obstacle.x+nx*(contact+.1)-tx*separation,
       obstacle.y+ny*(contact+.1)-ty*separation,
-      Math.cos(angle-spread)*speed,Math.sin(angle-spread)*speed,'#55f1ed');
+      Math.cos(angle-spread)*speed,Math.sin(angle-spread)*speed);
     state.balls.push(copy);
     $('status').textContent='Dwie piłki! Każda daje osobny punkt';
     $('announcement').textContent='Rozdwojenie! Na planszy są teraz dwie piłki.';
@@ -255,8 +259,9 @@
     rounded(LX,state.left,PW,PH,6,'#ff9a62');rounded(RX,state.right,PW,PH,6,'#d7ff3f');
     rounded(LX+4,state.left+13,3,PH-26,2,'#ffc6a0');rounded(RX+4,state.right+13,3,PH-26,2,'#edffab');
     for(const b of state.balls){
-      if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(p.x,p.y,R*(1-i/20),0,Math.PI*2);ctx.fill();});
-      ctx.globalAlpha=1;ctx.shadowColor=b.color;ctx.shadowBlur=15;ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      const color=ballColor(b);
+      if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,R*(1-i/20),0,Math.PI*2);ctx.fill();});
+      ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
     }
     for(const p of particles){ctx.globalAlpha=p.life*2;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
   }
