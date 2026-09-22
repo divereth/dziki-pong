@@ -21,7 +21,7 @@ npm install
 npm start
 ```
 
-Use a fine-grained GitHub token limited to this repository with permission to trigger repository dispatches. Keep the token and bot token outside Git.
+Use a fine-grained GitHub token limited to this repository with **Contents: read and write** permission so it can trigger repository dispatches. Keep the token and bot token outside Git.
 
 The bot accepts normal game-change requests in the configured channel. It also accepts:
 
