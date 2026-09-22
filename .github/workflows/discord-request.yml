@@ -42,15 +42,10 @@ jobs:
 
       - name: Report started
         env:
-          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
           DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
-          if [ -n "$MAIN_WEBHOOK" ]; then
-            payload="$(jq -n '{content: "🟡 Przyjęte! Dziki pracuje nad Twoją zmianą."}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
-          fi
           if [ -n "$DEV_WEBHOOK" ]; then
             payload="$(jq -n --arg id "$REQUEST_ID" --arg user "$DISCORD_USER" --arg run "$RUN_URL" '{content: ("🟡 Zlecenie " + $id + " rozpoczęte przez " + $user + ". Codex analizuje repozytorium. GitHub Actions: " + $run)}')"
             curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
