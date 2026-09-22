@@ -163,7 +163,7 @@ export default {
     if (subcommand.name === 'request') {
       const requestText = String(option(subcommand.options, 'text') || '').trim();
       const reason = validRequest(requestText);
-      if (reason) return ephemeral(`Request rejected: ${reason}`);
+      if (reason) return ephemeral(`Prośba odrzucona: ${reason}`);
       ctx.waitUntil(processRequest(interaction, env, requestText));
       return ephemeral('✅ Przyjęte! Dziki pracuje nad Twoją zmianą.');
     }
