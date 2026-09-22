@@ -62,7 +62,7 @@ jobs:
         run: |
           node --check game.js
           rm -f .github/codex/runtime-request.md codex-output.md
-          changed="$(git diff --name-only)"
+          changed="$(git diff --name-only HEAD)"
           test -n "$changed"
           while IFS= read -r path; do
             case "$path" in
