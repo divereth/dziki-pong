@@ -180,6 +180,15 @@ jobs:
           test -n "$number"
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
 
+      - name: Start production deployment
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" \
+            -f event_type=deploy_production
+
       - name: Report publish result
         if: always()
         env:
@@ -190,8 +199,8 @@ jobs:
         shell: bash
         run: |
           if [ "$JOB_STATUS" = "success" ]; then
-            main_message="🚀 Zmiana trafiła do gry!"
-            dev_message="🚀 Zlecenie $REQUEST_ID opublikowane. Produkcja: https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
+            main_message="🚀 Zmiana zatwierdzona. Publikowanie gry zostało uruchomione!"
+            dev_message="🚀 Zlecenie $REQUEST_ID zatwierdzone, wdrożenie produkcji uruchomione. Produkcja: https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
           else
             main_message="⚠️ Publikowanie nie powiodło się. Opiekun sprawdzi sprawę."
             dev_message="❌ Publikowanie zlecenia $REQUEST_ID nie powiodło się. Sprawdź GitHub Actions: $RUN_URL"
