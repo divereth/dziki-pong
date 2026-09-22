@@ -88,7 +88,7 @@ async function followup(interaction, content) {
   await fetch(`${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content, embeds: [{ image: { url: 'https://dziki-pong.pages.dev/assets/dziki-request.gif' } }], allowed_mentions: { parse: [] } }),
+    body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
   });
 }
 
@@ -97,7 +97,11 @@ async function postStatus(env, content) {
   const response = await fetch(env.DISCORD_STATUS_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+    body: JSON.stringify({
+      content,
+      embeds: [{ image: { url: 'https://dziki-pong.pages.dev/assets/dziki-request.gif' } }],
+      allowed_mentions: { parse: [] },
+    }),
   });
   if (!response.ok) throw new Error(`Discord status webhook failed: ${response.status}`);
 }
@@ -155,12 +159,12 @@ export default {
     if (interaction.type !== 2) return ephemeral('Ta akcja Discorda nie jest obsługiwana.');
     if (env.DISCORD_GUILD_ID && interaction.guild_id !== env.DISCORD_GUILD_ID) return ephemeral('Ta komenda nie jest dostępna na tym serwerze.');
     if (env.DISCORD_CHANNEL_ID && interaction.channel_id !== env.DISCORD_CHANNEL_ID) return ephemeral('Użyj tej komendy na kanale #dziki-pong.');
-    if (interaction.data?.name !== 'dziki') return ephemeral('Nie znam tej komendy.');
+    if (interaction.data?.name !== 'dzika') return ephemeral('Nie znam tej komendy.');
 
     const subcommand = interaction.data.options?.[0];
-    if (!subcommand) return ephemeral('Wybierz prośbę albo publikowanie.');
+    if (!subcommand) return ephemeral('Wybierz zmianę albo publikowanie.');
 
-    if (subcommand.name === 'request') {
+    if (subcommand.name === 'zmiana') {
       const requestText = String(option(subcommand.options, 'text') || '').trim();
       const reason = validRequest(requestText);
       if (reason) return ephemeral(`Prośba odrzucona: ${reason}`);
