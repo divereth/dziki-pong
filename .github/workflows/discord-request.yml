@@ -62,6 +62,14 @@ jobs:
         run: |
           node --check game.js
           rm -f .github/codex/runtime-request.md codex-output.md
+          changed="$(git diff --name-only)"
+          test -n "$changed"
+          while IFS= read -r path; do
+            case "$path" in
+              game.js|index.html|style.css) ;;
+              *) echo "Blocked unexpected file change: $path"; exit 1 ;;
+            esac
+          done <<< "$changed"
           git add -A
           if git diff --cached --quiet; then
             echo "Codex made no changes."
