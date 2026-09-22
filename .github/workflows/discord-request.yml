@@ -12,6 +12,7 @@ jobs:
   request:
     if: github.event.action == 'dziki_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       REQUEST_ID: ${{ github.event.client_payload.request_id }}
       REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
