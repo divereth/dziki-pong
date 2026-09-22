@@ -29,10 +29,23 @@
   };
   const touchSides = new Map();
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let soundOn = false, audio, previous = 0, accumulator = 0;
+  let soundOn = true, audio, previous = 0, accumulator = 0;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const leftName = () => state.twoPlayer ? 'Gracz 1' : 'Komputer';
   const rightName = () => state.twoPlayer ? 'Gracz 2' : 'Ty';
+
+  function prepareAudio() {
+    if (!audio) {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return false;
+      audio = new Audio();
+    }
+    if (audio.state === 'suspended') audio.resume();
+    return true;
+  }
+
+  document.addEventListener('pointerdown', prepareAudio, { once: true });
+  document.addEventListener('keydown', prepareAudio, { once: true });
 
   function setMode(twoPlayer) {
     state.twoPlayer=twoPlayer;
@@ -315,8 +328,8 @@
   $('game-mode').addEventListener('change',event=>setMode(event.target.value==='duo'));
   $('restart').addEventListener('click',start); $('pause').addEventListener('click',pause);
   $('sound').addEventListener('click',()=>{
-    if(!audio) { const Audio = window.AudioContext || window.webkitAudioContext; if(!Audio) return; audio=new Audio(); }
-    audio.resume(); soundOn=!soundOn; $('sound').setAttribute('aria-pressed',String(soundOn));
+    if(!prepareAudio()) return;
+    soundOn=!soundOn; $('sound').setAttribute('aria-pressed',String(soundOn));
     $('sound').setAttribute('aria-label',soundOn ? 'Wyłącz dźwięk' : 'Włącz dźwięk');
     $('sound').querySelector('span').textContent=soundOn ? 'Dźwięk: wł.' : 'Dźwięk: wył.'; tone(620);
   });
