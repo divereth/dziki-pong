@@ -69,6 +69,11 @@ function validRequest(text) {
   return null;
 }
 
+function requestSummary(text) {
+  const compact = text.replace(/\s+/g, ' ').trim();
+  return compact.length > 1700 ? `${compact.slice(0, 1699)}…` : compact;
+}
+
 async function githubDispatch(env, eventType, payload) {
   const response = await fetch(`https://api.github.com/repos/${env.GITHUB_REPOSITORY}/dispatches`, {
     method: 'POST',
@@ -108,7 +113,7 @@ async function postStatus(env, content) {
 
 async function processRequest(interaction, env, requestText) {
   try {
-    await postStatus(env, '🟡 Przyjęte! Dziki pracuje nad Twoją zmianą.');
+    await postStatus(env, `🟡 Przyjęte! Dziki pracuje nad zmianą:\n> ${requestSummary(requestText)}`);
   } catch (error) {
     console.error(error);
   }
@@ -169,7 +174,7 @@ export default {
       const reason = validRequest(requestText);
       if (reason) return ephemeral(`Prośba odrzucona: ${reason}`);
       ctx.waitUntil(processRequest(interaction, env, requestText));
-      return ephemeral('✅ Przyjęte! Dziki pracuje nad Twoją zmianą.');
+      return ephemeral(`✅ Przyjęte! Dziki pracuje nad zmianą:\n> ${requestSummary(requestText)}`);
     }
 
     if (subcommand.name === 'promote') {
