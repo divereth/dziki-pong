@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
-  const W = 1000, H = 510, PW = 15, PH = 94, R = 9, LX = 30, RX = W - 30 - PW;
+  const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const obstacles = [
@@ -145,6 +145,18 @@
     b.vx = direction*speed*Math.cos(hit*1.03); b.vy = speed*Math.sin(hit*1.03);
     state.rally++; burst(b.x,b.y,direction>0 ? '#ff9a62' : '#d7ff3f'); bounceSound(direction>0 ? 340 : 520);
   }
+  function hitPaddle(b, paddleX, paddleY, direction) {
+    if (b.vx*direction>=0) return;
+    const closestX=clamp(b.x,paddleX+PR,paddleX+PW-PR);
+    const closestY=clamp(b.y,paddleY+PR,paddleY+PH-PR);
+    const dx=b.x-closestX, dy=b.y-closestY, distance=Math.hypot(dx,dy);
+    const contact=PR+R;
+    if(distance>contact) return;
+    const nx=distance>0 ? dx/distance : direction, ny=distance>0 ? dy/distance : 0;
+    if(b.vx*nx+b.vy*ny>=0) return;
+    b.x=closestX+nx*(contact+.1); b.y=closestY+ny*(contact+.1);
+    bounce(b,paddleY,direction);
+  }
   function hitObstacle(b, obstacle) {
     const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
     const contact=obstacle.radius+R;
@@ -206,15 +218,11 @@
     const steps=Math.ceil(dt*240), step=dt/steps;
     for(let s=0;s<steps;s++) {
       for(const b of [...state.balls]) {
-        const oldX=b.x;
         b.x+=b.vx*step; b.y+=b.vy*step;
         if(b.y-R<=0 && b.vy<0){b.y=R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
         if(b.y+R>=H && b.vy>0){b.y=H-R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
-        if(b.vx<0 && oldX-R>=LX+PW && b.x-R<=LX+PW && b.y+R>=state.left && b.y-R<=state.left+PH){
-          b.x=LX+PW+R;bounce(b,state.left,1);
-        }else if(b.vx>0 && oldX+R<=RX && b.x+R>=RX && b.y+R>=state.right && b.y-R<=state.right+PH){
-          b.x=RX-R;bounce(b,state.right,-1);
-        }
+        hitPaddle(b,LX,state.left,1);
+        hitPaddle(b,RX,state.right,-1);
         for(const obstacle of obstacles) hitObstacle(b,obstacle);
         if(b.x-R<=0 || b.x+R>=W){
           const who=b.x-R<=0 ? 'human' : 'cpu';
@@ -255,8 +263,8 @@
       ctx.fillText(obstacle.splitter ? (used ? '✓' : '×2') : '↔',obstacle.x,obstacle.y+1);
     }
     ctx.fillStyle='#bcaaff';ctx.fillRect(0,0,W,3);ctx.fillRect(0,H-3,W,3);
-    rounded(LX+4,state.left+5,PW,PH,6,'#30236960');rounded(RX+4,state.right+5,PW,PH,6,'#30236960');
-    rounded(LX,state.left,PW,PH,6,'#ff9a62');rounded(RX,state.right,PW,PH,6,'#d7ff3f');
+    rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
+    rounded(LX,state.left,PW,PH,PR,'#ff9a62');rounded(RX,state.right,PW,PH,PR,'#d7ff3f');
     rounded(LX+4,state.left+13,3,PH-26,2,'#ffc6a0');rounded(RX+4,state.right+13,3,PH-26,2,'#edffab');
     for(const b of state.balls){
       const color=ballColor(b);
