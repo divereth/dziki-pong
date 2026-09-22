@@ -92,11 +92,25 @@ async function followup(interaction, content) {
   });
 }
 
+async function postStatus(env, content) {
+  if (!env.DISCORD_STATUS_WEBHOOK_URL) return;
+  const response = await fetch(env.DISCORD_STATUS_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+  });
+  if (!response.ok) throw new Error(`Discord status webhook failed: ${response.status}`);
+}
+
 async function processRequest(interaction, env, requestText) {
-  const requestId = interaction.id;
+  try {
+    await postStatus(env, '🟡 Przyjęte! Dziki pracuje nad Twoją zmianą.');
+  } catch (error) {
+    console.error(error);
+  }
   try {
     await githubDispatch(env, 'dziki_request', {
-      request_id: requestId,
+      request_id: interaction.id,
       request_text: requestText,
       discord_user_id: interaction.member?.user?.id || interaction.user?.id,
       discord_user_name: userName(interaction),
@@ -104,7 +118,6 @@ async function processRequest(interaction, env, requestText) {
       is_admin: isAdmin(interaction, env),
       received_at: new Date().toISOString(),
     });
-    await followup(interaction, '✅ Przyjęte! Dziki pracuje nad Twoją zmianą. Wkrótce pojawi się wiadomość z podglądem gry.');
   } catch (error) {
     console.error(error);
     await followup(interaction, '⚠️ Nie udało się przyjąć prośby. Opiekun sprawdzi, co się stało.');
@@ -120,13 +133,11 @@ async function processPromotion(interaction, env, requestId) {
       discord_user_name: userName(interaction),
       received_at: new Date().toISOString(),
     });
-    await followup(interaction, '✅ Publikowanie uruchomione. Wkrótce dam znać, gdy zmiana będzie w grze.');
   } catch (error) {
     console.error(error);
     await followup(interaction, '⚠️ Nie udało się uruchomić publikowania. Opiekun sprawdzi, co się stało.');
   }
 }
-
 export default {
   async fetch(request, env, ctx) {
     if (request.method !== 'POST') return new Response('Dziki Pong Discord endpoint', { status: 200 });
@@ -154,7 +165,7 @@ export default {
       const reason = validRequest(requestText);
       if (reason) return ephemeral(`Request rejected: ${reason}`);
       ctx.waitUntil(processRequest(interaction, env, requestText));
-      return json({ type: 5, data: { flags: 64 } });
+      return ephemeral('✅ Przyjęte! Dziki pracuje nad Twoją zmianą.');
     }
 
     if (subcommand.name === 'promote') {
@@ -162,7 +173,7 @@ export default {
       const requestId = String(option(subcommand.options, 'request_id') || '');
       if (!/^[A-Za-z0-9_-]{3,80}$/.test(requestId)) return ephemeral('Nieprawidłowe oznaczenie prośby.');
       ctx.waitUntil(processPromotion(interaction, env, requestId));
-      return json({ type: 5, data: { flags: 64 } });
+      return ephemeral('✅ Publikowanie uruchomione.');
     }
 
     return ephemeral('Nie znam tej komendy.');
