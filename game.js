@@ -60,6 +60,25 @@
     oscillator.connect(volume); volume.connect(audio.destination);
     oscillator.start(); oscillator.stop(audio.currentTime + length);
   }
+  function bounceSound(freq) {
+    if (!soundOn || !audio) return;
+    const now = audio.currentTime;
+    const click = audio.createOscillator(), ring = audio.createOscillator();
+    const clickVolume = audio.createGain(), ringVolume = audio.createGain();
+    click.type = 'triangle'; ring.type = 'sine';
+    click.frequency.setValueAtTime(freq * 1.45, now);
+    click.frequency.exponentialRampToValueAtTime(freq, now + .045);
+    ring.frequency.setValueAtTime(freq * .8, now);
+    ring.frequency.exponentialRampToValueAtTime(freq * .45, now + .13);
+    clickVolume.gain.setValueAtTime(.07, now);
+    clickVolume.gain.exponentialRampToValueAtTime(.001, now + .055);
+    ringVolume.gain.setValueAtTime(.035, now);
+    ringVolume.gain.exponentialRampToValueAtTime(.001, now + .13);
+    click.connect(clickVolume); clickVolume.connect(audio.destination);
+    ring.connect(ringVolume); ringVolume.connect(audio.destination);
+    click.start(now); click.stop(now + .055);
+    ring.start(now); ring.stop(now + .13);
+  }
   function burst(x, y, color, count = 12) {
     if (reducedMotion) return;
     for (let i=0; i<count; i++) {
@@ -120,7 +139,7 @@
     const hit = clamp((b.y-(paddleY+PH/2))/(PH/2),-1,1);
     const speed = Math.min(MAX_SPEED, Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
     b.vx = direction*speed*Math.cos(hit*1.03); b.vy = speed*Math.sin(hit*1.03);
-    state.rally++; burst(b.x,b.y,direction>0 ? '#ff9a62' : '#d7ff3f'); tone(direction>0 ? 340 : 520);
+    state.rally++; burst(b.x,b.y,direction>0 ? '#ff9a62' : '#d7ff3f'); bounceSound(direction>0 ? 340 : 520);
   }
   function hitObstacle(b, obstacle) {
     const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
@@ -131,7 +150,7 @@
     const approach=b.vx*nx+b.vy*ny;
     if(approach>=0) return;
     b.vx-=2*approach*nx; b.vy-=2*approach*ny;
-    burst(b.x,b.y,obstacle.color); tone(obstacle.splitter ? 850 : 440);
+    burst(b.x,b.y,obstacle.color); bounceSound(obstacle.splitter ? 850 : 440);
     if(!obstacle.splitter || state.splitUsed) return;
     state.splitUsed=true;
     const speed=Math.hypot(b.vx,b.vy), angle=Math.atan2(b.vy,b.vx), spread=.28;
@@ -185,8 +204,8 @@
       for(const b of [...state.balls]) {
         const oldX=b.x;
         b.x+=b.vx*step; b.y+=b.vy*step;
-        if(b.y-R<=0 && b.vy<0){b.y=R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);tone(260);}
-        if(b.y+R>=H && b.vy>0){b.y=H-R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);tone(260);}
+        if(b.y-R<=0 && b.vy<0){b.y=R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
+        if(b.y+R>=H && b.vy>0){b.y=H-R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
         if(b.vx<0 && oldX-R>=LX+PW && b.x-R<=LX+PW && b.y+R>=state.left && b.y-R<=state.left+PH){
           b.x=LX+PW+R;bounce(b,state.left,1);
         }else if(b.vx>0 && oldX+R<=RX && b.x+R>=RX && b.y+R>=state.right && b.y-R<=state.right+PH){
