@@ -112,8 +112,9 @@ async function postStatus(env, content, mentionUserId) {
 }
 
 async function processRequest(interaction, env, requestText) {
+  const requesterId = interaction.member?.user?.id || interaction.user?.id;
   try {
-    await postStatus(env, `🟡 Przyjęte! Dziki pracuje nad zmianą:\n> ${requestSummary(requestText)}`);
+    await postStatus(env, `🟡 Dziki pracuje nad zmianą <@${requesterId}>:\n> ${requestSummary(requestText)}`, requesterId);
   } catch (error) {
     console.error(error);
   }
