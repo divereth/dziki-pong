@@ -127,7 +127,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         shell: bash
         run: |
-          npx --yes wrangler@latest pages deploy . --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" 2>&1 | tee cloudflare.log
+          for attempt in 1 2 3; do
+            if npx --yes wrangler@latest pages deploy . --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" > cloudflare.log 2>&1; then
+              cat cloudflare.log
+              break
+            else
+              status=$?
+              cat cloudflare.log
+              if [ "$attempt" -eq 3 ]; then
+                exit "$status"
+              fi
+              echo "Cloudflare preview upload failed (attempt $attempt/3); retrying in 10 seconds."
+              sleep 10
+            fi
+          done
           preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+pages.dev' cloudflare.log | tail -1 || true)"
           echo "url=$preview_url" >> "$GITHUB_OUTPUT"
 
