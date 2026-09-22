@@ -1,6 +1,7 @@
 name = "dziki-pong-discord"
 main = "src/index.js"
 compatibility_date = "2026-09-22"
+workers_dev = true
 
 [vars]
 GITHUB_REPOSITORY = "divereth/dziki-pong"
