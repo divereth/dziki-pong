@@ -61,6 +61,7 @@ jobs:
         shell: bash
         run: |
           node --check game.js
+          rm -f .github/codex/runtime-request.md codex-output.md
           git add -A
           if git diff --cached --quiet; then
             echo "Codex made no changes."
@@ -75,7 +76,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          url="$(gh pr create --base main --head "discord/$REQUEST_ID"             --title "Discord request $REQUEST_ID"             --body "Requested by $DISCORD_USER. Review the Codex-generated change before publishing.")"
+          url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "Requested by $DISCORD_USER. Review the Codex-generated change before publishing.")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Deploy request preview
@@ -92,13 +93,13 @@ jobs:
       - name: Report preview
         if: always()
         env:
-          WEBHOOK: ${{ github.event.client_payload.status_webhook_url }}
+          WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
         shell: bash
         run: |
           test -n "$WEBHOOK" || exit 0
-          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" --arg preview "$PREVIEW_URL"             '{content: ("Dziki Pong request " + $id + " is ready. PR: " + $pr + " Preview: " + $preview)}')"
+          payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" --arg preview "$PREVIEW_URL" '{content: ("Dziki Pong request " + $id + " is ready. PR: " + $pr + " Preview: " + $preview)}')"
           curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$WEBHOOK"
 
   promote:
@@ -118,4 +119,4 @@ jobs:
           esac
           number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "discord/$REQUEST_ID" --json number --jq '.[0].number')"
           test -n "$number"
-          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false             --subject "Publish Discord request $REQUEST_ID"             --body "Published by the configured Discord admin."
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
