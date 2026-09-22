@@ -88,7 +88,7 @@ async function followup(interaction, content) {
   await fetch(`${DISCORD_API}/webhooks/${interaction.application_id}/${interaction.token}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+    body: JSON.stringify({ content, embeds: [{ image: { url: 'https://dziki-pong.pages.dev/assets/dziki-request.gif' } }], allowed_mentions: { parse: [] } }),
   });
 }
 
