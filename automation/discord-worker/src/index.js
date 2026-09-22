@@ -1,6 +1,4 @@
 const DISCORD_API = 'https://discord.com/api/v10';
-const ADMINISTRATOR = 0x8n;
-
 const blockedPatterns = [
   /(?:exfiltrat|steal|dump|print).*(?:secret|token|password|cookie|key)/i,
   /(?:delete|destroy|drop|wipe).*(?:repository|repo|branch|database|github)/i,
@@ -54,12 +52,8 @@ function userName(interaction) {
 }
 
 function isAdmin(interaction, env) {
-  if ((interaction.member?.roles || []).includes(env.DISCORD_ADMIN_ROLE_ID)) return true;
-  try {
-    return (BigInt(interaction.member?.permissions || '0') & ADMINISTRATOR) === ADMINISTRATOR;
-  } catch {
-    return false;
-  }
+  const roleId = env.DISCORD_ADMIN_ROLE_ID;
+  return Boolean(roleId) && (interaction.member?.roles || []).includes(roleId);
 }
 
 function validRequest(text) {
