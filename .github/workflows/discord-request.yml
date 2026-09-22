@@ -16,6 +16,7 @@ jobs:
       REQUEST_ID: ${{ github.event.client_payload.request_id }}
       REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
       DISCORD_USER: ${{ github.event.client_payload.discord_user_name }}
+      DISCORD_USER_ID: ${{ github.event.client_payload.discord_user_id }}
       CF_PROJECT: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
     steps:
       - name: Check out main
@@ -106,7 +107,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "Requested by $DISCORD_USER. Review the Codex-generated change before publishing.")"
+          body="$(printf 'Requested by %s.\n\nDiscord requester ID: %s\n\nReview the Codex-generated change before publishing.' "$DISCORD_USER" "$DISCORD_USER_ID")"
+          url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "$body")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Report PR ready
@@ -181,6 +183,7 @@ jobs:
       REQUEST_ID: ${{ github.event.client_payload.request_id }}
     steps:
       - name: Find and merge reviewed PR
+        id: merge
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -192,37 +195,38 @@ jobs:
           number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "discord/$REQUEST_ID" --json number --jq '.[0].number')"
           test -n "$number"
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
+          body="$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
+          author_id="$(printf '%s\n' "$body" | sed -nE 's/^Discord requester ID: ([0-9]+)$/\1/p' | head -n 1)"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "author_id=$author_id" >> "$GITHUB_OUTPUT"
 
       - name: Start production deployment
+        id: dispatch
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.merge.outputs.number }}
+          AUTHOR_ID: ${{ steps.merge.outputs.author_id }}
         shell: bash
         run: |
-          gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" \
-            -f event_type=deploy_production
+          jq -n --arg id "$REQUEST_ID" --arg author "$AUTHOR_ID" --arg pr "$PR_NUMBER" \
+            '{event_type:"deploy_production",client_payload:{request_id:$id,discord_user_id:$author,pr_number:$pr}}' \
+            | gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" --input -
 
-      - name: Report publish result
+      - name: Report merge and deployment start
         if: always()
         env:
-          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
           DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
         shell: bash
         run: |
           if [ "$JOB_STATUS" = "success" ]; then
-            main_message="🚀 Zmiana zatwierdzona. Publikowanie gry zostało uruchomione!"
-            dev_message="🚀 Zlecenie $REQUEST_ID zatwierdzone, wdrożenie produkcji uruchomione. Produkcja: https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
+            message="🟣 Zlecenie $REQUEST_ID: PR #${{ steps.merge.outputs.number }} scalony. Wdrożenie produkcji uruchomione; czekam na potwierdzenie Cloudflare. GitHub Actions: $RUN_URL"
           else
-            main_message="⚠️ Publikowanie nie powiodło się. Opiekun sprawdzi sprawę."
-            dev_message="❌ Publikowanie zlecenia $REQUEST_ID nie powiodło się. Sprawdź GitHub Actions: $RUN_URL"
-          fi
-          if [ -n "$MAIN_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$main_message" '{content: $content}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
+            message="❌ Nie udało się scalić lub uruchomić wdrożenia zlecenia $REQUEST_ID. Sprawdź GitHub Actions: $RUN_URL"
           fi
           if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
+            payload="$(jq -n --arg content "$message" '{content: $content}')"
             curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
           fi
