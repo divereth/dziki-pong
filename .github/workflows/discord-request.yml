@@ -119,7 +119,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          body="$(printf 'Requested by %s.\n\nDiscord requester ID: %s\n\nReview the Codex-generated change before publishing.' "$DISCORD_USER" "$DISCORD_USER_ID")"
+          metadata="$(jq -cn --arg request_id "$REQUEST_ID" --arg author_id "$DISCORD_USER_ID" --arg request_text "$REQUEST_TEXT" '{request_id:$request_id,author_discord_id:$author_id,request_text:$request_text}')"
+          body="$(printf 'Requested by %s.\n\nDiscord requester ID: %s\n\nChange request:\n%s\n\nReview the Codex-generated change before publishing.\n\n<!-- dziki-pong-request:start -->\n%s\n<!-- dziki-pong-request:end -->' "$DISCORD_USER" "$DISCORD_USER_ID" "$REQUEST_TEXT" "$metadata")"
           url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "$body")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
@@ -208,9 +209,18 @@ jobs:
           test -n "$number"
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
           body="$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
-          author_id="$(printf '%s\n' "$body" | sed -nE 's/^Discord requester ID: ([0-9]+)$/\1/p' | head -n 1)"
+          metadata="$(printf '%s\n' "$body" | awk '/^<!-- dziki-pong-request:start -->$/ { getline; print; exit }')"
+          if [ -n "$metadata" ]; then
+            author_id="$(jq -r '.author_discord_id // empty' <<< "$metadata")"
+            request_text="$(jq -r '.request_text // empty' <<< "$metadata")"
+          else
+            author_id="$(printf '%s\n' "$body" | sed -nE 's/^Discord requester ID: ([0-9]+)$/\1/p' | head -n 1)"
+            request_text=""
+          fi
+          request_text_b64="$(printf '%s' "$request_text" | base64 -w0)"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "author_id=$author_id" >> "$GITHUB_OUTPUT"
+          echo "request_text_b64=$request_text_b64" >> "$GITHUB_OUTPUT"
 
       - name: Start production deployment
         id: dispatch
@@ -219,10 +229,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.merge.outputs.number }}
           AUTHOR_ID: ${{ steps.merge.outputs.author_id }}
+          REQUEST_TEXT_B64: ${{ steps.merge.outputs.request_text_b64 }}
         shell: bash
         run: |
-          jq -n --arg id "$REQUEST_ID" --arg author "$AUTHOR_ID" --arg pr "$PR_NUMBER" \
-            '{event_type:"deploy_production",client_payload:{request_id:$id,discord_user_id:$author,pr_number:$pr}}' \
+          jq -n --arg id "$REQUEST_ID" --arg author "$AUTHOR_ID" --arg pr "$PR_NUMBER" --arg change "$REQUEST_TEXT_B64" \
+            '{event_type:"deploy_production",client_payload:{request_id:$id,discord_user_id:$author,pr_number:$pr,request_text_b64:$change}}' \
             | gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" --input -
 
       - name: Report merge and deployment start
