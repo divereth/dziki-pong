@@ -10,3 +10,5 @@ Create one webhook in each channel:
 3. Add both secrets under **GitHub → Settings → Secrets and variables → Actions**.
 
 The public channel receives friendly Polish updates and the preview link. The developer channel receives request IDs, GitHub Actions links, pull requests, Cloudflare details, and failure diagnostics.
+
+The Worker also needs the public-channel webhook as its Cloudflare secret `DISCORD_STATUS_WEBHOOK_URL` so it can send the acknowledgement immediately. Set it with `npx wrangler secret put DISCORD_STATUS_WEBHOOK_URL --config automation/discord-worker/wrangler.toml`.
