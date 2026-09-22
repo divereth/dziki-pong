@@ -48,15 +48,15 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
-          mkdir -p work
-          base64 --decode assets/dziki-working-loop.gif.b64 > work/dziki-working-loop.gif
+          mkdir -p "$RUNNER_TEMP/dziki"
+          base64 --decode assets/dziki-working-loop.gif.b64 > "$RUNNER_TEMP/dziki/dziki-working-loop.gif"
           if [ -n "$MAIN_WEBHOOK" ]; then
             if [[ "$DISCORD_USER_ID" =~ ^[0-9]+$ ]]; then
               payload="$(jq -n --arg user "$DISCORD_USER_ID" '{content: ("🐗 Dziki pracuje nad zmianą dla <@" + $user + ">! Trzymaj kciuki."),allowed_mentions:{parse:[],users:[$user]}}')"
             else
               payload="$(jq -n '{content:"🐗 Dziki zabrał się za pracę nad zmianą! Trzymaj kciuki.",allowed_mentions:{parse:[],users:[]}}')"
             fi
-            curl --fail-with-body -sS -F "payload_json=$payload" -F "files[0]=@work/dziki-working-loop.gif;type=image/gif;filename=dziki-working-loop.gif" "$MAIN_WEBHOOK" || true
+            curl --fail-with-body -sS -F "payload_json=$payload" -F "files[0]=@$RUNNER_TEMP/dziki/dziki-working-loop.gif;type=image/gif;filename=dziki-working-loop.gif" "$MAIN_WEBHOOK" || true
           fi
           if [ -n "$DEV_WEBHOOK" ]; then
             payload="$(jq -n --arg id "$REQUEST_ID" --arg user "$DISCORD_USER" --arg run "$RUN_URL" '{content: ("🟡 Zlecenie " + $id + " rozpoczęte przez " + $user + ". Codex analizuje repozytorium. GitHub Actions: " + $run)}')"
@@ -96,7 +96,7 @@ jobs:
         run: |
           node --check game.js
           rm -f .github/codex/runtime-request.md codex-output.md
-          changed="$(git diff --name-only HEAD)"
+          changed="$({ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u)"
           test -n "$changed"
           while IFS= read -r path; do
             case "$path" in
