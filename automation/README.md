@@ -48,3 +48,7 @@ The bot itself needs `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_I
 Discord input is treated as untrusted. The bot rejects obvious destructive, secret-exfiltration, and security-bypass requests. Codex receives a second policy prompt and is limited to the game source. Every request gets its own branch, commit, PR, and preview URL. Production is changed only by the admin promotion command and the protected merge workflow.
 
 Also protect `main` in GitHub and require the workflow checks before merging. Never put tokens in Discord messages or repository files.
+
+## Cloudflare-native option
+
+For hosting without an always-on Node process, use [`discord-worker/README.md`](discord-worker/README.md). It exposes `/dziki request` and `/dziki promote` as Discord interactions and runs on Cloudflare Workers.
