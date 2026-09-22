@@ -1,3 +1,4 @@
+
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
@@ -250,6 +251,34 @@
     while (accumulator>=1/120) { update(1/120); accumulator-=1/120; }
     render(); requestAnimationFrame(frame);
   }
+  const fullscreenButton = $('fullscreen');
+  const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  function updateFullscreenButton() {
+    const active = Boolean(fullscreenElement());
+    fullscreenButton.setAttribute('aria-pressed', String(active));
+    fullscreenButton.setAttribute('aria-label', active ? 'Wyłącz pełny ekran' : 'Włącz pełny ekran');
+    fullscreenButton.querySelector('span').textContent = active ? 'Wyjdź z pełnego ekranu' : 'Pełny ekran';
+  }
+  async function toggleFullscreen() {
+    try {
+      if (fullscreenElement()) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        const root = document.documentElement;
+        if (root.requestFullscreen) await root.requestFullscreen();
+        else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+        else $('status').textContent = 'Pełny ekran niedostępny w tej przeglądarce';
+      }
+    } catch {
+      $('status').textContent = 'Nie udało się włączyć pełnego ekranu';
+    }
+    updateFullscreenButton();
+  }
+  fullscreenButton.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+  updateFullscreenButton();
   $('play').addEventListener('click',()=>state.mode==='paused' ? pause() : start());
   $('game-mode').addEventListener('change',event=>setMode(event.target.value==='duo'));
   $('restart').addEventListener('click',start); $('pause').addEventListener('click',pause);
