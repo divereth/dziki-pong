@@ -59,3 +59,6 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
   .primary{padding:7px 14px;font-size:13px}
 }
 
+/* Green game background */
+.court{background:#2f8f46}
+
