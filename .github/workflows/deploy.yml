@@ -55,11 +55,9 @@ jobs:
               main_message="✅ Zmiana została dodana do głównej wersji gry!"
             fi
             if [ -n "$change_snippet" ]; then
-              main_message="$main_message
-          > $change_snippet"
+              main_message="$(printf '%s\n> %s' "$main_message" "$change_snippet")"
             fi
-            main_message="$main_message
-          Zagraj: https://dziki-pong.pages.dev/"
+            main_message="$(printf '%s\nZagraj: https://dziki-pong.pages.dev/' "$main_message")"
             dev_message="✅ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony i produkcja wdrożona. https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
           else
             if [ -n "$AUTHOR_ID" ]; then
@@ -68,8 +66,7 @@ jobs:
               main_message="⚠️ Zmiana została scalona, ale nie udało się opublikować gry. Opiekun sprawdzi problem."
             fi
             if [ -n "$change_snippet" ]; then
-              main_message="$main_message
-          > $change_snippet"
+              main_message="$(printf '%s\n> %s' "$main_message" "$change_snippet")"
             fi
             dev_message="❌ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony, ale wdrożenie Cloudflare nie powiodło się. GitHub Actions: $RUN_URL"
           fi
