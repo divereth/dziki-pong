@@ -104,7 +104,7 @@ async function processRequest(interaction, env, requestText) {
       is_admin: isAdmin(interaction, env),
       received_at: new Date().toISOString(),
     });
-    await followup(interaction, `Queued as \`${requestId}\`. A separate Cloudflare Pages preview will be created. An admin can publish it with \`/dziki promote request_id:${requestId}\` after reviewing the PR.`);
+    await followup(interaction, `Queued as \`${requestId}\`. Progress updates and the Cloudflare Pages preview URL will be posted in this channel. An admin can publish it with \`/dziki promote request_id:${requestId}\` after reviewing the PR.`);
   } catch (error) {
     console.error(error);
     await followup(interaction, 'The request could not be queued. Check the Worker logs.');
