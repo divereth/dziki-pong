@@ -33,6 +33,7 @@ jobs:
           DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           REQUEST_ID: ${{ github.event.client_payload.request_id }}
           AUTHOR_ID: ${{ github.event.client_payload.discord_user_id }}
+          REQUEST_TEXT_B64: ${{ github.event.client_payload.request_text_b64 }}
           PR_NUMBER: ${{ github.event.client_payload.pr_number }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
@@ -45,24 +46,42 @@ jobs:
           case "$AUTHOR_ID" in
             *[!0-9]*) AUTHOR_ID="" ;;
           esac
+          change_text="$(printf '%s' "$REQUEST_TEXT_B64" | base64 --decode 2>/dev/null || true)"
+          change_snippet="$(jq -nr --arg text "$change_text" '$text | gsub("[[:space:]]+"; " ") | .[0:240]')"
           if [ "$JOB_STATUS" = "success" ]; then
             if [ -n "$AUTHOR_ID" ]; then
-              main_message="✅ Zmiana zlecona przez <@$AUTHOR_ID> została scalona i opublikowana! Zagraj: https://dziki-pong.pages.dev/"
-              payload="$(jq -n --arg content "$main_message" --arg id "$AUTHOR_ID" '{content:$content,allowed_mentions:{parse:[],users:[$id]}}')"
+              main_message="✅ Zmiana wymyślona przez **<@$AUTHOR_ID>** została dodana do głównej wersji gry!"
             else
-              main_message="✅ Zmiana została scalona i opublikowana! Zagraj: https://dziki-pong.pages.dev/"
-              payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
+              main_message="✅ Zmiana została dodana do głównej wersji gry!"
             fi
+            if [ -n "$change_snippet" ]; then
+              main_message="$main_message
+          > $change_snippet"
+            fi
+            main_message="$main_message
+          Zagraj: https://dziki-pong.pages.dev/"
             dev_message="✅ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony i produkcja wdrożona. https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
           else
-            main_message="⚠️ Zmiana została scalona, ale publikacja gry nie powiodła się. Opiekun sprawdzi problem."
-            payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
+            if [ -n "$AUTHOR_ID" ]; then
+              main_message="⚠️ Zmiana wymyślona przez **<@$AUTHOR_ID>** została scalona, ale nie udało się opublikować gry. Opiekun sprawdzi problem."
+            else
+              main_message="⚠️ Zmiana została scalona, ale nie udało się opublikować gry. Opiekun sprawdzi problem."
+            fi
+            if [ -n "$change_snippet" ]; then
+              main_message="$main_message
+          > $change_snippet"
+            fi
             dev_message="❌ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony, ale wdrożenie Cloudflare nie powiodło się. GitHub Actions: $RUN_URL"
           fi
           if [ -n "$MAIN_WEBHOOK" ]; then
+            if [ -n "$AUTHOR_ID" ]; then
+              payload="$(jq -n --arg content "$main_message" --arg id "$AUTHOR_ID" '{content:$content,allowed_mentions:{parse:[],users:[$id]}}')"
+            else
+              payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
+            fi
             curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
           fi
           if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$dev_message" '{content:$content}')"
+            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
             curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
           fi
