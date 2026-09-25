@@ -260,8 +260,8 @@
   }
   function render() {
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='#6250cb'; ctx.fillRect(0,0,W,H);
-    const shade=ctx.createLinearGradient(0,0,W,H); shade.addColorStop(0,'#8b65e040'); shade.addColorStop(1,'#3422a440'); ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#2f8f46'; ctx.fillRect(0,0,W,H);
+    const shade=ctx.createLinearGradient(0,0,W,H); shade.addColorStop(0,'#69b85d40'); shade.addColorStop(1,'#155a2a80'); ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
     ctx.strokeStyle='#c9b6ff12';ctx.lineWidth=1;
     ctx.beginPath();for(let x=0;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=15;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
     ctx.strokeStyle='#d7c9ff55';ctx.lineWidth=2;ctx.setLineDash([10,13]);ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
