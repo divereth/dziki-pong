@@ -7,14 +7,14 @@
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
-  const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
+  const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const MIN_BALL_SCALE = .2, MAX_BALL_SCALE = 5, BALL_SIZE_CHANGE = 1.5;
   const obstacles = [];
   const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
   const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
   const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', fireball: '#ff6848', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
-  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, FIREBALL_SPEED = 1/FROZEN_SPEED;
+  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, FIREBALL_SPEED = 1.5;
   const PADDLE_EFFECT_DURATION = 30, PADDLE_FROZEN_SPEED = .4;
   function makeBall(x, y, vx, vy) {
     return { x, y, vx, vy, sizeScale: 1, trail: [], effect: null };
@@ -521,7 +521,7 @@
         ctx.fillStyle='#080711';ctx.fill();
       } else {
         ctx.fillStyle='#302369';ctx.font='900 20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='fireball' ? '🔥' : obstacle.kind==='grower' ? '↑' : obstacle.kind==='shrinker' ? '↓' : '';
+        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='fireball' ? '🔥' : obstacle.kind==='grower' ? '+' : obstacle.kind==='shrinker' ? '-' : '';
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
     }
