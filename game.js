@@ -7,14 +7,16 @@
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
+  const MIN_BALL_SCALE = .2, MAX_BALL_SCALE = 5, BALL_SIZE_CHANGE = 1.5;
   const obstacles = [];
   const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
   const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
-  const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', blackhole: '#21172f' };
+  const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
   const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, PADDLE_FROZEN_SPEED = .35;
   function makeBall(x, y, vx, vy) {
-    return { x, y, vx, vy, trail: [], frozen: false };
+    return { x, y, vx, vy, sizeScale: 1, trail: [], frozen: false };
   }
+  function ballRadius(ball) { return R * ball.sizeScale; }
   function ballColor(ball) {
     const red = clamp((Math.hypot(ball.vx, ball.vy)-SERVE_SPEED)/(MAX_SPEED-SERVE_SPEED),0,1);
     return `hsl(${51*(1-red)} 100% 50%)`;
@@ -117,8 +119,8 @@
     const splitters = obstacles.filter(obstacle => obstacle.kind === 'splitter').length;
     const hasBlackHole = obstacles.some(obstacle => obstacle.kind === 'blackhole');
     const kinds = splitters < MAX_SPLITTERS
-      ? ['bumper', 'bumper', 'splitter', 'freezer']
-      : ['bumper', 'bumper', 'bumper', 'freezer'];
+      ? ['bumper', 'bumper', 'splitter', 'freezer', 'grower', 'shrinker']
+      : ['bumper', 'bumper', 'bumper', 'freezer', 'grower', 'shrinker'];
     if (!hasBlackHole) kinds.push('blackhole');
     const kind = kinds[Math.floor(Math.random()*kinds.length)];
     const shape = kind === 'blackhole' ? 'circle' : SHAPES[Math.floor(Math.random()*SHAPES.length)];
@@ -137,7 +139,7 @@
       const clearServes = servePoints.every(point =>
         Math.hypot(obstacle.x-point.x,obstacle.y-point.y) > obstacle.size+R+12);
       const clearBalls = state.balls.every(ball =>
-        Math.hypot(obstacle.x-ball.x,obstacle.y-ball.y) > obstacle.size+R+12);
+        Math.hypot(obstacle.x-ball.x,obstacle.y-ball.y) > obstacle.size+ballRadius(ball)+12);
       if (clearObstacles && clearServes && clearBalls) {
         obstacles.push(obstacle);
         return obstacle;
@@ -148,7 +150,7 @@
       obstacle.x=x; obstacle.y=y;
       if (obstacles.every(existing => Math.hypot(x-existing.x,y-existing.y) > obstacle.size+existing.size+4)
         && servePoints.every(point => Math.hypot(x-point.x,y-point.y) > obstacle.size+R+4)
-        && state.balls.every(ball => Math.hypot(x-ball.x,y-ball.y) > obstacle.size+R+4)) {
+        && state.balls.every(ball => Math.hypot(x-ball.x,y-ball.y) > obstacle.size+ballRadius(ball)+4)) {
         obstacles.push(obstacle);
         return obstacle;
       }
@@ -165,7 +167,7 @@
       Math.hypot(x-W/2,y-H/2) > 55
       && otherObstacles.every(existing => Math.hypot(x-existing.x,y-existing.y) > obstacle.size+existing.size+margin)
       && servePoints.every(point => Math.hypot(x-point.x,y-point.y) > obstacle.size+R+margin)
-      && otherBalls.every(ball => Math.hypot(x-ball.x,y-ball.y) > obstacle.size+R+margin);
+      && otherBalls.every(ball => Math.hypot(x-ball.x,y-ball.y) > obstacle.size+ballRadius(ball)+margin);
     for (let attempt=0; attempt<120; attempt++) {
       const x=175+Math.random()*(W-350), y=55+Math.random()*(H-110);
       if (isClear(x,y,12)) { obstacle.x=x; obstacle.y=y; return; }
@@ -205,7 +207,8 @@
     state[who]++; scores(); tone(who === 'human' ? 740 : 180,.2,'triangle');
     if ((state.cpu+state.human)%2===0) {
       const obstacle=addObstacle();
-      const name=obstacle.kind==='splitter' ? 'rozdzielacz' : obstacle.kind==='freezer' ? 'lodowa przeszkoda' : obstacle.kind==='blackhole' ? 'czarna dziura' : 'odbijacz';
+      const obstacleNames = { splitter: 'rozdzielacz', freezer: 'lodowa przeszkoda', blackhole: 'czarna dziura', grower: 'powiększacz', shrinker: 'pomniejszacz', bumper: 'odbijacz' };
+      const name=obstacleNames[obstacle.kind];
       $('announcement').textContent += ` Nowa przeszkoda: ${name}.`;
     }
     if (state[who] === 10) {
@@ -234,10 +237,11 @@
   }
   function hitPaddle(b, paddleX, paddleY, direction) {
     if (b.vx*direction>=0) return;
+    const radius=ballRadius(b);
     const closestX=clamp(b.x,paddleX+PR,paddleX+PW-PR);
     const closestY=clamp(b.y,paddleY+PR,paddleY+PH-PR);
     const dx=b.x-closestX, dy=b.y-closestY, distance=Math.hypot(dx,dy);
-    const contact=PR+R;
+    const contact=PR+radius;
     if(distance>contact) return;
     const nx=distance>0 ? dx/distance : direction, ny=distance>0 ? dy/distance : 0;
     if(b.vx*nx+b.vy*ny>=0) return;
@@ -253,9 +257,10 @@
     });
   }
   function obstacleContact(b, obstacle) {
+    const radius=ballRadius(b);
     if (obstacle.shape==='circle') {
       const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
-      if (distance>obstacle.size+R) return null;
+      if (distance>obstacle.size+radius) return null;
       const nx=distance>0 ? dx/distance : 1, ny=distance>0 ? dy/distance : 0;
       return {x:obstacle.x+nx*obstacle.size,y:obstacle.y+ny*obstacle.size,nx,ny};
     }
@@ -270,7 +275,7 @@
       area+=a.x*c.y-c.x*a.y;
       if ((a.y>b.y)!==(c.y>b.y) && b.x<(c.x-a.x)*(b.y-a.y)/(c.y-a.y)+a.x) inside=!inside;
     }
-    if (!inside && nearestDistance>R) return null;
+    if (!inside && nearestDistance>radius) return null;
     const outward=area>=0 ? {x:nearest.dy,y:-nearest.dx} : {x:-nearest.dy,y:nearest.dx};
     const length=Math.hypot(outward.x,outward.y);
     const nx=inside || nearestDistance===0 ? outward.x/length : (b.x-nearest.x)/nearestDistance;
@@ -284,8 +289,15 @@
     const {nx,ny}=contact;
     const approach=b.vx*nx+b.vy*ny;
     if(approach>=0) return;
-    b.x=contact.x+nx*(R+.1); b.y=contact.y+ny*(R+.1);
     b.vx-=2*approach*nx; b.vy-=2*approach*ny;
+    if (obstacle.kind==='grower' || obstacle.kind==='shrinker') {
+      const change=obstacle.kind==='grower' ? BALL_SIZE_CHANGE : 1/BALL_SIZE_CHANGE;
+      b.sizeScale=clamp(b.sizeScale*change,MIN_BALL_SCALE,MAX_BALL_SCALE);
+      $('status').textContent=obstacle.kind==='grower' ? 'Piłka powiększona!' : 'Piłka pomniejszona!';
+      $('announcement').textContent=$('status').textContent;
+    }
+    const radius=ballRadius(b);
+    b.x=contact.x+nx*(radius+.1); b.y=contact.y+ny*(radius+.1);
     burst(b.x,b.y,obstacle.color); bounceSound(obstacle.kind==='splitter' ? 850 : 440);
     if (obstacle.kind==='freezer' && !b.frozen) {
       b.vx*=FROZEN_SPEED; b.vy*=FROZEN_SPEED; b.frozen=true;
@@ -294,21 +306,21 @@
     if(obstacle.kind!=='splitter' || state.splitUsed) return;
     state.splitUsed=true;
     const speed=Math.hypot(b.vx,b.vy), angle=Math.atan2(b.vy,b.vx), spread=.28;
-    const tx=-ny, ty=nx, separation=R+2;
+    const tx=-ny, ty=nx, separation=ballRadius(b)+2;
     const contactX=b.x, contactY=b.y;
     b.x+=tx*separation; b.y+=ty*separation;
     b.vx=Math.cos(angle+spread)*speed; b.vy=Math.sin(angle+spread)*speed;
     b.trail=[];
     const copy=makeBall(contactX-tx*separation,contactY-ty*separation,
       Math.cos(angle-spread)*speed,Math.sin(angle-spread)*speed);
-    copy.frozen=b.frozen;
+    copy.frozen=b.frozen; copy.sizeScale=b.sizeScale;
     state.balls.push(copy);
     $('status').textContent='Dwie piłki! Każda daje osobny punkt';
     $('announcement').textContent='Rozdwojenie! Na planszy są teraz dwie piłki.';
     burst(obstacle.x,obstacle.y,obstacle.color,24);
   }
   function captureInBlackHole(b, obstacle) {
-    if (obstacle.occupied || Math.hypot(b.x-obstacle.x,b.y-obstacle.y)>obstacle.size*.4) return false;
+    if (obstacle.occupied || Math.hypot(b.x-obstacle.x,b.y-obstacle.y)>obstacle.size*.4+ballRadius(b)) return false;
     obstacle.occupied=true;
     b.capturedBy=obstacle; b.captureTime=BLACK_HOLE_HOLD_TIME;
     b.x=obstacle.x; b.y=obstacle.y; b.vx=b.vy=0; b.trail=[];
@@ -321,9 +333,9 @@
     if (obstacle.kind!=='blackhole' || obstacle.occupied) return;
     const dx=obstacle.x-b.x, dy=obstacle.y-b.y, distance=Math.hypot(dx,dy);
     if (distance<=obstacle.size*.4) return;
-    const range=obstacle.size*3.5;
+    const range=obstacle.size*3.5*1.5;
     if (distance>=range) return;
-    const acceleration=1500*(1-distance/range);
+    const acceleration=2250*(1-distance/range);
     b.vx+=dx/distance*acceleration*dt; b.vy+=dy/distance*acceleration*dt;
     const speed=Math.hypot(b.vx,b.vy);
     if(speed>MAX_SPEED){b.vx*=MAX_SPEED/speed;b.vy*=MAX_SPEED/speed;}
@@ -336,7 +348,7 @@
     obstacle.occupied=false;
     relocateBlackHole(obstacle,b);
     b.capturedBy=null; b.captureTime=0;
-    b.x=startX+ux*(obstacle.size+R+2); b.y=startY+uy*(obstacle.size+R+2);
+    b.x=startX+ux*(obstacle.size+ballRadius(b)+2); b.y=startY+uy*(obstacle.size+ballRadius(b)+2);
     b.vx=ux*SERVE_SPEED*1.35; b.vy=uy*SERVE_SPEED*1.35; b.trail=[];
     burst(startX,startY,obstacle.color,24); burst(obstacle.x,obstacle.y,obstacle.color,16);
     $('status').textContent='Piłka wystrzelona z czarnej dziury w stronę środka planszy';
@@ -391,13 +403,15 @@
           if (obstacle.kind==='blackhole' && captureInBlackHole(b,obstacle)) break;
         }
         if (b.capturedBy) continue;
-        if(b.y-R<=0 && b.vy<0){b.y=R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
-        if(b.y+R>=H && b.vy>0){b.y=H-R;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
+        let radius=ballRadius(b);
+        if(b.y-radius<=0 && b.vy<0){b.y=radius;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
+        if(b.y+radius>=H && b.vy>0){b.y=H-radius;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
         hitPaddle(b,LX,state.left,1);
         hitPaddle(b,RX,state.right,-1);
         for(const obstacle of obstacles) hitObstacle(b,obstacle);
-        if(b.x-R<=0 || b.x+R>=W){
-          const who=b.x-R<=0 ? 'human' : 'cpu';
+        radius=ballRadius(b);
+        if(b.x-radius<=0 || b.x+radius>=W){
+          const who=b.x-radius<=0 ? 'human' : 'cpu';
           state.balls=state.balls.filter(active=>active!==b);
           point(who);
           if(state.mode==='ended') return;
@@ -447,7 +461,7 @@
         ctx.fillStyle='#080711';ctx.fill();
       } else {
         ctx.fillStyle='#302369';ctx.font='900 20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : '';
+        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='grower' ? '↑' : obstacle.kind==='shrinker' ? '↓' : '';
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
     }
@@ -461,9 +475,10 @@
     for(const b of state.balls){
       if(b.capturedBy)continue;
       const color=ballColor(b);
-      if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,R*(1-i/20),0,Math.PI*2);ctx.fill();});
-      ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-      if(b.frozen){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,R+3,0,Math.PI*2);ctx.stroke();}
+      const radius=ballRadius(b);
+      if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,radius*(1-i/20),0,Math.PI*2);ctx.fill();});
+      ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,radius,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      if(b.frozen){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
     }
     for(const p of particles){ctx.globalAlpha=p.life*2;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
   }
