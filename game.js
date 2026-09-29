@@ -7,20 +7,20 @@
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
-  const obstacles = [
-    { x: W/2, y: 95, radius: 26, color: '#ff9a62' },
-    { x: W/2, y: H/2, radius: 30, color: '#55f1ed', splitter: true },
-    { x: W/2, y: H-95, radius: 26, color: '#ff9a62' },
-  ];
+  const obstacles = [];
+  const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
+  const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
+  const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff' };
+  const MAX_SPLITTERS = 2, PADDLE_FREEZE_TIME = 2.5, FROZEN_SPEED = .58, PADDLE_FROZEN_SPEED = .35;
   function makeBall(x, y, vx, vy) {
-    return { x, y, vx, vy, trail: [] };
+    return { x, y, vx, vy, trail: [], frozen: false };
   }
   function ballColor(ball) {
     const red = clamp((Math.hypot(ball.vx, ball.vy)-SERVE_SPEED)/(MAX_SPEED-SERVE_SPEED),0,1);
     return `hsl(${51*(1-red)} 100% 50%)`;
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
-    balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false,
+    balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, frozen: { left: 0, right: 0 },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
   const keys = new Set(), particles = [];
   const controls = {
@@ -109,13 +109,56 @@
   }
   function serve(direction) {
     const angle = Math.random()*.7-.35;
-    // Start outside the splitter so a new serve never activates it automatically.
+    // Keep serves clear of the center obstacle field.
     state.balls = [makeBall(W/2+direction*90,H/2,direction*SERVE_SPEED*Math.cos(angle),SERVE_SPEED*Math.sin(angle))];
     state.delay = 1; state.rally = 0; state.splitUsed = false;
+  }
+  function addObstacle() {
+    const splitters = obstacles.filter(obstacle => obstacle.kind === 'splitter').length;
+    const kinds = splitters < MAX_SPLITTERS
+      ? ['bumper', 'bumper', 'splitter', 'freezer']
+      : ['bumper', 'bumper', 'bumper', 'freezer'];
+    const kind = kinds[Math.floor(Math.random()*kinds.length)];
+    const shape = SHAPES[Math.floor(Math.random()*SHAPES.length)];
+    const size = 25 + Math.random()*6;
+    const rotation=shape==='square' ? Math.PI/4 : shape==='diamond' ? 0 : Math.random()*Math.PI*2;
+    const obstacle = {
+      x: 0, y: 0, size, shape, rotation,
+      kind, color: OBSTACLE_COLORS[kind],
+    };
+    const servePoints = [{x: W/2-90,y:H/2},{x: W/2+90,y:H/2}];
+    for (let attempt=0; attempt<120; attempt++) {
+      obstacle.x = 175 + Math.random()*(W-350);
+      obstacle.y = 55 + Math.random()*(H-110);
+      const clearObstacles = obstacles.every(existing =>
+        Math.hypot(obstacle.x-existing.x,obstacle.y-existing.y) > obstacle.size+existing.size+12);
+      const clearServes = servePoints.every(point =>
+        Math.hypot(obstacle.x-point.x,obstacle.y-point.y) > obstacle.size+R+12);
+      const clearBalls = state.balls.every(ball =>
+        Math.hypot(obstacle.x-ball.x,obstacle.y-ball.y) > obstacle.size+R+12);
+      if (clearObstacles && clearServes && clearBalls) {
+        obstacles.push(obstacle);
+        return obstacle;
+      }
+    }
+    // A deterministic grid fallback keeps each scheduled obstacle spawn reliable.
+    for (let y=65; y<H-55; y+=70) for (let x=180; x<W-180; x+=75) {
+      obstacle.x=x; obstacle.y=y;
+      if (obstacles.every(existing => Math.hypot(x-existing.x,y-existing.y) > obstacle.size+existing.size+4)
+        && servePoints.every(point => Math.hypot(x-point.x,y-point.y) > obstacle.size+R+4)
+        && state.balls.every(ball => Math.hypot(x-ball.x,y-ball.y) > obstacle.size+R+4)) {
+        obstacles.push(obstacle);
+        return obstacle;
+      }
+    }
+    // The court has ample room for the nine obstacles possible in one match.
+    obstacles.push(obstacle);
+    return obstacle;
   }
   function start() {
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
     state.mode = 'playing'; state.aiTimer = 0; resetControls();
+    obstacles.length = 0; state.frozen.left = state.frozen.right = 0;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').textContent = 'Ⅱ Pauza';
     $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('round-message').textContent = 'Pierwszy serwis!';
@@ -140,6 +183,11 @@
   }
   function point(who) {
     state[who]++; scores(); tone(who === 'human' ? 740 : 180,.2,'triangle');
+    if ((state.cpu+state.human)%2===0) {
+      const obstacle=addObstacle();
+      const name=obstacle.kind==='splitter' ? 'rozdzielacz' : obstacle.kind==='freezer' ? 'lodowa przeszkoda' : 'odbijacz';
+      $('announcement').textContent += ` Nowa przeszkoda: ${name}.`;
+    }
     if (state[who] === 10) {
       state.mode = 'ended'; $('pause').disabled = true; $('round-message').textContent = '';
       resetControls();
@@ -154,8 +202,14 @@
   }
   function bounce(b, paddleY, direction) {
     const hit = clamp((b.y-(paddleY+PH/2))/(PH/2),-1,1);
-    const speed = Math.min(MAX_SPEED, Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
+    const side=direction>0 ? 'left' : 'right';
+    const speed = b.frozen ? SERVE_SPEED : Math.min(MAX_SPEED, Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
     b.vx = direction*speed*Math.cos(hit*1.03); b.vy = speed*Math.sin(hit*1.03);
+    if (b.frozen) {
+      state.frozen[side]=PADDLE_FREEZE_TIME;
+      b.frozen=false;
+      $('status').textContent=`Platforma ${side==='left' ? leftName() : rightName()} zamrożona; piłka wróciła do prędkości startowej`;
+    }
     state.rally++; burst(b.x,b.y,direction>0 ? '#ff9a62' : '#d7ff3f'); bounceSound(direction>0 ? 340 : 520);
   }
   function hitPaddle(b, paddleX, paddleY, direction) {
@@ -170,26 +224,63 @@
     b.x=closestX+nx*(contact+.1); b.y=closestY+ny*(contact+.1);
     bounce(b,paddleY,direction);
   }
+  function obstacleVertices(obstacle) {
+    const sides=SHAPE_SIDES[obstacle.shape];
+    if (!sides) return null;
+    return Array.from({length:sides},(_,index)=>{
+      const angle=obstacle.rotation+index*Math.PI*2/sides;
+      return {x:obstacle.x+Math.cos(angle)*obstacle.size,y:obstacle.y+Math.sin(angle)*obstacle.size};
+    });
+  }
+  function obstacleContact(b, obstacle) {
+    if (obstacle.shape==='circle') {
+      const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
+      if (distance>obstacle.size+R) return null;
+      const nx=distance>0 ? dx/distance : 1, ny=distance>0 ? dy/distance : 0;
+      return {x:obstacle.x+nx*obstacle.size,y:obstacle.y+ny*obstacle.size,nx,ny};
+    }
+    const vertices=obstacleVertices(obstacle);
+    let nearest=null, nearestDistance=Infinity, area=0, inside=false;
+    for (let i=0,j=vertices.length-1;i<vertices.length;j=i++) {
+      const a=vertices[j], c=vertices[i], dx=c.x-a.x, dy=c.y-a.y;
+      const lengthSquared=dx*dx+dy*dy;
+      const projection=clamp(((b.x-a.x)*dx+(b.y-a.y)*dy)/lengthSquared,0,1);
+      const x=a.x+projection*dx, y=a.y+projection*dy, distance=Math.hypot(b.x-x,b.y-y);
+      if (distance<nearestDistance) nearest={x,y,dx,dy,distance}, nearestDistance=distance;
+      area+=a.x*c.y-c.x*a.y;
+      if ((a.y>b.y)!==(c.y>b.y) && b.x<(c.x-a.x)*(b.y-a.y)/(c.y-a.y)+a.x) inside=!inside;
+    }
+    if (!inside && nearestDistance>R) return null;
+    const outward=area>=0 ? {x:nearest.dy,y:-nearest.dx} : {x:-nearest.dy,y:nearest.dx};
+    const length=Math.hypot(outward.x,outward.y);
+    const nx=inside || nearestDistance===0 ? outward.x/length : (b.x-nearest.x)/nearestDistance;
+    const ny=inside || nearestDistance===0 ? outward.y/length : (b.y-nearest.y)/nearestDistance;
+    return {x:nearest.x,y:nearest.y,nx,ny};
+  }
   function hitObstacle(b, obstacle) {
-    const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
-    const contact=obstacle.radius+R;
-    if(distance>contact) return;
-    const nx=distance>0 ? dx/distance : 1, ny=distance>0 ? dy/distance : 0;
-    b.x=obstacle.x+nx*(contact+.1); b.y=obstacle.y+ny*(contact+.1);
+    const contact=obstacleContact(b,obstacle);
+    if (!contact) return;
+    const {nx,ny}=contact;
     const approach=b.vx*nx+b.vy*ny;
     if(approach>=0) return;
+    b.x=contact.x+nx*(R+.1); b.y=contact.y+ny*(R+.1);
     b.vx-=2*approach*nx; b.vy-=2*approach*ny;
-    burst(b.x,b.y,obstacle.color); bounceSound(obstacle.splitter ? 850 : 440);
-    if(!obstacle.splitter || state.splitUsed) return;
+    burst(b.x,b.y,obstacle.color); bounceSound(obstacle.kind==='splitter' ? 850 : 440);
+    if (obstacle.kind==='freezer' && !b.frozen) {
+      b.vx*=FROZEN_SPEED; b.vy*=FROZEN_SPEED; b.frozen=true;
+      $('status').textContent='Piłka spowolniona! Odbij ją od platformy, by ją zamrozić';
+    }
+    if(obstacle.kind!=='splitter' || state.splitUsed) return;
     state.splitUsed=true;
     const speed=Math.hypot(b.vx,b.vy), angle=Math.atan2(b.vy,b.vx), spread=.28;
     const tx=-ny, ty=nx, separation=R+2;
+    const contactX=b.x, contactY=b.y;
     b.x+=tx*separation; b.y+=ty*separation;
     b.vx=Math.cos(angle+spread)*speed; b.vy=Math.sin(angle+spread)*speed;
     b.trail=[];
-    const copy=makeBall(obstacle.x+nx*(contact+.1)-tx*separation,
-      obstacle.y+ny*(contact+.1)-ty*separation,
+    const copy=makeBall(contactX-tx*separation,contactY-ty*separation,
       Math.cos(angle-spread)*speed,Math.sin(angle-spread)*speed);
+    copy.frozen=b.frozen;
     state.balls.push(copy);
     $('status').textContent='Dwie piłki! Każda daje osobny punkt';
     $('announcement').textContent='Rozdwojenie! Na planszy są teraz dwie piłki.';
@@ -198,6 +289,8 @@
   function update(dt) {
     if (state.mode !== 'playing') return;
     state.time += dt;
+    state.frozen.left=Math.max(0,state.frozen.left-dt);
+    state.frozen.right=Math.max(0,state.frozen.right-dt);
     for (let i=particles.length-1;i>=0;i--) {
       const p=particles[i]; p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
       if(p.life<=0) particles.splice(i,1);
@@ -219,7 +312,8 @@
       state.aiTarget = threat ? threat.y+Math.sin(state.time*2.7)*24 : H/2;
     }
     const aiDistance = state.aiTarget-(state.left+PH/2);
-    if (Math.abs(aiDistance)>9) state.left += clamp(aiDistance,-COMPUTER_SPEED*dt,COMPUTER_SPEED*dt);
+    const aiSpeed=COMPUTER_SPEED*(state.frozen.left>0 ? PADDLE_FROZEN_SPEED : 1);
+    if (Math.abs(aiDistance)>9) state.left += clamp(aiDistance,-aiSpeed*dt,aiSpeed*dt);
     state.left = clamp(state.left,0,H-PH);
     }
     if (state.delay>0) {
@@ -258,6 +352,16 @@
   function rounded(x,y,w,h,r,color) {
     ctx.fillStyle=color; ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill();
   }
+  function obstaclePath(obstacle, offsetX=0, offsetY=0) {
+    ctx.beginPath();
+    if(obstacle.shape==='circle') ctx.arc(obstacle.x+offsetX,obstacle.y+offsetY,obstacle.size,0,Math.PI*2);
+    else {
+      const vertices=obstacleVertices(obstacle);
+      ctx.moveTo(vertices[0].x+offsetX,vertices[0].y+offsetY);
+      for(let i=1;i<vertices.length;i++)ctx.lineTo(vertices[i].x+offsetX,vertices[i].y+offsetY);
+      ctx.closePath();
+    }
+  }
   function render() {
     ctx.clearRect(0,0,W,H);
     ctx.fillStyle='#6250cb'; ctx.fillRect(0,0,W,H);
@@ -267,22 +371,26 @@
     ctx.strokeStyle='#d7c9ff55';ctx.lineWidth=2;ctx.setLineDash([10,13]);ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
     ctx.strokeStyle='#d7c9ff29';ctx.beginPath();ctx.arc(W/2,H/2,65,0,Math.PI*2);ctx.stroke();
     for(const obstacle of obstacles){
-      const used=obstacle.splitter && state.splitUsed;
-      ctx.fillStyle='#30236970';ctx.beginPath();ctx.arc(obstacle.x+4,obstacle.y+5,obstacle.radius,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle=used ? '#9385ba' : obstacle.color;
-      ctx.beginPath();ctx.arc(obstacle.x,obstacle.y,obstacle.radius,0,Math.PI*2);ctx.fill();
+      const used=obstacle.kind==='splitter' && state.splitUsed;
+      obstaclePath(obstacle,4,5);ctx.fillStyle='#30236970';ctx.fill();
+      obstaclePath(obstacle);ctx.fillStyle=used ? '#9385ba' : obstacle.color;ctx.fill();
       ctx.strokeStyle=used ? '#b5a9d0' : '#fff9';ctx.lineWidth=2;ctx.stroke();
       ctx.fillStyle='#302369';ctx.font='900 20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(obstacle.splitter ? (used ? '✓' : '×2') : '↔',obstacle.x,obstacle.y+1);
+      const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : '↔';
+      ctx.fillText(symbol,obstacle.x,obstacle.y+1);
     }
     ctx.fillStyle='#bcaaff';ctx.fillRect(0,0,W,3);ctx.fillRect(0,H-3,W,3);
+    const leftFrozen=state.frozen.left>0, rightFrozen=state.frozen.right>0;
     rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
-    rounded(LX,state.left,PW,PH,PR,'#ff9a62');rounded(RX,state.right,PW,PH,PR,'#d7ff3f');
-    rounded(LX+4,state.left+13,3,PH-26,2,'#ffc6a0');rounded(RX+4,state.right+13,3,PH-26,2,'#edffab');
+    rounded(LX,state.left,PW,PH,PR,leftFrozen ? '#8fe8ff' : '#ff9a62');
+    rounded(RX,state.right,PW,PH,PR,rightFrozen ? '#8fe8ff' : '#d7ff3f');
+    rounded(LX+4,state.left+13,3,PH-26,2,leftFrozen ? '#e8fbff' : '#ffc6a0');
+    rounded(RX+4,state.right+13,3,PH-26,2,rightFrozen ? '#e8fbff' : '#edffab');
     for(const b of state.balls){
       const color=ballColor(b);
       if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,R*(1-i/20),0,Math.PI*2);ctx.fill();});
       ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      if(b.frozen){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,R+3,0,Math.PI*2);ctx.stroke();}
     }
     for(const p of particles){ctx.globalAlpha=p.life*2;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
   }
@@ -352,19 +460,20 @@
   }
   function movePlayer(side, movement, dt) {
     const control=controls[side];
+    const speedScale=state.frozen[side]>0 ? PADDLE_FROZEN_SPEED : 1;
     const touching=control.pointerId!==null;
     if(movement && !touching)control.target=null;
     if(control.target!==null) {
       // An active finger owns its paddle; keyboard and mouse cannot fight it.
       control.velocity=0;
-      state[side]+=clamp(control.target-PH/2-state[side],-POINTER_SPEED*dt,POINTER_SPEED*dt);
+      state[side]+=clamp(control.target-PH/2-state[side],-POINTER_SPEED*speedScale*dt,POINTER_SPEED*speedScale*dt);
     } else {
       const desired=movement*KEYBOARD_SPEED, oldVelocity=control.velocity;
       const rate=!movement ? 42 : oldVelocity*desired<0 ? 28 : 16;
       const decay=Math.exp(-rate*dt);
       control.velocity=desired+(oldVelocity-desired)*decay;
       // Exact integration of exponential easing makes short taps consistent.
-      state[side]+=desired*dt+(oldVelocity-desired)*(1-decay)/rate;
+      state[side]+=(desired*dt+(oldVelocity-desired)*(1-decay)/rate)*speedScale;
       if(!movement && Math.abs(control.velocity)<2)control.velocity=0;
     }
     state[side]=clamp(state[side],0,H-PH);
