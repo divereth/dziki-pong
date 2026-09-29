@@ -8,19 +8,22 @@
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const obstacles = [
-    { x: W/2, y: 95, radius: 26, color: '#ff9a62' },
+    { x: W/2, y: 95, radius: 26, color: '#ff9a62', hazard: 'ice' },
     { x: W/2, y: H/2, radius: 30, color: '#55f1ed', splitter: true },
-    { x: W/2, y: H-95, radius: 26, color: '#ff9a62' },
+    { x: W/2, y: H-95, radius: 26, color: '#ff9a62', hazard: 'drip' },
   ];
   function makeBall(x, y, vx, vy) {
-    return { x, y, vx, vy, trail: [] };
+    return { x, y, vx, vy, trail: [], iceCharge: 0, smash: false };
   }
   function ballColor(ball) {
+    if (ball.smash) return '#ff9a62';
+    if (ball.iceCharge > 0) return '#a7efff';
     const red = clamp((Math.hypot(ball.vx, ball.vy)-SERVE_SPEED)/(MAX_SPEED-SERVE_SPEED),0,1);
     return `hsl(${51*(1-red)} 100% 50%)`;
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
     balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false,
+    freeze: { left: 0, right: 0 }, broken: { left: 0, right: 0 },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
   const keys = new Set(), particles = [];
   const controls = {
@@ -31,6 +34,13 @@
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let soundOn = true, audio, previous = 0, accumulator = 0;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const hazardsActive = () => Math.max(state.cpu, state.human) >= 7;
+  function obstacleColor(obstacle) {
+    if (!hazardsActive()) return obstacle.color;
+    if (obstacle.hazard === 'ice') return '#a7efff';
+    if (obstacle.hazard === 'drip') return '#75d9ff';
+    return obstacle.color;
+  }
   const leftName = () => state.twoPlayer ? 'Gracz 1' : 'Komputer';
   const rightName = () => state.twoPlayer ? 'Gracz 2' : 'Ty';
 
@@ -64,8 +74,8 @@
     state.mode='ready';
     $('round-message').textContent='';$('status').textContent='Czekamy na pierwszy serwis';$('pause').disabled=true;
     overlay(twoPlayer ? 'Pojedynek we dwoje.' : 'Rozkręć ten mecz.',twoPlayer
-      ? 'Dotykajcie swojej połowy planszy — możecie grać dwoma palcami jednocześnie. Gracz 1 może też używać klawiatury, a gracz 2 myszy.'
-      : 'Sterujesz limonkową platformą po prawej. Zdobądź 10 punktów i pokonaj komputer.', 'Gramy! ↗','GOTOWY NA ODBICIE?');
+      ? 'Dotykajcie swojej połowy planszy — możecie grać dwoma palcami jednocześnie. Gracz 1 może też używać klawiatury, a gracz 2 myszy. Od 7 punktów: ❄ lód spowalnia platformę, 💧 krople ją rozbijają.'
+      : 'Sterujesz limonkową platformą po prawej. Zdobądź 10 punktów i pokonaj komputer. Od 7 punktów: ❄ lód spowalnia platformę, 💧 krople ją rozbijają.', 'Gramy! ↗','GOTOWY NA ODBICIE?');
   }
 
   function tone(freq, length = .07, type = 'sine') {
@@ -116,6 +126,7 @@
   function start() {
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
     state.mode = 'playing'; state.aiTimer = 0; resetControls();
+    state.freeze.left = state.freeze.right = state.broken.left = state.broken.right = 0;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').textContent = 'Ⅱ Pauza';
     $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('round-message').textContent = 'Pierwszy serwis!';
@@ -160,6 +171,8 @@
   }
   function hitPaddle(b, paddleX, paddleY, direction) {
     if (b.vx*direction>=0) return;
+    const side = direction > 0 ? 'left' : 'right';
+    if (state.broken[side] > 0) return;
     const closestX=clamp(b.x,paddleX+PR,paddleX+PW-PR);
     const closestY=clamp(b.y,paddleY+PR,paddleY+PH-PR);
     const dx=b.x-closestX, dy=b.y-closestY, distance=Math.hypot(dx,dy);
@@ -167,6 +180,18 @@
     if(distance>contact) return;
     const nx=distance>0 ? dx/distance : direction, ny=distance>0 ? dy/distance : 0;
     if(b.vx*nx+b.vy*ny>=0) return;
+    if(b.smash) {
+      state.broken[side] = .85;
+      b.smash = false;
+      burst(b.x,b.y,'#ff9a62',20); bounceSound(180);
+      $('status').textContent = 'Trzask! Platforma rozbita';
+      return;
+    }
+    if(b.iceCharge > 0) {
+      state.freeze[side] = clamp(state.freeze[side] + b.iceCharge*.55,0,1);
+      b.iceCharge = 0;
+      $('status').textContent = 'Lód spowalnia platformę';
+    }
     b.x=closestX+nx*(contact+.1); b.y=closestY+ny*(contact+.1);
     bounce(b,paddleY,direction);
   }
@@ -179,7 +204,11 @@
     const approach=b.vx*nx+b.vy*ny;
     if(approach>=0) return;
     b.vx-=2*approach*nx; b.vy-=2*approach*ny;
-    burst(b.x,b.y,obstacle.color); bounceSound(obstacle.splitter ? 850 : 440);
+    const hazard = hazardsActive() ? obstacle.hazard : null;
+    if(hazard === 'ice') { b.iceCharge=clamp(b.iceCharge+.35,0,1); b.smash=false; }
+    if(hazard === 'drip') { b.iceCharge=0; b.smash=true; }
+    const color = obstacleColor(obstacle);
+    burst(b.x,b.y,color); bounceSound(obstacle.splitter ? 850 : hazard === 'ice' ? 620 : hazard === 'drip' ? 300 : 440);
     if(!obstacle.splitter || state.splitUsed) return;
     state.splitUsed=true;
     const speed=Math.hypot(b.vx,b.vy), angle=Math.atan2(b.vy,b.vx), spread=.28;
@@ -219,8 +248,13 @@
       state.aiTarget = threat ? threat.y+Math.sin(state.time*2.7)*24 : H/2;
     }
     const aiDistance = state.aiTarget-(state.left+PH/2);
-    if (Math.abs(aiDistance)>9) state.left += clamp(aiDistance,-COMPUTER_SPEED*dt,COMPUTER_SPEED*dt);
+    const aiSpeed = COMPUTER_SPEED*(1-state.freeze.left*.7);
+    if (Math.abs(aiDistance)>9) state.left += clamp(aiDistance,-aiSpeed*dt,aiSpeed*dt);
     state.left = clamp(state.left,0,H-PH);
+    }
+    for(const side of ['left','right']) {
+      state.freeze[side]=Math.max(0,state.freeze[side]-.12*dt);
+      state.broken[side]=Math.max(0,state.broken[side]-dt);
     }
     if (state.delay>0) {
       state.delay -= dt;
@@ -268,17 +302,32 @@
     ctx.strokeStyle='#d7c9ff29';ctx.beginPath();ctx.arc(W/2,H/2,65,0,Math.PI*2);ctx.stroke();
     for(const obstacle of obstacles){
       const used=obstacle.splitter && state.splitUsed;
+      const type=hazardsActive() ? obstacle.hazard : null;
+      const color=obstacleColor(obstacle);
       ctx.fillStyle='#30236970';ctx.beginPath();ctx.arc(obstacle.x+4,obstacle.y+5,obstacle.radius,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle=used ? '#9385ba' : obstacle.color;
+      ctx.fillStyle=used ? '#9385ba' : color;
       ctx.beginPath();ctx.arc(obstacle.x,obstacle.y,obstacle.radius,0,Math.PI*2);ctx.fill();
       ctx.strokeStyle=used ? '#b5a9d0' : '#fff9';ctx.lineWidth=2;ctx.stroke();
       ctx.fillStyle='#302369';ctx.font='900 20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(obstacle.splitter ? (used ? '✓' : '×2') : '↔',obstacle.x,obstacle.y+1);
+      ctx.fillText(obstacle.splitter ? (used ? '✓' : '×2') : type==='ice' ? '❄' : type==='drip' ? '↓' : '↔',obstacle.x,obstacle.y+1);
+      if(type==='drip') {
+        const dripY=obstacle.y+obstacle.radius+3+(state.time*24%12);
+        ctx.fillStyle='#d9f8ff';ctx.beginPath();ctx.arc(obstacle.x,dripY,2.5,0,Math.PI*2);ctx.fill();
+      }
     }
     ctx.fillStyle='#bcaaff';ctx.fillRect(0,0,W,3);ctx.fillRect(0,H-3,W,3);
-    rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
-    rounded(LX,state.left,PW,PH,PR,'#ff9a62');rounded(RX,state.right,PW,PH,PR,'#d7ff3f');
-    rounded(LX+4,state.left+13,3,PH-26,2,'#ffc6a0');rounded(RX+4,state.right+13,3,PH-26,2,'#edffab');
+    if(state.broken.left<=0) {
+      const leftColor=state.freeze.left>0 ? '#a7efff' : '#ff9a62';
+      rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');
+      rounded(LX,state.left,PW,PH,PR,leftColor);
+      rounded(LX+4,state.left+13,3,PH-26,2,state.freeze.left>0 ? '#e4fbff' : '#ffc6a0');
+    }
+    if(state.broken.right<=0) {
+      const rightColor=state.freeze.right>0 ? '#a7efff' : '#d7ff3f';
+      rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
+      rounded(RX,state.right,PW,PH,PR,rightColor);
+      rounded(RX+4,state.right+13,3,PH-26,2,state.freeze.right>0 ? '#e4fbff' : '#edffab');
+    }
     for(const b of state.balls){
       const color=ballColor(b);
       if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,R*(1-i/20),0,Math.PI*2);ctx.fill();});
@@ -352,14 +401,15 @@
   }
   function movePlayer(side, movement, dt) {
     const control=controls[side];
+    const speedScale=1-state.freeze[side]*.7;
     const touching=control.pointerId!==null;
     if(movement && !touching)control.target=null;
     if(control.target!==null) {
       // An active finger owns its paddle; keyboard and mouse cannot fight it.
       control.velocity=0;
-      state[side]+=clamp(control.target-PH/2-state[side],-POINTER_SPEED*dt,POINTER_SPEED*dt);
+      state[side]+=clamp(control.target-PH/2-state[side],-POINTER_SPEED*dt*speedScale,POINTER_SPEED*dt*speedScale);
     } else {
-      const desired=movement*KEYBOARD_SPEED, oldVelocity=control.velocity;
+      const desired=movement*KEYBOARD_SPEED*speedScale, oldVelocity=control.velocity;
       const rate=!movement ? 42 : oldVelocity*desired<0 ? 28 : 16;
       const decay=Math.exp(-rate*dt);
       control.velocity=desired+(oldVelocity-desired)*decay;
