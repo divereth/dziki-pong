@@ -5,6 +5,8 @@
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
+  const courtBackground = document.createElement('canvas');
+  const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.14;
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const MIN_BALL_SCALE = .2, MAX_BALL_SCALE = 5, BALL_SIZE_CHANGE = 1.5;
@@ -153,7 +155,7 @@
     const rotation=shape==='square' ? Math.PI/4 : shape==='diamond' ? 0 : Math.random()*Math.PI*2;
     const obstacle = {
       x: 0, y: 0, size, shape, rotation,
-      kind, color: OBSTACLE_COLORS[kind],
+      kind, color: OBSTACLE_COLORS[kind], vertices: null,
     };
     const servePoints = [{x: W/2-90,y:H/2},{x: W/2+90,y:H/2}];
     for (let attempt=0; attempt<120; attempt++) {
@@ -285,16 +287,19 @@
   function obstacleVertices(obstacle) {
     const sides=SHAPE_SIDES[obstacle.shape];
     if (!sides) return null;
-    return Array.from({length:sides},(_,index)=>{
+    if (obstacle.vertices) return obstacle.vertices;
+    obstacle.vertices=Array.from({length:sides},(_,index)=>{
       const angle=obstacle.rotation+index*Math.PI*2/sides;
       return {x:obstacle.x+Math.cos(angle)*obstacle.size,y:obstacle.y+Math.sin(angle)*obstacle.size};
     });
+    return obstacle.vertices;
   }
   function obstacleContact(b, obstacle) {
     const radius=ballRadius(b);
+    const dx=b.x-obstacle.x, dy=b.y-obstacle.y, contact=obstacle.size+radius;
+    if (dx*dx+dy*dy>contact*contact) return null;
     if (obstacle.shape==='circle') {
-      const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
-      if (distance>obstacle.size+radius) return null;
+      const distance=Math.hypot(dx,dy);
       const nx=distance>0 ? dx/distance : 1, ny=distance>0 ? dy/distance : 0;
       return {x:obstacle.x+nx*obstacle.size,y:obstacle.y+ny*obstacle.size,nx,ny};
     }
@@ -472,6 +477,26 @@
   function rounded(x,y,w,h,r,color) {
     ctx.fillStyle=color; ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill();
   }
+  function drawCourtBackground() {
+    courtBackground.width=canvas.width; courtBackground.height=canvas.height;
+    backgroundCtx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+    backgroundCtx.fillStyle='#6250cb'; backgroundCtx.fillRect(0,0,W,H);
+    const shade=backgroundCtx.createLinearGradient(0,0,W,H);
+    shade.addColorStop(0,'#8b65e040'); shade.addColorStop(1,'#3422a440');
+    backgroundCtx.fillStyle=shade; backgroundCtx.fillRect(0,0,W,H);
+    backgroundCtx.strokeStyle='#c9b6ff12'; backgroundCtx.lineWidth=1;
+    backgroundCtx.beginPath();
+    for(let x=0;x<W;x+=40){backgroundCtx.moveTo(x,0);backgroundCtx.lineTo(x,H);}
+    for(let y=15;y<H;y+=40){backgroundCtx.moveTo(0,y);backgroundCtx.lineTo(W,y);}
+    backgroundCtx.stroke();
+    backgroundCtx.strokeStyle='#d7c9ff55'; backgroundCtx.lineWidth=2;
+    backgroundCtx.setLineDash([10,13]); backgroundCtx.beginPath();
+    backgroundCtx.moveTo(W/2,0); backgroundCtx.lineTo(W/2,H); backgroundCtx.stroke();
+    backgroundCtx.setLineDash([]);
+    backgroundCtx.strokeStyle='#d7c9ff29'; backgroundCtx.beginPath();
+    backgroundCtx.arc(W/2,H/2,65,0,Math.PI*2); backgroundCtx.stroke();
+    backgroundCtx.fillStyle='#bcaaff'; backgroundCtx.fillRect(0,0,W,3); backgroundCtx.fillRect(0,H-3,W,3);
+  }
   function obstaclePath(obstacle, offsetX=0, offsetY=0) {
     ctx.beginPath();
     if(obstacle.shape==='circle') ctx.arc(obstacle.x+offsetX,obstacle.y+offsetY,obstacle.size,0,Math.PI*2);
@@ -483,13 +508,7 @@
     }
   }
   function render() {
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='#6250cb'; ctx.fillRect(0,0,W,H);
-    const shade=ctx.createLinearGradient(0,0,W,H); shade.addColorStop(0,'#8b65e040'); shade.addColorStop(1,'#3422a440'); ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle='#c9b6ff12';ctx.lineWidth=1;
-    ctx.beginPath();for(let x=0;x<W;x+=40){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=15;y<H;y+=40){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
-    ctx.strokeStyle='#d7c9ff55';ctx.lineWidth=2;ctx.setLineDash([10,13]);ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();ctx.setLineDash([]);
-    ctx.strokeStyle='#d7c9ff29';ctx.beginPath();ctx.arc(W/2,H/2,65,0,Math.PI*2);ctx.stroke();
+    ctx.drawImage(courtBackground,0,0,W,H);
     for(const obstacle of obstacles){
       const used=obstacle.kind==='splitter' && state.splitUsed;
       obstaclePath(obstacle,4,5);ctx.fillStyle='#30236970';ctx.fill();
@@ -506,7 +525,6 @@
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
     }
-    ctx.fillStyle='#bcaaff';ctx.fillRect(0,0,W,3);ctx.fillRect(0,H-3,W,3);
     const leftEffect=state.paddleEffects.left, rightEffect=state.paddleEffects.right;
     const leftStrength=paddleEffectStrength('left'), rightStrength=paddleEffectStrength('right');
     const leftColor=leftEffect ? mixColor('#ff9a62',leftEffect.type==='frozen' ? '#8fe8ff' : '#ff4d32',leftStrength) : '#ff9a62';
@@ -532,7 +550,8 @@
   function resize() {
     const rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1,2);
     canvas.width = Math.round(rect.width*dpr); canvas.height = Math.round(rect.height*dpr);
-    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0); render();
+    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+    drawCourtBackground(); render();
   }
   function frame(time) {
     accumulator += Math.min((time-previous)/1000 || 0,.05); previous=time;
