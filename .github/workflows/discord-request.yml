@@ -73,7 +73,7 @@ jobs:
           } > .github/codex/runtime-request.md
 
       - name: Run Codex
-        timeout-minutes: 15
+        timeout-minutes: 30
         uses: openai/codex-action@v1.11
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
