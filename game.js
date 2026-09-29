@@ -11,10 +11,11 @@
   const obstacles = [];
   const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
   const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
-  const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
-  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, PADDLE_FROZEN_SPEED = .35;
+  const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', fireball: '#ff6848', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
+  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, FIREBALL_SPEED = 1/FROZEN_SPEED;
+  const PADDLE_EFFECT_DURATION = 30, PADDLE_FROZEN_SPEED = .4;
   function makeBall(x, y, vx, vy) {
-    return { x, y, vx, vy, sizeScale: 1, trail: [], frozen: false };
+    return { x, y, vx, vy, sizeScale: 1, trail: [], effect: null };
   }
   function ballRadius(ball) { return R * ball.sizeScale; }
   function ballColor(ball) {
@@ -22,7 +23,7 @@
     return `hsl(${51*(1-red)} 100% 50%)`;
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
-    balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, frozen: { left: false, right: false },
+    balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, paddleEffects: { left: null, right: null },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
   const keys = new Set(), particles = [];
   const controls = {
@@ -35,6 +36,30 @@
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const leftName = () => state.twoPlayer ? 'Gracz 1' : 'Komputer';
   const rightName = () => state.twoPlayer ? 'Gracz 2' : 'Ty';
+  function paddleEffectStrength(side) {
+    const effect=state.paddleEffects[side];
+    return effect ? 1-clamp(effect.elapsed/PADDLE_EFFECT_DURATION,0,1) : 0;
+  }
+  function paddleSpeedScale(side) {
+    const effect=state.paddleEffects[side], strength=paddleEffectStrength(side);
+    if (!effect) return 1;
+    return effect.type==='frozen' ? 1-(1-PADDLE_FROZEN_SPEED)*strength : 1+strength;
+  }
+  function mixColor(base, effect, strength) {
+    const channels=color=>[1,3,5].map(index=>parseInt(color.slice(index,index+2),16));
+    const from=channels(base), to=channels(effect);
+    return `#${from.map((channel,index)=>Math.round(channel+(to[index]-channel)*strength).toString(16).padStart(2,'0')).join('')}`;
+  }
+  function applyBallEffect(ball, effect) {
+    if (ball.effect===effect) return false;
+    let speed=Math.hypot(ball.vx,ball.vy);
+    if (ball.effect==='frozen') speed/=FROZEN_SPEED;
+    else if (ball.effect==='fireball') speed*=FROZEN_SPEED;
+    speed=Math.min(MAX_SPEED,speed*(effect==='frozen' ? FROZEN_SPEED : FIREBALL_SPEED));
+    const angle=Math.atan2(ball.vy,ball.vx);
+    ball.vx=Math.cos(angle)*speed; ball.vy=Math.sin(angle)*speed; ball.effect=effect;
+    return true;
+  }
 
   function prepareAudio() {
     if (!audio) {
@@ -119,8 +144,8 @@
     const splitters = obstacles.filter(obstacle => obstacle.kind === 'splitter').length;
     const hasBlackHole = obstacles.some(obstacle => obstacle.kind === 'blackhole');
     const kinds = splitters < MAX_SPLITTERS
-      ? ['bumper', 'bumper', 'splitter', 'freezer', 'grower', 'shrinker']
-      : ['bumper', 'bumper', 'bumper', 'freezer', 'grower', 'shrinker'];
+      ? ['bumper', 'bumper', 'splitter', 'freezer', 'fireball', 'grower', 'shrinker']
+      : ['bumper', 'bumper', 'bumper', 'freezer', 'fireball', 'grower', 'shrinker'];
     if (!hasBlackHole) kinds.push('blackhole');
     const kind = kinds[Math.floor(Math.random()*kinds.length)];
     const shape = kind === 'blackhole' ? 'circle' : SHAPES[Math.floor(Math.random()*SHAPES.length)];
@@ -179,7 +204,7 @@
   function start() {
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
     state.mode = 'playing'; state.aiTimer = 0; resetControls();
-    obstacles.length = 0; state.frozen.left = state.frozen.right = false;
+    obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').textContent = 'Ⅱ Pauza';
     $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('round-message').textContent = 'Pierwszy serwis!';
@@ -203,11 +228,10 @@
     }
   }
   function point(who) {
-    state.frozen.left = state.frozen.right = false;
     state[who]++; scores(); tone(who === 'human' ? 740 : 180,.2,'triangle');
     if ((state.cpu+state.human)%2===0) {
       const obstacle=addObstacle();
-      const obstacleNames = { splitter: 'rozdzielacz', freezer: 'lodowa przeszkoda', blackhole: 'czarna dziura', grower: 'powiększacz', shrinker: 'pomniejszacz', bumper: 'odbijacz' };
+      const obstacleNames = { splitter: 'rozdzielacz', freezer: 'lodowa przeszkoda', fireball: 'ognista piłka', blackhole: 'czarna dziura', grower: 'powiększacz', shrinker: 'pomniejszacz', bumper: 'odbijacz' };
       const name=obstacleNames[obstacle.kind];
       $('announcement').textContent += ` Nowa przeszkoda: ${name}.`;
     }
@@ -226,13 +250,23 @@
   function bounce(b, paddleY, direction) {
     const hit = clamp((b.y-(paddleY+PH/2))/(PH/2),-1,1);
     const side=direction>0 ? 'left' : 'right';
-    const speed = b.frozen ? SERVE_SPEED : Math.min(MAX_SPEED, Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
+    const incomingEffect=b.effect, paddleEffect=state.paddleEffects[side];
+    const paddleName=side==='left' ? state.twoPlayer ? 'gracza 1' : 'komputera' : state.twoPlayer ? 'gracza 2' : 'gracza';
+    const cancels=(incomingEffect==='fireball' && paddleEffect?.type==='frozen')
+      || (incomingEffect==='frozen' && paddleEffect?.type==='fireball');
+    const speed = incomingEffect==='frozen' ? SERVE_SPEED : Math.min(MAX_SPEED, Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
     b.vx = direction*speed*Math.cos(hit*1.03); b.vy = speed*Math.sin(hit*1.03);
-    if (b.frozen) {
-      state.frozen[side]=true;
-      b.frozen=false;
-      $('status').textContent=`Platforma ${side==='left' ? leftName() : rightName()} zamrożona; piłka wróciła do prędkości startowej`;
+    if (cancels) {
+      state.paddleEffects[side]=null;
+      $('status').textContent=`Platforma ${paddleName} wróciła do naturalnej formy`;
+      $('announcement').textContent=$('status').textContent;
+    } else if (incomingEffect==='frozen' || incomingEffect==='fireball') {
+      state.paddleEffects[side]={type:incomingEffect,elapsed:0};
+      const effectName=incomingEffect==='frozen' ? 'zamrożona' : 'podpalona';
+      $('status').textContent=`Platforma ${paddleName} ${effectName} — efekt słabnie przez 30 sekund`;
+      $('announcement').textContent=$('status').textContent;
     }
+    b.effect=null;
     state.rally++; burst(b.x,b.y,direction>0 ? '#ff9a62' : '#d7ff3f'); bounceSound(direction>0 ? 340 : 520);
   }
   function hitPaddle(b, paddleX, paddleY, direction) {
@@ -299,9 +333,12 @@
     const radius=ballRadius(b);
     b.x=contact.x+nx*(radius+.1); b.y=contact.y+ny*(radius+.1);
     burst(b.x,b.y,obstacle.color); bounceSound(obstacle.kind==='splitter' ? 850 : 440);
-    if (obstacle.kind==='freezer' && !b.frozen) {
-      b.vx*=FROZEN_SPEED; b.vy*=FROZEN_SPEED; b.frozen=true;
+    if (obstacle.kind==='freezer' && applyBallEffect(b,'frozen')) {
       $('status').textContent='Piłka spowolniona! Odbij ją od platformy, by ją zamrozić';
+      $('announcement').textContent=$('status').textContent;
+    } else if (obstacle.kind==='fireball' && applyBallEffect(b,'fireball')) {
+      $('status').textContent='Ognista piłka przyspieszona! Odbij ją od platformy, by podpalić paletkę';
+      $('announcement').textContent=$('status').textContent;
     }
     if(obstacle.kind!=='splitter' || state.splitUsed) return;
     state.splitUsed=true;
@@ -313,7 +350,7 @@
     b.trail=[];
     const copy=makeBall(contactX-tx*separation,contactY-ty*separation,
       Math.cos(angle-spread)*speed,Math.sin(angle-spread)*speed);
-    copy.frozen=b.frozen; copy.sizeScale=b.sizeScale;
+    copy.effect=b.effect; copy.sizeScale=b.sizeScale;
     state.balls.push(copy);
     $('status').textContent='Dwie piłki! Każda daje osobny punkt';
     $('announcement').textContent='Rozdwojenie! Na planszy są teraz dwie piłki.';
@@ -358,6 +395,10 @@
   function update(dt) {
     if (state.mode !== 'playing') return;
     state.time += dt;
+    for (const side of ['left','right']) {
+      const effect=state.paddleEffects[side];
+      if (effect && (effect.elapsed+=dt)>=PADDLE_EFFECT_DURATION) state.paddleEffects[side]=null;
+    }
     for (let i=particles.length-1;i>=0;i--) {
       const p=particles[i]; p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
       if(p.life<=0) particles.splice(i,1);
@@ -379,7 +420,7 @@
       state.aiTarget = threat ? threat.y+Math.sin(state.time*2.7)*24 : H/2;
     }
     const aiDistance = state.aiTarget-(state.left+PH/2);
-    const aiSpeed=COMPUTER_SPEED*(state.frozen.left ? PADDLE_FROZEN_SPEED : 1);
+    const aiSpeed=COMPUTER_SPEED*paddleSpeedScale('left');
     if (Math.abs(aiDistance)>9) state.left += clamp(aiDistance,-aiSpeed*dt,aiSpeed*dt);
     state.left = clamp(state.left,0,H-PH);
     }
@@ -461,24 +502,30 @@
         ctx.fillStyle='#080711';ctx.fill();
       } else {
         ctx.fillStyle='#302369';ctx.font='900 20px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
-        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='grower' ? '↑' : obstacle.kind==='shrinker' ? '↓' : '';
+        const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='fireball' ? '🔥' : obstacle.kind==='grower' ? '↑' : obstacle.kind==='shrinker' ? '↓' : '';
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
     }
     ctx.fillStyle='#bcaaff';ctx.fillRect(0,0,W,3);ctx.fillRect(0,H-3,W,3);
-    const leftFrozen=state.frozen.left, rightFrozen=state.frozen.right;
+    const leftEffect=state.paddleEffects.left, rightEffect=state.paddleEffects.right;
+    const leftStrength=paddleEffectStrength('left'), rightStrength=paddleEffectStrength('right');
+    const leftColor=leftEffect ? mixColor('#ff9a62',leftEffect.type==='frozen' ? '#8fe8ff' : '#ff4d32',leftStrength) : '#ff9a62';
+    const rightColor=rightEffect ? mixColor('#d7ff3f',rightEffect.type==='frozen' ? '#8fe8ff' : '#ff4d32',rightStrength) : '#d7ff3f';
+    const leftHighlight=leftEffect ? mixColor('#ffc6a0',leftEffect.type==='frozen' ? '#e8fbff' : '#ffe0a0',leftStrength) : '#ffc6a0';
+    const rightHighlight=rightEffect ? mixColor('#edffab',rightEffect.type==='frozen' ? '#e8fbff' : '#ffe0a0',rightStrength) : '#edffab';
     rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
-    rounded(LX,state.left,PW,PH,PR,leftFrozen ? '#8fe8ff' : '#ff9a62');
-    rounded(RX,state.right,PW,PH,PR,rightFrozen ? '#8fe8ff' : '#d7ff3f');
-    rounded(LX+4,state.left+13,3,PH-26,2,leftFrozen ? '#e8fbff' : '#ffc6a0');
-    rounded(RX+4,state.right+13,3,PH-26,2,rightFrozen ? '#e8fbff' : '#edffab');
+    rounded(LX,state.left,PW,PH,PR,leftColor);
+    rounded(RX,state.right,PW,PH,PR,rightColor);
+    rounded(LX+4,state.left+13,3,PH-26,2,leftHighlight);
+    rounded(RX+4,state.right+13,3,PH-26,2,rightHighlight);
     for(const b of state.balls){
       if(b.capturedBy)continue;
       const color=ballColor(b);
       const radius=ballRadius(b);
       if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,radius*(1-i/20),0,Math.PI*2);ctx.fill();});
       ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,radius,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-      if(b.frozen){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
+      if(b.effect==='frozen'){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
+      if(b.effect==='fireball'){ctx.strokeStyle='#ffb05c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
     }
     for(const p of particles){ctx.globalAlpha=p.life*2;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
   }
@@ -548,7 +595,7 @@
   }
   function movePlayer(side, movement, dt) {
     const control=controls[side];
-    const speedScale=state.frozen[side] ? PADDLE_FROZEN_SPEED : 1;
+    const speedScale=paddleSpeedScale(side);
     const touching=control.pointerId!==null;
     if(movement && !touching)control.target=null;
     if(control.target!==null) {
