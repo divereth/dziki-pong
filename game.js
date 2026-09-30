@@ -78,6 +78,8 @@
 
   function setMode(twoPlayer) {
     state.twoPlayer=twoPlayer;
+    $('mode-solo').setAttribute('aria-pressed',String(!twoPlayer));
+    $('mode-duo').setAttribute('aria-pressed',String(twoPlayer));
     $('left-name').textContent=leftName().toUpperCase();
     $('right-name').textContent=rightName().toUpperCase();
     $('left-detail').textContent=twoPlayer ? 'Lewa · klawiatura / dotyk' : 'Lewa strona · CPU';
@@ -587,7 +589,8 @@
   document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
   updateFullscreenButton();
   $('play').addEventListener('click',()=>state.mode==='paused' ? pause() : start());
-  $('game-mode').addEventListener('change',event=>setMode(event.target.value==='duo'));
+  $('mode-solo').addEventListener('click',()=>setMode(false));
+  $('mode-duo').addEventListener('click',()=>setMode(true));
   $('restart').addEventListener('click',start); $('pause').addEventListener('click',pause);
   $('sound').addEventListener('click',()=>{
     if(!prepareAudio()) return;

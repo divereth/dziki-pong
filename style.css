@@ -19,11 +19,8 @@ body{padding:8px 12px;display:flex;align-items:center;justify-content:center}
 .court{flex:1;min-height:0;aspect-ratio:auto}
 .toolbar{flex:none}
 .start-card{width:min(430px,92%);padding:25px 30px}
-.mode-picker{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 7px;color:#4f4661;font-size:13px;font-weight:800}
-.mode-picker select{font:inherit;font-weight:700;color:#34294b;background:#fff;border:1px solid #b6a8d1;border-radius:7px;padding:8px 28px 8px 9px;cursor:pointer}
-.mode-picker select:focus-visible{outline:3px solid #7451d7;outline-offset:3px}
 .mode-note{display:block;color:#81758e;font-size:11px;margin:0 0 17px}
-@media(max-width:650px){body{padding:6px}.shell{height:calc(100svh - 12px)}.scorebar{padding:13px 11px}.toolbar{padding:10px}.start-card{padding:21px 16px}.mode-picker{align-items:flex-start;flex-direction:column;gap:5px}.mode-picker select{width:100%}.mode-note{margin-bottom:14px}}
+@media(max-width:650px){body{padding:6px}.shell{height:calc(100svh - 12px)}.scorebar{padding:13px 11px}.toolbar{padding:10px}.start-card{padding:21px 16px}.mode-note{margin-bottom:14px}}
 /* Fullscreen and compact mobile layout */
 html:fullscreen body,html:-webkit-full-screen body{padding:env(safe-area-inset-top,8px) env(safe-area-inset-right,8px) env(safe-area-inset-bottom,8px) env(safe-area-inset-left,8px)}
 html:fullscreen .shell,html:-webkit-full-screen .shell{width:100%;max-width:none;height:calc(100svh - env(safe-area-inset-top,8px) - env(safe-area-inset-bottom,8px))}
@@ -44,7 +41,6 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
   .start-card{width:min(92%,430px);padding:14px 16px}
   .start-card h2{font-size:clamp(24px,7vw,38px);margin-bottom:7px}
   .start-card p:not(.eyebrow){font-size:12px;line-height:1.35;margin-bottom:12px}
-  .mode-picker{font-size:12px}
   .mode-note{font-size:10px;margin-bottom:10px}
   .primary{padding:10px 18px;font-size:14px}
 }
@@ -53,9 +49,23 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
   .eyebrow{font-size:10px;letter-spacing:1.8px;margin-bottom:6px}
   .start-card h2{font-size:clamp(22px,5vw,30px);margin-bottom:5px}
   .start-card p:not(.eyebrow){font-size:11px;line-height:1.25;margin-bottom:7px}
-  .mode-picker{font-size:11px;gap:6px;margin-bottom:4px}
-  .mode-picker select{padding:5px 20px 5px 7px}
   .mode-note{margin-bottom:7px}
   .primary{padding:7px 14px;font-size:13px}
 }
+
+/* Mode selection cards */
+.mode-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 10px;width:100%}
+.mode-option{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px solid #c8bfd7;border-radius:10px;background:#fff;color:#34294b;padding:10px 6px 9px;box-shadow:0 2px 0 #d7d0e2;transition:transform .15s,box-shadow .15s,border-color .15s,background .15s}
+.mode-option:hover{transform:translateY(-1px);border-color:#7451d7;box-shadow:0 3px 0 #c8bfd7}
+.mode-option[aria-pressed="true"]{background:#d7ff3f;border-color:#24212d;box-shadow:2px 3px 0 #24212d}
+.mode-option-icon{display:grid;place-items:center;width:40px;height:40px;margin-bottom:2px;border-radius:9px;background:#eee8ff;color:#6747d8}
+.mode-option:nth-child(2) .mode-option-icon{background:#fff0e8;color:#b56237}
+.mode-option[aria-pressed="true"] .mode-option-icon{background:#24212d;color:#d7ff3f}
+.mode-option-icon svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.mode-option-title{font-size:12px;font-weight:900;letter-spacing:.5px;text-transform:uppercase}
+.mode-option-detail{font-size:11px;color:#756c81}
+.mode-option[aria-pressed="true"] .mode-option-detail{color:#494334}
+.mode-note{margin:0 0 13px}
+@media(max-width:650px){.mode-picker{align-items:stretch;gap:8px}.mode-option{padding:8px 4px}.mode-option-title{font-size:11px}.mode-option-detail{font-size:10px}.mode-note{margin-bottom:10px}}
+@media(max-height:620px){.mode-option{gap:2px;padding:6px 4px}.mode-option-icon{width:34px;height:34px}.mode-option-icon svg{width:23px;height:23px}.mode-note{margin-bottom:7px}}
 
