@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
-  const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 120, RX = W - 120 - PW;
+  const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
