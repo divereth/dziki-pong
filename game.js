@@ -92,7 +92,7 @@
       ? 'Gracz 1: W i S lub dotyk lewej połowy planszy, także przestrzeni za paletką. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy, także przestrzeni za paletką. Możecie dotykać obu połówek jednocześnie.'
       : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk; możesz dotykać przestrzeni za paletką.');
     start();
-    state.mode='ready';
+    state.mode='ready'; syncCourtCursor();
     $('round-message').textContent='';$('status').textContent='Czekamy na pierwszy serwis';$('pause').disabled=true;
     overlay(twoPlayer ? 'Pojedynek we dwoje.' : 'Rozkręć ten mecz.',twoPlayer
       ? 'Dotykajcie swojej połowy planszy — możecie grać dwoma palcami jednocześnie. Gracz 1 może też używać klawiatury, a gracz 2 myszy.'
@@ -207,7 +207,7 @@
   }
   function start() {
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
-    state.mode = 'playing'; state.aiTimer = 0; resetControls();
+    state.mode = 'playing'; syncCourtCursor(); state.aiTimer = 0; resetControls();
     obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').textContent = 'Ⅱ Pauza';
@@ -219,14 +219,15 @@
     $('overlay-title').textContent = title; $('overlay-description').textContent = description;
     $('eyebrow').textContent = eyebrow; $('play').textContent = button; $('overlay').hidden = false;
   }
+  function syncCourtCursor() { court.classList.toggle('is-playing', state.mode === 'playing'); }
   function pause() {
     if (state.mode !== 'playing' && state.mode !== 'paused') return;
     if (state.mode === 'playing') {
-      state.mode = 'paused'; resetControls();
+      state.mode = 'paused'; syncCourtCursor(); resetControls();
       overlay('Krótka przerwa.', 'Piłka poczeka. Wróć, kiedy będziesz gotowy.', 'Wracam do gry ↗', 'CZAS NA ODDECH');
       $('status').textContent = 'Mecz wstrzymany'; $('pause').textContent = '▶ Wznów';
     } else {
-      state.mode = 'playing'; $('overlay').hidden = true;
+      state.mode = 'playing'; syncCourtCursor(); $('overlay').hidden = true;
       $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('pause').textContent = 'Ⅱ Pauza';
       canvas.focus({preventScroll:true});
     }
@@ -240,7 +241,7 @@
       $('announcement').textContent += ` Nowa przeszkoda: ${name}.`;
     }
     if (state[who] === 10) {
-      state.mode = 'ended'; $('pause').disabled = true; $('round-message').textContent = '';
+      state.mode = 'ended'; syncCourtCursor(); $('pause').disabled = true; $('round-message').textContent = '';
       resetControls();
       const humanWon = who === 'human';
       const winner=humanWon ? rightName() : leftName();
