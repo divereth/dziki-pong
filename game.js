@@ -5,6 +5,7 @@
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
+  const BARRIER_HEIGHT = PH * 1.5, BARRIER_WIDTH = 10, BARRIER_GAP = 24;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
@@ -26,6 +27,7 @@
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
     balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, paddleEffects: { left: null, right: null },
+    barriers: { left: false, right: false },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
   const keys = new Set(), particles = [];
   const controls = {
@@ -142,6 +144,8 @@
     const angle = Math.random()*.7-.35;
     // Keep serves clear of the center obstacle field.
     state.balls = [makeBall(W/2+direction*90,H/2,direction*SERVE_SPEED*Math.cos(angle),SERVE_SPEED*Math.sin(angle))];
+    state.barriers.left = state.human-state.cpu > 3;
+    state.barriers.right = state.cpu-state.human > 3;
     state.delay = 1; state.rally = 0; state.splitUsed = false;
   }
   function addObstacle() {
@@ -286,6 +290,31 @@
     if(b.vx*nx+b.vy*ny>=0) return;
     b.x=closestX+nx*(contact+.1); b.y=closestY+ny*(contact+.1);
     bounce(b,paddleY,direction);
+  }
+  function barrierPosition(side) {
+    const centerX = side==='left' ? LX-BARRIER_GAP : RX+PW+BARRIER_GAP;
+    const paddleY = side==='left' ? state.left : state.right;
+    const top = clamp(paddleY+PH/2-BARRIER_HEIGHT/2,0,H-BARRIER_HEIGHT);
+    return { x: centerX, top, bottom: top+BARRIER_HEIGHT };
+  }
+  function hitBarrier(b, side) {
+    if (!state.barriers[side]) return;
+    const direction = side==='left' ? 1 : -1;
+    if (b.vx*direction>=0) return;
+    const {x,top,bottom} = barrierPosition(side), radius = ballRadius(b);
+    const crossed = direction>0
+      ? b.x-radius<=x+BARRIER_WIDTH/2
+      : b.x+radius>=x-BARRIER_WIDTH/2;
+    if (!crossed || b.y+radius<top || b.y-radius>bottom) return;
+    const hit = clamp((b.y-(top+BARRIER_HEIGHT/2))/(BARRIER_HEIGHT/2),-1,1);
+    const speed = Math.min(MAX_SPEED,Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
+    b.x=x+direction*(BARRIER_WIDTH/2+radius+.1);
+    b.vx=direction*speed*Math.cos(hit*.8); b.vy=speed*Math.sin(hit*.8);
+    state.barriers[side]=false;
+    state.rally++;
+    burst(b.x,b.y,'#a8f3ff'); bounceSound(side==='left' ? 340 : 520);
+    $('status').textContent='Bariera ochronna odbiła piłkę!';
+    $('announcement').textContent=$('status').textContent;
   }
   function obstacleVertices(obstacle) {
     const sides=SHAPE_SIDES[obstacle.shape];
@@ -457,6 +486,8 @@
         if(b.y+radius>=H && b.vy>0){b.y=H-radius;b.vy*=-1;burst(b.x,b.y,'#beb2ff',7);bounceSound(260);}
         hitPaddle(b,LX,state.left,1);
         hitPaddle(b,RX,state.right,-1);
+        hitBarrier(b,'left');
+        hitBarrier(b,'right');
         for(const obstacle of obstacles) hitObstacle(b,obstacle);
         radius=ballRadius(b);
         if(b.x-radius<=0 || b.x+radius>=W){
@@ -527,6 +558,13 @@
         const symbol=obstacle.kind==='splitter' ? (used ? '✓' : '×2') : obstacle.kind==='freezer' ? '❄' : obstacle.kind==='fireball' ? '🔥' : obstacle.kind==='grower' ? '+' : obstacle.kind==='shrinker' ? '-' : '';
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
+    }
+    for(const side of ['left','right']) if(state.barriers[side]) {
+      const {x,top,bottom}=barrierPosition(side);
+      ctx.save(); ctx.globalAlpha=.52; ctx.shadowColor='#a8f3ff'; ctx.shadowBlur=16;
+      rounded(x-BARRIER_WIDTH/2,top,BARRIER_WIDTH,bottom-top,5,'#a8f3ff');
+      ctx.globalAlpha=.9; ctx.shadowBlur=0;
+      rounded(x-1,top+5,2,bottom-top-10,1,'#ffffff'); ctx.restore();
     }
     const leftEffect=state.paddleEffects.left, rightEffect=state.paddleEffects.right;
     const leftStrength=paddleEffectStrength('left'), rightStrength=paddleEffectStrength('right');
