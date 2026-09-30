@@ -298,6 +298,21 @@
     const top = 0;
     return { x: centerX, top, bottom: top+BARRIER_HEIGHT };
   }
+  function shatterBarrier(side, impactY) {
+    if (reducedMotion) return;
+    const {x,top,bottom}=barrierPosition(side), direction=side==='left' ? 1 : -1;
+    const fragments=42;
+    for (let i=0;i<fragments;i++) {
+      const y=top+(i+.5)*(bottom-top)/fragments;
+      particles.push({
+        x:x+(Math.random()-.5)*BARRIER_WIDTH, y,
+        vx:direction*(80+Math.random()*170),
+        vy:(y-impactY)*.55+(Math.random()-.5)*130,
+        life:.5+Math.random()*.18,
+        color:Math.random()<.35 ? '#ffffff' : '#a8f3ff',
+      });
+    }
+  }
   function hitBarrier(b, side) {
     if (!state.barriers[side]) return;
     const direction = side==='left' ? 1 : -1;
@@ -313,7 +328,7 @@
     b.vx=direction*speed*Math.cos(hit*.8); b.vy=speed*Math.sin(hit*.8);
     state.barriers[side]=false; state.barrierAge[side]=null;
     state.rally++;
-    burst(b.x,b.y,'#a8f3ff'); bounceSound(side==='left' ? 340 : 520);
+    shatterBarrier(side,b.y); burst(b.x,b.y,'#a8f3ff'); bounceSound(side==='left' ? 340 : 520);
     $('status').textContent='Bariera ochronna odbiła piłkę!';
     $('announcement').textContent=$('status').textContent;
   }
