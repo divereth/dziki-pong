@@ -94,11 +94,6 @@
       ? 'Gracz 1: W i S lub dotyk lewej połowy planszy, także przestrzeni za paletką. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy, także przestrzeni za paletką. Możecie dotykać obu połówek jednocześnie.'
       : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk; możesz dotykać przestrzeni za paletką.');
     start();
-    state.mode='ready'; syncCourtCursor();
-    $('round-message').textContent='';$('status').textContent='Czekamy na pierwszy serwis';$('pause').disabled=true;
-    overlay(twoPlayer ? 'Pojedynek we dwoje.' : 'Rozkręć ten mecz.',twoPlayer
-      ? 'Dotykajcie swojej połowy planszy — możecie grać dwoma palcami jednocześnie. Gracz 1 może też używać klawiatury, a gracz 2 myszy.'
-      : 'Sterujesz limonkową platformą po prawej. Zdobądź 10 punktów i pokonaj komputer.', 'Gramy! ↗','GOTOWY NA ODBICIE?');
   }
 
   function tone(freq, length = .07, type = 'sine') {
@@ -222,7 +217,7 @@
   }
   function overlay(title, description, button, eyebrow) {
     $('overlay-title').textContent = title; $('overlay-description').textContent = description;
-    $('eyebrow').textContent = eyebrow; $('play').textContent = button; $('overlay').hidden = false;
+    $('eyebrow').textContent = eyebrow; $('play').textContent = button; $('play').hidden = false; $('overlay').hidden = false;
   }
   function syncCourtCursor() { court.classList.toggle('is-playing', state.mode === 'playing'); }
   function pause() {
