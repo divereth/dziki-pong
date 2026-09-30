@@ -697,7 +697,7 @@
     for(const control of Object.values(controls)) {
       control.target=null;control.pointerId=null;control.velocity=0;
     }
-    for(const id of captured)if(court.hasPointerCapture(id))court.releasePointerCapture(id);
+    for(const id of captured)if(courtFrame.hasPointerCapture(id))courtFrame.releasePointerCapture(id);
   }
   function movePlayer(side, movement, dt) {
     const control=controls[side];
@@ -723,14 +723,14 @@
   function beginPointer(event) {
     if(state.mode!=='playing' || event.target.closest('button'))return;
     if(event.pointerType==='touch' || event.pointerType==='pen') {
-      const rect=canvas.getBoundingClientRect();
+      const rect=courtFrame.getBoundingClientRect();
       const side=state.twoPlayer && event.clientX<rect.left+rect.width/2 ? 'left' : 'right';
       // Keep each finger attached to its starting half even if it crosses the line.
       if(controls[side].pointerId!==null)return;
       touchSides.set(event.pointerId,side);
       controls[side].pointerId=event.pointerId;
       controls[side].velocity=0;
-      court.setPointerCapture(event.pointerId);
+      courtFrame.setPointerCapture(event.pointerId);
     }
     event.preventDefault();canvas.focus({preventScroll:true});movePointer(event);
   }
@@ -747,13 +747,13 @@
     if(!side)return;
     touchSides.delete(event.pointerId);
     controls[side].target=null;controls[side].pointerId=null;controls[side].velocity=0;
-    if(court.hasPointerCapture(event.pointerId))court.releasePointerCapture(event.pointerId);
+    if(courtFrame.hasPointerCapture(event.pointerId))courtFrame.releasePointerCapture(event.pointerId);
   }
-  court.addEventListener('pointerdown',beginPointer);
-  court.addEventListener('pointermove',movePointer);
-  court.addEventListener('pointerup',endPointer);
-  court.addEventListener('pointercancel',endPointer);
-  court.addEventListener('lostpointercapture',endPointer);
+  courtFrame.addEventListener('pointerdown',beginPointer);
+  courtFrame.addEventListener('pointermove',movePointer);
+  courtFrame.addEventListener('pointerup',endPointer);
+  courtFrame.addEventListener('pointercancel',endPointer);
+  courtFrame.addEventListener('lostpointercapture',endPointer);
   window.addEventListener('blur',()=>{if(state.mode==='playing')pause();else resetControls();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden && state.mode==='playing')pause();});
   new ResizeObserver(resize).observe(courtFrame);
