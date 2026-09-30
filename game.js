@@ -2,7 +2,7 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
+  const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court'), courtFrame = $('court-frame');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
   const BARRIER_HEIGHT = H, BARRIER_WIDTH = 10, BARRIER_EDGE_OFFSET = 30;
@@ -623,6 +623,10 @@
     for(const p of particles){ctx.globalAlpha=p.life*2;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
   }
   function resize() {
+    const frameRect = courtFrame.getBoundingClientRect();
+    const width = Math.min(frameRect.width, frameRect.height * W / H);
+    const height = width * H / W;
+    court.style.width = `${width}px`; court.style.height = `${height}px`;
     const rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1,2);
     canvas.width = Math.round(rect.width*dpr); canvas.height = Math.round(rect.height*dpr);
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
@@ -745,6 +749,6 @@
   court.addEventListener('lostpointercapture',endPointer);
   window.addEventListener('blur',()=>{if(state.mode==='playing')pause();else resetControls();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden && state.mode==='playing')pause();});
-  new ResizeObserver(resize).observe(court); resize(); requestAnimationFrame(frame);
+  new ResizeObserver(resize).observe(courtFrame); resize(); requestAnimationFrame(frame);
 })();
 
