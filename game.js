@@ -298,6 +298,30 @@
     const top = 0;
     return { x: centerX, top, bottom: top+BARRIER_HEIGHT };
   }
+  function shatterBarrier(side) {
+    if (reducedMotion) return;
+    const {x}=barrierPosition(side);
+    const progress=clamp((state.barrierAge[side] ?? BARRIER_APPEAR_DURATION)/BARRIER_APPEAR_DURATION,0,1);
+    const height=BARRIER_HEIGHT*(1-Math.pow(1-progress,3));
+    const top=(H-height)/2;
+    const effect=state.paddleEffects[side];
+    const base=side==='left' ? '#ff9a62' : '#d7ff3f';
+    const color=effect
+      ? mixColor(base,effect.type==='frozen' ? '#8fe8ff' : '#ff4d32',paddleEffectStrength(side))
+      : base;
+    const direction=side==='left' ? 1 : -1;
+    const count=Math.ceil(height/12);
+    for(let i=0;i<count;i++) {
+      particles.push({
+        x:x+(Math.random()-.5)*BARRIER_WIDTH,
+        y:top+(i+.5)*height/count,
+        vx:direction*(70+Math.random()*170),
+        vy:(Math.random()-.5)*300,
+        life:.5,
+        color:Math.random()<.25 ? '#fff' : color,
+      });
+    }
+  }
   function hitBarrier(b, side) {
     if (!state.barriers[side]) return;
     const direction = side==='left' ? 1 : -1;
@@ -311,6 +335,7 @@
     const speed = Math.min(MAX_SPEED,Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
     b.x=x+direction*(BARRIER_WIDTH/2+radius+.1);
     b.vx=direction*speed*Math.cos(hit*.8); b.vy=speed*Math.sin(hit*.8);
+    shatterBarrier(side);
     state.barriers[side]=false; state.barrierAge[side]=null;
     state.rally++;
     burst(b.x,b.y,'#a8f3ff'); bounceSound(side==='left' ? 340 : 520);
