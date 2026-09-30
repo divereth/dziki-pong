@@ -105,3 +105,18 @@ body{justify-content:safe center}
 @media(max-width:700px){.shell{height:calc(100svh - 12px)}}
 html:fullscreen .shell,html:-webkit-full-screen .shell{height:calc(100svh - env(safe-area-inset-top,8px) - env(safe-area-inset-bottom,8px))}
 
+/* Compact the score bar when the centered court leaves white side bars. */
+.scorebar.has-side-bars{padding-top:8px;padding-bottom:8px;gap:10px}
+.scorebar.has-side-bars .player-detail,.scorebar.has-side-bars .score-tools .tool span{display:none}
+.scorebar.has-side-bars .player-icon{width:19px;height:19px;border-radius:5px;font-size:12px}
+.scorebar.has-side-bars .player-name{font-size:10px;letter-spacing:.6px}
+.scorebar.has-side-bars .score{font-size:22.5px;gap:11px}
+.scorebar.has-side-bars .score .colon{font-size:11px}
+.scorebar.has-side-bars .score-tools{gap:4px}
+.scorebar.has-side-bars .score-tools .tool{min-height:24px;padding:2px 4px;font-size:10px}
+@media(max-width:700px){
+  .scorebar.has-side-bars{padding-top:2px;padding-bottom:2px}
+  .scorebar.has-side-bars .score{font-size:15px;gap:7px}
+  .scorebar.has-side-bars .score-tools .tool{min-height:24px;padding:1px 3px}
+}
+

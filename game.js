@@ -3,6 +3,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court'), courtFrame = $('court-frame');
+  const shell = document.querySelector('.shell'), scorebar = document.querySelector('.scorebar');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
   const BARRIER_HEIGHT = H, BARRIER_WIDTH = 10, BARRIER_EDGE_OFFSET = 30;
@@ -632,6 +633,12 @@
     ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
     drawCourtBackground(); render();
   }
+  function syncScorebarSize() {
+    scorebar.classList.remove('has-side-bars');
+    const frameRect = courtFrame.getBoundingClientRect();
+    const courtWidth = Math.min(frameRect.width, frameRect.height * W / H);
+    scorebar.classList.toggle('has-side-bars', frameRect.width - courtWidth > 1);
+  }
   function frame(time) {
     accumulator += Math.min((time-previous)/1000 || 0,.05); previous=time;
     while (accumulator>=1/120) { update(1/120); accumulator-=1/120; }
@@ -749,6 +756,8 @@
   court.addEventListener('lostpointercapture',endPointer);
   window.addEventListener('blur',()=>{if(state.mode==='playing')pause();else resetControls();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden && state.mode==='playing')pause();});
-  new ResizeObserver(resize).observe(courtFrame); resize(); requestAnimationFrame(frame);
+  new ResizeObserver(resize).observe(courtFrame);
+  new ResizeObserver(syncScorebarSize).observe(shell);
+  syncScorebarSize(); resize(); requestAnimationFrame(frame);
 })();
 
