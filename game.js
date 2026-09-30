@@ -36,8 +36,8 @@
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let soundOn = true, audio, previous = 0, accumulator = 0;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const leftName = () => state.twoPlayer ? 'Gracz 1' : 'Komputer';
-  const rightName = () => state.twoPlayer ? 'Gracz 2' : 'Ty';
+  const leftName = () => state.twoPlayer ? 'Lewy' : 'Komputer';
+  const rightName = () => state.twoPlayer ? 'Prawy' : 'Ty';
   function paddleEffectStrength(side) {
     const effect=state.paddleEffects[side];
     return effect ? 1-clamp(effect.elapsed/PADDLE_EFFECT_DURATION,0,1) : 0;
@@ -80,8 +80,8 @@
     state.twoPlayer=twoPlayer;
     $('mode-solo').setAttribute('aria-pressed',String(!twoPlayer));
     $('mode-duo').setAttribute('aria-pressed',String(twoPlayer));
-    $('left-name').textContent=leftName().toUpperCase();
-    $('right-name').textContent=rightName().toUpperCase();
+    $('left-name').textContent=twoPlayer ? 'LEWY' : 'KOMPUTER';
+    $('right-name').textContent=twoPlayer ? 'PRAWY' : 'TY';
     $('left-detail').textContent=twoPlayer ? 'Lewa · klawiatura / dotyk' : 'Lewa strona · CPU';
     $('right-detail').textContent=twoPlayer ? 'Prawa · mysz / dotyk' : 'Prawa strona · gracz';
     $('left-court-label').textContent=twoPlayer ? 'DOTYK / GRACZ 1' : 'CPU / 01';
@@ -210,7 +210,7 @@
     state.mode = 'playing'; syncCourtCursor(); state.aiTimer = 0; resetControls();
     obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
-    $('overlay').hidden = true; $('pause').disabled = false; $('pause').textContent = 'Ⅱ Pauza';
+    $('overlay').hidden = true; $('pause').disabled = false; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
     $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('round-message').textContent = 'Pierwszy serwis!';
     serve(Math.random()>.5 ? 1 : -1);
     canvas.focus({preventScroll:true});
@@ -225,10 +225,10 @@
     if (state.mode === 'playing') {
       state.mode = 'paused'; syncCourtCursor(); resetControls();
       overlay('Krótka przerwa.', 'Piłka poczeka. Wróć, kiedy będziesz gotowy.', 'Wracam do gry ↗', 'CZAS NA ODDECH');
-      $('status').textContent = 'Mecz wstrzymany'; $('pause').textContent = '▶ Wznów';
+      $('status').textContent = 'Mecz wstrzymany'; $('pause').querySelector('span').textContent = 'Wznów'; $('pause').setAttribute('aria-label','Wznów mecz');
     } else {
       state.mode = 'playing'; syncCourtCursor(); $('overlay').hidden = true;
-      $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('pause').textContent = 'Ⅱ Pauza';
+      $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
       canvas.focus({preventScroll:true});
     }
   }
