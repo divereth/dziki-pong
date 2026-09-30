@@ -54,6 +54,32 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
   .primary{padding:7px 14px;font-size:13px}
 }
 
+/* Keep match controls alongside the centered score. */
+.scorebar{position:relative}
+.player:not(.right){justify-content:flex-end;padding-left:225px}
+.player.right{justify-content:flex-start;padding-right:200px}
+.score-tools{position:absolute;top:50%;z-index:1;transform:translateY(-50%);gap:5px}
+.score-tools-left{left:10px}
+.score-tools-right{right:10px}
+.score-tools .tool{border-color:#665363;background:#3c3441;color:#f3efff}
+.score-tools .tool:hover:enabled{background:#4b3e50}
+@media(max-width:1000px){
+  .player:not(.right){padding-left:78px}
+  .player.right{padding-right:78px}
+  .player-detail{display:none}
+  .score-tools .tool span{display:none}
+}
+@media(max-width:700px){
+  .player:not(.right){padding-left:70px}
+  .player.right{padding-right:70px}
+  .player-icon{display:none}
+  .player-name{font-size:10px;letter-spacing:.3px}
+  .score-tools-left{left:7px}
+  .score-tools-right{right:7px}
+  .score-tools{gap:4px}
+  .score-tools .tool{padding:5px 6px}
+}
+
 /* Mode selection cards */
 .mode-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 10px;width:100%}
 .mode-option{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px solid #c8bfd7;border-radius:10px;background:#fff;color:#34294b;padding:10px 6px 9px;box-shadow:0 2px 0 #d7d0e2;transition:transform .15s,box-shadow .15s,border-color .15s,background .15s}
