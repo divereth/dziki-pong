@@ -6,6 +6,7 @@
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
   const BARRIER_HEIGHT = H, BARRIER_WIDTH = 10, BARRIER_EDGE_OFFSET = 30;
+  const BARRIER_APPEAR_DURATION = .45;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
@@ -27,7 +28,7 @@
   }
   const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
     balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, paddleEffects: { left: null, right: null },
-    barriers: { left: false, right: false },
+    barriers: { left: false, right: false }, barrierAge: { left: null, right: null },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
   const keys = new Set(), particles = [];
   const controls = {
@@ -139,8 +140,12 @@
     const angle = Math.random()*.7-.35;
     // Keep serves clear of the center obstacle field.
     state.balls = [makeBall(W/2+direction*90,H/2,direction*SERVE_SPEED*Math.cos(angle),SERVE_SPEED*Math.sin(angle))];
-    state.barriers.left ||= state.human-state.cpu >= 3;
-    state.barriers.right ||= state.cpu-state.human >= 3;
+    if (!state.barriers.left && state.human-state.cpu >= 3) {
+      state.barriers.left = true; state.barrierAge.left = 0;
+    }
+    if (!state.barriers.right && state.cpu-state.human >= 3) {
+      state.barriers.right = true; state.barrierAge.right = 0;
+    }
     state.delay = 1; state.rally = 0; state.splitUsed = false;
   }
   function addObstacle() {
@@ -207,6 +212,7 @@
   function start() {
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
     state.barriers.left = state.barriers.right = false;
+    state.barrierAge.left = state.barrierAge.right = null;
     state.mode = 'playing'; syncCourtCursor(); state.aiTimer = 0; resetControls();
     obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
@@ -305,7 +311,7 @@
     const speed = Math.min(MAX_SPEED,Math.hypot(b.vx,b.vy)*PADDLE_ACCELERATION);
     b.x=x+direction*(BARRIER_WIDTH/2+radius+.1);
     b.vx=direction*speed*Math.cos(hit*.8); b.vy=speed*Math.sin(hit*.8);
-    state.barriers[side]=false;
+    state.barriers[side]=false; state.barrierAge[side]=null;
     state.rally++;
     burst(b.x,b.y,'#a8f3ff'); bounceSound(side==='left' ? 340 : 520);
     $('status').textContent='Bariera ochronna odbiła piłkę!';
@@ -430,6 +436,9 @@
     for (const side of ['left','right']) {
       const effect=state.paddleEffects[side];
       if (effect && (effect.elapsed+=dt)>=PADDLE_EFFECT_DURATION) state.paddleEffects[side]=null;
+      if (state.barriers[side] && state.barrierAge[side]!==null) {
+        state.barrierAge[side]=Math.min(BARRIER_APPEAR_DURATION,state.barrierAge[side]+dt);
+      }
     }
     for (let i=particles.length-1;i>=0;i--) {
       const p=particles[i]; p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
@@ -554,19 +563,24 @@
         if(symbol)ctx.fillText(symbol,obstacle.x,obstacle.y+1);
       }
     }
-    for(const side of ['left','right']) if(state.barriers[side]) {
-      const {x,top,bottom}=barrierPosition(side);
-      ctx.save(); ctx.globalAlpha=.52; ctx.shadowColor='#a8f3ff'; ctx.shadowBlur=16;
-      rounded(x-BARRIER_WIDTH/2,top,BARRIER_WIDTH,bottom-top,5,'#a8f3ff');
-      ctx.globalAlpha=.9; ctx.shadowBlur=0;
-      rounded(x-1,top+5,2,bottom-top-10,1,'#ffffff'); ctx.restore();
-    }
     const leftEffect=state.paddleEffects.left, rightEffect=state.paddleEffects.right;
     const leftStrength=paddleEffectStrength('left'), rightStrength=paddleEffectStrength('right');
     const leftColor=leftEffect ? mixColor('#ff9a62',leftEffect.type==='frozen' ? '#8fe8ff' : '#ff4d32',leftStrength) : '#ff9a62';
     const rightColor=rightEffect ? mixColor('#d7ff3f',rightEffect.type==='frozen' ? '#8fe8ff' : '#ff4d32',rightStrength) : '#d7ff3f';
     const leftHighlight=leftEffect ? mixColor('#ffc6a0',leftEffect.type==='frozen' ? '#e8fbff' : '#ffe0a0',leftStrength) : '#ffc6a0';
     const rightHighlight=rightEffect ? mixColor('#edffab',rightEffect.type==='frozen' ? '#e8fbff' : '#ffe0a0',rightStrength) : '#edffab';
+    for(const side of ['left','right']) if(state.barriers[side]) {
+      const {x}=barrierPosition(side);
+      const progress=reducedMotion ? 1 : clamp((state.barrierAge[side] ?? BARRIER_APPEAR_DURATION)/BARRIER_APPEAR_DURATION,0,1);
+      const height=BARRIER_HEIGHT*(1-Math.pow(1-progress,3));
+      const top=(H-height)/2, color=side==='left' ? leftColor : rightColor;
+      const highlight=side==='left' ? leftHighlight : rightHighlight;
+      ctx.save(); ctx.globalAlpha=.52; ctx.shadowColor=color; ctx.shadowBlur=16;
+      rounded(x-BARRIER_WIDTH/2,top,BARRIER_WIDTH,height,5,color);
+      ctx.globalAlpha=.9; ctx.shadowBlur=0;
+      if(height>10) rounded(x-1,top+5,2,height-10,1,highlight);
+      ctx.restore();
+    }
     rounded(LX+4,state.left+5,PW,PH,PR,'#30236960');rounded(RX+4,state.right+5,PW,PH,PR,'#30236960');
     rounded(LX,state.left,PW,PH,PR,leftColor);
     rounded(RX,state.right,PW,PH,PR,rightColor);
