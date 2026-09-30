@@ -5,7 +5,7 @@
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
   const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 90, RX = W - 90 - PW;
-  const BARRIER_HEIGHT = PH * 1.5, BARRIER_WIDTH = 10, BARRIER_GAP = 24;
+  const BARRIER_HEIGHT = H, BARRIER_WIDTH = 10, BARRIER_GAP = 24;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
@@ -144,8 +144,8 @@
     const angle = Math.random()*.7-.35;
     // Keep serves clear of the center obstacle field.
     state.balls = [makeBall(W/2+direction*90,H/2,direction*SERVE_SPEED*Math.cos(angle),SERVE_SPEED*Math.sin(angle))];
-    state.barriers.left = state.human-state.cpu > 3;
-    state.barriers.right = state.cpu-state.human > 3;
+    state.barriers.left = state.human-state.cpu >= 3;
+    state.barriers.right = state.cpu-state.human >= 3;
     state.delay = 1; state.rally = 0; state.splitUsed = false;
   }
   function addObstacle() {
@@ -293,8 +293,7 @@
   }
   function barrierPosition(side) {
     const centerX = side==='left' ? LX-BARRIER_GAP : RX+PW+BARRIER_GAP;
-    const paddleY = side==='left' ? state.left : state.right;
-    const top = clamp(paddleY+PH/2-BARRIER_HEIGHT/2,0,H-BARRIER_HEIGHT);
+    const top = 0;
     return { x: centerX, top, bottom: top+BARRIER_HEIGHT };
   }
   function hitBarrier(b, side) {
