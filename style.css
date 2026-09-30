@@ -98,8 +98,10 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
 
 /* Preserve the court's native game proportions at every viewport size. */
 body{justify-content:safe center}
-.shell{height:auto}
-.game{height:auto}
-.court{flex:none;width:100%;aspect-ratio:1000/510}
-html:fullscreen .shell,html:-webkit-full-screen .shell{height:auto}
+.shell{height:calc(100svh - 16px)}
+.game{height:100%;min-height:0;display:flex;flex-direction:column}
+.court-frame{flex:1;min-height:0;display:grid;place-items:center;background:#fff}
+.court{flex:none;aspect-ratio:1000/510}
+@media(max-width:700px){.shell{height:calc(100svh - 12px)}}
+html:fullscreen .shell,html:-webkit-full-screen .shell{height:calc(100svh - env(safe-area-inset-top,8px) - env(safe-area-inset-bottom,8px))}
 
