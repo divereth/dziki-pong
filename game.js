@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const canvas = $('board'), ctx = canvas.getContext('2d'), court = $('court');
   canvas.tabIndex = 0;
-  const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 30, RX = W - 30 - PW;
+  const W = 1000, H = 510, PW = 15, PH = 94, PR = 6, R = 9, LX = 120, RX = W - 120 - PW;
   const courtBackground = document.createElement('canvas');
   const backgroundCtx = courtBackground.getContext('2d');
   const SERVE_SPEED = 420, MAX_SPEED = 1150, PADDLE_ACCELERATION = 1.075;
@@ -89,8 +89,8 @@
 
 
     canvas.setAttribute('aria-label',twoPlayer
-      ? 'Gracz 1: W i S lub dotyk lewej połowy planszy. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy. Możecie dotykać obu połówek jednocześnie.'
-      : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk.');
+      ? 'Gracz 1: W i S lub dotyk lewej połowy planszy, także przestrzeni za paletką. Gracz 2: strzałki góra/dół, mysz lub dotyk prawej połowy, także przestrzeni za paletką. Możecie dotykać obu połówek jednocześnie.'
+      : 'Komputer po lewej. Twoja platforma po prawej: strzałki góra/dół, mysz lub dotyk; możesz dotykać przestrzeni za paletką.');
     start();
     state.mode='ready';
     $('round-message').textContent='';$('status').textContent='Czekamy na pierwszy serwis';$('pause').disabled=true;
