@@ -17,10 +17,12 @@
   const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
   const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
   const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', fireball: '#ff6848', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
-  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, FROZEN_SPEED = .58, FIREBALL_SPEED = 1.5;
+  const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, BLACK_BALL_DURATION = 10;
+  const BLACK_BALL_PULL = 300, BLACK_BALL_PULL_RANGE = 180, MAX_OBSTACLE_SPEED = 180;
+  const FROZEN_SPEED = .58, FIREBALL_SPEED = 1.5;
   const PADDLE_EFFECT_DURATION = 30, PADDLE_FROZEN_SPEED = .4;
   function makeBall(x, y, vx, vy) {
-    return { x, y, vx, vy, sizeScale: 1, trail: [], effect: null };
+    return { x, y, vx, vy, sizeScale: 1, trail: [], effect: null, blackHoleTime: 0 };
   }
   function ballRadius(ball) { return R * ball.sizeScale; }
   function ballColor(ball) {
@@ -162,7 +164,7 @@
     const rotation=shape==='square' ? Math.PI/4 : shape==='diamond' ? 0 : Math.random()*Math.PI*2;
     const obstacle = {
       x: 0, y: 0, size, shape, rotation,
-      kind, color: OBSTACLE_COLORS[kind], vertices: null,
+      kind, color: OBSTACLE_COLORS[kind], vertices: null, vx: 0, vy: 0,
     };
     const servePoints = [{x: W/2-90,y:H/2},{x: W/2+90,y:H/2}];
     for (let attempt=0; attempt<120; attempt++) {
@@ -381,9 +383,10 @@
     return {x:nearest.x,y:nearest.y,nx,ny};
   }
   function hitObstacle(b, obstacle) {
-    if (obstacle.kind==='blackhole') return;
     const contact=obstacleContact(b,obstacle);
     if (!contact) return;
+    if (b.blackHoleTime>0) { absorbObstacle(obstacle); return; }
+    if (obstacle.kind==='blackhole') return;
     const {nx,ny}=contact;
     const approach=b.vx*nx+b.vy*ny;
     if(approach>=0) return;
@@ -421,7 +424,7 @@
     burst(obstacle.x,obstacle.y,obstacle.color,24);
   }
   function captureInBlackHole(b, obstacle) {
-    if (obstacle.occupied || Math.hypot(b.x-obstacle.x,b.y-obstacle.y)>obstacle.size*.4+ballRadius(b)) return false;
+    if (b.blackHoleTime>0 || obstacle.occupied || Math.hypot(b.x-obstacle.x,b.y-obstacle.y)>obstacle.size*.4+ballRadius(b)) return false;
     obstacle.occupied=true;
     b.capturedBy=obstacle; b.captureTime=BLACK_HOLE_HOLD_TIME;
     b.x=obstacle.x; b.y=obstacle.y; b.vx=b.vy=0; b.trail=[];
@@ -441,6 +444,48 @@
     const speed=Math.hypot(b.vx,b.vy);
     if(speed>MAX_SPEED){b.vx*=MAX_SPEED/speed;b.vy*=MAX_SPEED/speed;}
   }
+  function pullObstaclesTowardBlackBalls(dt) {
+    const drag=Math.exp(-2.4*dt);
+    for (const obstacle of obstacles) {
+      let ax=0, ay=0;
+      for (const b of state.balls) {
+        if (b.blackHoleTime<=0 || b.capturedBy) continue;
+        const dx=b.x-obstacle.x, dy=b.y-obstacle.y, distance=Math.hypot(dx,dy);
+        if (distance===0 || distance>=BLACK_BALL_PULL_RANGE) continue;
+        const acceleration=BLACK_BALL_PULL*(1-distance/BLACK_BALL_PULL_RANGE);
+        ax+=dx/distance*acceleration; ay+=dy/distance*acceleration;
+      }
+      obstacle.vx=(obstacle.vx+ax*dt)*drag;
+      obstacle.vy=(obstacle.vy+ay*dt)*drag;
+      const speed=Math.hypot(obstacle.vx,obstacle.vy);
+      if (speed>MAX_OBSTACLE_SPEED) {
+        obstacle.vx*=MAX_OBSTACLE_SPEED/speed; obstacle.vy*=MAX_OBSTACLE_SPEED/speed;
+      }
+      obstacle.x+=obstacle.vx*dt; obstacle.y+=obstacle.vy*dt;
+      const x=clamp(obstacle.x,obstacle.size,W-obstacle.size);
+      const y=clamp(obstacle.y,obstacle.size,H-obstacle.size);
+      if (x!==obstacle.x) obstacle.vx=0;
+      if (y!==obstacle.y) obstacle.vy=0;
+      obstacle.x=x; obstacle.y=y; obstacle.vertices=null;
+    }
+  }
+  function absorbObstacle(obstacle) {
+    const index=obstacles.indexOf(obstacle);
+    if (index<0) return;
+    obstacles.splice(index,1);
+    for (const trapped of state.balls) if (trapped.capturedBy===obstacle) {
+      let dx=W/2-obstacle.x, dy=H/2-obstacle.y, distance=Math.hypot(dx,dy);
+      if (distance===0) { dx=1; dy=0; distance=1; }
+      const ux=dx/distance, uy=dy/distance, radius=ballRadius(trapped);
+      trapped.capturedBy=null; trapped.captureTime=0;
+      trapped.x=clamp(obstacle.x+ux*(obstacle.size+radius+2),radius,W-radius);
+      trapped.y=clamp(obstacle.y+uy*(obstacle.size+radius+2),radius,H-radius);
+      trapped.vx=ux*SERVE_SPEED; trapped.vy=uy*SERVE_SPEED;
+    }
+    burst(obstacle.x,obstacle.y,obstacle.color,24); bounceSound(620);
+    $('status').textContent='Przeszkoda pochłonięta przez czarną piłkę!';
+    $('announcement').textContent=$('status').textContent;
+  }
   function releaseFromBlackHole(b) {
     const obstacle=b.capturedBy, startX=obstacle.x, startY=obstacle.y;
     let dx=W/2-startX, dy=H/2-startY, distance=Math.hypot(dx,dy);
@@ -451,9 +496,10 @@
     b.capturedBy=null; b.captureTime=0;
     b.x=startX+ux*(obstacle.size+ballRadius(b)+2); b.y=startY+uy*(obstacle.size+ballRadius(b)+2);
     b.vx=ux*SERVE_SPEED*1.35; b.vy=uy*SERVE_SPEED*1.35; b.trail=[];
+    b.blackHoleTime=BLACK_BALL_DURATION;
     burst(startX,startY,obstacle.color,24); burst(obstacle.x,obstacle.y,obstacle.color,16);
-    $('status').textContent='Piłka wystrzelona z czarnej dziury w stronę środka planszy';
-    $('announcement').textContent='Czarna dziura przeniosła się w inne miejsce.';
+    $('status').textContent='Czarna piłka! Przyciąga i pochłania przeszkody przez 10 sekund.';
+    $('announcement').textContent=$('status').textContent;
     tone(520,.16,'triangle');
   }
   function update(dt) {
@@ -499,7 +545,12 @@
     // Substeps keep fast balls from passing through small obstacles or paddles.
     const steps=Math.ceil(dt*240), step=dt/steps;
     for(let s=0;s<steps;s++) {
+      pullObstaclesTowardBlackBalls(step);
       for(const b of [...state.balls]) {
+        if (b.blackHoleTime>0) {
+          b.blackHoleTime=Math.max(0,b.blackHoleTime-step);
+          if (b.blackHoleTime<1e-6) b.blackHoleTime=0;
+        }
         if (b.capturedBy) {
           b.captureTime-=step;
           if (b.captureTime<=0) releaseFromBlackHole(b);
@@ -518,7 +569,7 @@
         hitPaddle(b,RX,state.right,-1);
         hitBarrier(b,'left');
         hitBarrier(b,'right');
-        for(const obstacle of obstacles) hitObstacle(b,obstacle);
+        for(let i=obstacles.length-1;i>=0;i--) hitObstacle(b,obstacles[i]);
         radius=ballRadius(b);
         if(b.x-radius<=0 || b.x+radius>=W){
           const who=b.x-radius<=0 ? 'human' : 'cpu';
@@ -614,10 +665,11 @@
     rounded(RX+4,state.right+13,3,PH-26,2,rightHighlight);
     for(const b of state.balls){
       if(b.capturedBy)continue;
-      const color=ballColor(b);
+      const color=b.blackHoleTime>0 ? '#080711' : ballColor(b);
       const radius=ballRadius(b);
       if(state.delay<=0)b.trail.forEach((p,i)=>{ctx.globalAlpha=(1-i/b.trail.length)*.22;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,radius*(1-i/20),0,Math.PI*2);ctx.fill();});
-      ctx.globalAlpha=1;ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,radius,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      ctx.globalAlpha=1;ctx.shadowColor=b.blackHoleTime>0 ? '#a584ff' : color;ctx.shadowBlur=15;ctx.fillStyle=color;ctx.beginPath();ctx.arc(b.x,b.y,radius,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+      if(b.blackHoleTime>0){ctx.strokeStyle='#c3a1ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+4,-Math.PI/2,-Math.PI/2+Math.PI*2*b.blackHoleTime/BLACK_BALL_DURATION);ctx.stroke();}
       if(b.effect==='frozen'){ctx.strokeStyle='#a8f3ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
       if(b.effect==='fireball'){ctx.strokeStyle='#ffb05c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(b.x,b.y,radius+3,0,Math.PI*2);ctx.stroke();}
     }
