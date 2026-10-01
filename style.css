@@ -120,3 +120,11 @@ html:fullscreen .shell,html:-webkit-full-screen .shell{height:calc(100svh - env(
   .scorebar.has-side-bars .score-tools .tool{min-height:24px;padding:1px 3px}
 }
 
+
+/* PWA install action in the start menu */
+.install-app{display:block;width:100%;margin:0 auto 10px;padding:9px 14px;border:1px solid #7451d7;border-radius:8px;background:#fff;color:#49318f;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 #d8ccef}
+.install-app:hover{background:#eee8ff}
+.install-app:focus-visible{outline:3px solid #7451d7;outline-offset:3px}
+.install-app[hidden],.install-note[hidden]{display:none}
+.install-note{margin:0 auto 10px;color:#514365;font-size:11px;line-height:1.4}
+@media(max-width:650px){.install-app{padding:8px 12px;font-size:12px}.install-note{font-size:10px;margin-bottom:8px}}

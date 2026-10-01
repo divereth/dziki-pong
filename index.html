@@ -30,11 +30,61 @@
         </div>
       </div>
       <div class="sr-only" id="status" role="status" aria-live="polite">Czekamy na pierwszy serwis</div>
-      <div class="court-frame" id="court-frame"><div class="court" id="court"><canvas id="board" aria-label="Plansza: komputer po lewej, twoja platforma po prawej. Sterowanie strzałkami w górę i w dół, myszą lub dotykiem."></canvas><div class="court-label" id="left-court-label">CPU / 01</div><div class="court-label right-label" id="right-court-label">PLAYER / 02</div><div class="round-message" id="round-message"></div><div class="overlay" id="overlay"><div class="start-card"><p class="eyebrow" id="eyebrow">GOTOWY NA ODBICIE?</p><h2 id="overlay-title">Rozkręć ten mecz.</h2><p id="overlay-description">Sterujesz limonkową platformą po prawej.<br>Zdobądź 10 punktów i pokonaj komputer.</p><div class="mode-picker" role="group" aria-label="Wybierz tryb gry"><button class="mode-option" id="mode-solo" type="button" aria-pressed="true"><span class="mode-option-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="6" y="7" width="36" height="27" rx="4"></rect><path d="M17 41h14M24 34v7"></path><circle cx="17" cy="19" r="2"></circle><circle cx="31" cy="19" r="2"></circle><path d="M17 26h14"></path></svg></span><span class="mode-option-title">VS komputer</span><span class="mode-option-detail">Zagraj z AI</span></button><button class="mode-option" id="mode-duo" type="button" aria-pressed="false"><span class="mode-option-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="15" r="6"></circle><circle cx="33" cy="17" r="5"></circle><path d="M5 39c0-8 4-13 12-13s12 5 12 13M27 29c2-2 4-3 7-3 6 0 10 5 10 13H29"></path></svg></span><span class="mode-option-title">2 graczy</span><span class="mode-option-detail">W/S · ↑/↓ lub dotyk</span></button></div><span class="mode-note" id="mode-note">Wybierz tryb, aby zacząć.</span><button class="primary" id="play" hidden>Gramy! <span aria-hidden="true">↗</span></button></div></div></div></div>
+      <div class="court-frame" id="court-frame"><div class="court" id="court"><canvas id="board" aria-label="Plansza: komputer po lewej, twoja platforma po prawej. Sterowanie strzałkami w górę i w dół, myszą lub dotykiem."></canvas><div class="court-label" id="left-court-label">CPU / 01</div><div class="court-label right-label" id="right-court-label">PLAYER / 02</div><div class="round-message" id="round-message"></div><div class="overlay" id="overlay"><div class="start-card"><p class="eyebrow" id="eyebrow">GOTOWY NA ODBICIE?</p><h2 id="overlay-title">Rozkręć ten mecz.</h2><p id="overlay-description">Sterujesz limonkową platformą po prawej.<br>Zdobądź 10 punktów i pokonaj komputer.</p><div class="mode-picker" role="group" aria-label="Wybierz tryb gry"><button class="mode-option" id="mode-solo" type="button" aria-pressed="true"><span class="mode-option-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="6" y="7" width="36" height="27" rx="4"></rect><path d="M17 41h14M24 34v7"></path><circle cx="17" cy="19" r="2"></circle><circle cx="31" cy="19" r="2"></circle><path d="M17 26h14"></path></svg></span><span class="mode-option-title">VS komputer</span><span class="mode-option-detail">Zagraj z AI</span></button><button class="mode-option" id="mode-duo" type="button" aria-pressed="false"><span class="mode-option-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="15" r="6"></circle><circle cx="33" cy="17" r="5"></circle><path d="M5 39c0-8 4-13 12-13s12 5 12 13M27 29c2-2 4-3 7-3 6 0 10 5 10 13H29"></path></svg></span><span class="mode-option-title">2 graczy</span><span class="mode-option-detail">W/S · ↑/↓ lub dotyk</span></button></div><span class="mode-note" id="mode-note">Wybierz tryb, aby zacząć.</span><button class="install-app" id="install-app" type="button" hidden>⇩ Zainstaluj grę</button><p class="install-note" id="install-note" role="status" aria-live="polite" hidden></p><button class="primary" id="play" hidden>Gramy! <span aria-hidden="true">↗</span></button></div></div></div></div>
     </section>
     <div class="sr-only" id="announcement" role="status" aria-live="polite"></div>
   </main>
   <script src="game.js"></script>
+  <script>
+    (() => {
+      const button = document.getElementById('install-app');
+      const note = document.getElementById('install-note');
+      let installPrompt = null;
+      const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      const refreshInstallButton = () => {
+        const installed = isInstalled();
+        button.hidden = installed;
+        if (installed) note.hidden = true;
+      };
+
+      window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        installPrompt = event;
+        refreshInstallButton();
+      });
+      window.addEventListener('appinstalled', () => {
+        installPrompt = null;
+        refreshInstallButton();
+      });
+      window.matchMedia('(display-mode: standalone)').addEventListener('change', refreshInstallButton);
+
+      button.addEventListener('click', async () => {
+        if (installPrompt) {
+          const prompt = installPrompt;
+          installPrompt = null;
+          await prompt.prompt();
+          const choice = await prompt.userChoice;
+          if (choice.outcome === 'accepted') {
+            button.hidden = true;
+            note.hidden = true;
+          } else {
+            note.textContent = 'Instalację możesz uruchomić później z menu przeglądarki.';
+            note.hidden = false;
+          }
+          return;
+        }
+
+        const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent)
+          || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        note.textContent = isAppleMobile
+          ? 'W Safari wybierz Udostępnij, a następnie „Dodaj do ekranu początkowego”.'
+          : 'Otwórz menu przeglądarki i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.';
+        note.hidden = false;
+      });
+
+      refreshInstallButton();
+    })();
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
