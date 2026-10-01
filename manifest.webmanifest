@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "Dziki Pong",
+  "short_name": "Dziki Pong",
+  "description": "DZIKI PONG — gra z komputerem lub dla dwóch osób.",
+  "lang": "pl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#ede9f6",
+  "theme_color": "#ede9f6",
+  "icons": [
+    {
+      "src": "./icons/dziki-pong-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/dziki-pong-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
