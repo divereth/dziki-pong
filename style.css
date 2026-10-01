@@ -96,6 +96,12 @@ html:fullscreen .game,html:-webkit-full-screen .game{border-radius:0;box-shadow:
 @media(max-width:650px){.mode-picker{align-items:stretch;gap:8px}.mode-option{padding:8px 4px}.mode-option-title{font-size:11px}.mode-option-detail{font-size:10px}.mode-note{margin-bottom:10px}}
 @media(max-height:620px){.mode-option{gap:2px;padding:6px 4px}.mode-option-icon{width:34px;height:34px}.mode-option-icon svg{width:23px;height:23px}.mode-note{margin-bottom:7px}}
 
+/* Fit the full court on wide screens and leave white side bars. */
+@media (min-aspect-ratio: 3/2) {
+  html,body{background:#fff}
+  .shell{width:min(100%,calc(190svh - 300px))}
+}
+
 /* Preserve the court's native game proportions at every viewport size. */
 body{justify-content:safe center}
 .shell{height:calc(100svh - 16px)}
