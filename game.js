@@ -327,7 +327,7 @@
     }
   }
   function hitBarrier(b, side) {
-    if (b.blackBallTime>0 || !state.barriers[side]) return;
+    if (!state.barriers[side]) return;
     const direction = side==='left' ? 1 : -1;
     if (b.vx*direction>=0) return;
     const {x,top,bottom} = barrierPosition(side), radius = ballRadius(b);
