@@ -19,7 +19,7 @@
   const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', fireball: '#ff6848', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
   const MAX_SPLITTERS = 2, BLACK_HOLE_HOLD_TIME = 2, BLACK_BALL_DURATION = 10;
   const BLACK_HOLE_SIZE = 30, BLACK_HOLE_PULL_MULTIPLIER = 3.5*1.5;
-  const BLACK_BALL_PULL = 300, BLACK_BALL_CENTER_TOLERANCE = .5, MAX_OBSTACLE_SPEED = 180;
+  const BLACK_BALL_PULL = 300, MAX_OBSTACLE_SPEED = 180;
   const FROZEN_SPEED = .58, FIREBALL_SPEED = 1.5;
   const PADDLE_EFFECT_DURATION = 30, PADDLE_FROZEN_SPEED = .4;
   function makeBall(x, y, vx, vy) {
@@ -428,7 +428,7 @@
     if (lengthSquared===0) return false;
     const t=clamp(((obstacle.x-startX)*dx+(obstacle.y-startY)*dy)/lengthSquared,0,1);
     const closestX=startX+t*dx, closestY=startY+t*dy;
-    return Math.hypot(obstacle.x-closestX,obstacle.y-closestY)<=BLACK_BALL_CENTER_TOLERANCE;
+    return Math.hypot(obstacle.x-closestX,obstacle.y-closestY)<=obstacle.size*.5;
   }
   function absorbObstacle(b, obstacle) {
     if (b.blackBallTime<=0 || obstacle.kind==='blackhole') return;
