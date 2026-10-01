@@ -102,8 +102,9 @@ jobs:
           changed="$({ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u)"
           test -n "$changed"
           while IFS= read -r path; do
-            case "$path" in
-              game.js|index.html|style.css) ;;
+            normalized_path="${path,,}"
+            case "$normalized_path" in
+              game.js|index.html|style.css|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.svg|*.ico|*.avif|*.bmp|*.apng|*.mp3|*.wav|*.ogg|*.oga|*.opus|*.m4a|*.aac|*.flac|*.mid|*.midi) ;;
               *) echo "Blocked unexpected file change: $path"; exit 1 ;;
             esac
           done <<< "$changed"
