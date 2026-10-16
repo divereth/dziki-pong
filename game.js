@@ -14,6 +14,7 @@
   const KEYBOARD_SPEED = 560, POINTER_SPEED = 1275, COMPUTER_SPEED = 450;
   const MIN_BALL_SCALE = .2, MAX_BALL_SCALE = 5, BALL_SIZE_CHANGE = 1.5;
   const obstacles = [];
+  let nextObstacleSide = 'left';
   const SHAPES = ['circle', 'square', 'diamond', 'triangle', 'hexagon'];
   const SHAPE_SIDES = { square: 4, diamond: 4, triangle: 3, hexagon: 6 };
   const OBSTACLE_COLORS = { bumper: '#ff9a62', splitter: '#55f1ed', freezer: '#8fe8ff', fireball: '#ff6848', grower: '#d7ff3f', shrinker: '#c6a7ff', blackhole: '#21172f' };
@@ -154,6 +155,8 @@
     state.delay = 1; state.rally = 0; state.splitUsed = false;
   }
   function addObstacle() {
+    const spawnOnLeft = nextObstacleSide === 'left';
+    nextObstacleSide = spawnOnLeft ? 'right' : 'left';
     const splitters = obstacles.filter(obstacle => obstacle.kind === 'splitter').length;
     const hasBlackHole = obstacles.some(obstacle => obstacle.kind === 'blackhole');
     const kinds = splitters < MAX_SPLITTERS
@@ -168,9 +171,11 @@
       x: 0, y: 0, size, shape, rotation,
       kind, color: OBSTACLE_COLORS[kind], vertices: null, vx: 0, vy: 0,
     };
+    const minX = spawnOnLeft ? 175 : W/2+size;
+    const maxX = spawnOnLeft ? W/2-size : W-175;
     const servePoints = [{x: W/2-90,y:H/2},{x: W/2+90,y:H/2}];
     for (let attempt=0; attempt<120; attempt++) {
-      obstacle.x = 175 + Math.random()*(W-350);
+      obstacle.x = minX + Math.random()*(maxX-minX);
       obstacle.y = 55 + Math.random()*(H-110);
       const clearObstacles = obstacles.every(existing =>
         Math.hypot(obstacle.x-existing.x,obstacle.y-existing.y) > obstacle.size+existing.size+12);
@@ -185,6 +190,7 @@
     }
     // A deterministic grid fallback keeps each scheduled obstacle spawn reliable.
     for (let y=65; y<H-55; y+=70) for (let x=180; x<W-180; x+=75) {
+      if (x<minX || x>maxX) continue;
       obstacle.x=x; obstacle.y=y;
       if (obstacles.every(existing => Math.hypot(x-existing.x,y-existing.y) > obstacle.size+existing.size+4)
         && servePoints.every(point => Math.hypot(x-point.x,y-point.y) > obstacle.size+R+4)
@@ -223,7 +229,7 @@
     state.barriers.left = state.barriers.right = false;
     state.barrierAge.left = state.barrierAge.right = null;
     state.mode = 'playing'; syncCourtCursor(); state.aiTimer = 0; resetControls();
-    obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
+    obstacles.length = 0; nextObstacleSide = 'left'; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
     $('status').textContent = `Gramy! Mecz do ${targetScoreText()}`; $('round-message').textContent = 'Pierwszy serwis!';
