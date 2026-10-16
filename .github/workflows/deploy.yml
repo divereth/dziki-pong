@@ -1,9 +1,15 @@
-name: Deploy Dziki Pong production
+name: Deploy Dziki games production
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      game_id:
+        description: Gra do opublikowania
+        type: choice
+        default: dziki-pong
+        options: [dziki-pong, dziki-sprzedawca, dziki-bieg, dziki-karabin, all]
   repository_dispatch:
     types: [deploy_production]
 
@@ -11,74 +17,63 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  select:
     runs-on: ubuntu-latest
-    environment: production
+    outputs:
+      matrix: ${{ steps.games.outputs.matrix }}
+      count: ${{ steps.games.outputs.count }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Deploy to Cloudflare Pages
+      - id: games
+        run: node automation/select-games.mjs
+
+  deploy:
+    needs: select
+    if: needs.select.outputs.count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-${{ matrix.game_id }}
+      cancel-in-progress: false
+    env:
+      GAME_ID: ${{ matrix.game_id }}
+      REQUEST_ID: ${{ github.event.client_payload.request_id }}
+      DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Select game, run checks, build public files
+        run: |
+          node automation/game-tools.mjs configure
+          node automation/game-tools.mjs check
+          node automation/game-tools.mjs build
+      - name: Deploy to the game's Cloudflare Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
-        run: npx --yes wrangler@latest pages deploy . --project-name "$CLOUDFLARE_PROJECT_NAME"
-
+        run: npx --yes wrangler@latest pages deploy ".artifacts/$GAME_ID" --project-name "$CF_PROJECT" --branch main --commit-dirty=true
       - name: Report production deployment result
-        if: always() && github.event_name == 'repository_dispatch' && github.event.action == 'deploy_production'
+        if: always() && github.event_name == 'repository_dispatch'
         env:
-          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
-          REQUEST_ID: ${{ github.event.client_payload.request_id }}
-          AUTHOR_ID: ${{ github.event.client_payload.discord_user_id }}
-          REQUEST_TEXT_B64: ${{ github.event.client_payload.request_text_b64 }}
-          PR_NUMBER: ${{ github.event.client_payload.pr_number }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           JOB_STATUS: ${{ job.status }}
-        shell: bash
-        run: |
-          if [ -z "$REQUEST_ID" ]; then
-            echo "Missing request ID; skipping Discord completion notice."
-            exit 0
-          fi
-          case "$AUTHOR_ID" in
-            *[!0-9]*) AUTHOR_ID="" ;;
-          esac
-          change_text="$(printf '%s' "$REQUEST_TEXT_B64" | base64 --decode 2>/dev/null || true)"
-          change_snippet="$(jq -nr --arg text "$change_text" '$text | gsub("[[:space:]]+"; " ") | .[0:240]')"
-          if [ "$JOB_STATUS" = "success" ]; then
-            if [ -n "$AUTHOR_ID" ]; then
-              main_message="✅ Zmiana wymyślona przez **<@$AUTHOR_ID>** została dodana do głównej wersji gry!"
-            else
-              main_message="✅ Zmiana została dodana do głównej wersji gry!"
-            fi
-            if [ -n "$change_snippet" ]; then
-              main_message="$(printf '%s\n> %s' "$main_message" "$change_snippet")"
-            fi
-            main_message="$(printf '%s\nZagraj: https://dziki-pong.pages.dev/' "$main_message")"
-            dev_message="✅ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony i produkcja wdrożona. https://dziki-pong.pages.dev/ | GitHub Actions: $RUN_URL"
-          else
-            if [ -n "$AUTHOR_ID" ]; then
-              main_message="⚠️ Zmiana wymyślona przez **<@$AUTHOR_ID>** została scalona, ale nie udało się opublikować gry. Opiekun sprawdzi problem."
-            else
-              main_message="⚠️ Zmiana została scalona, ale nie udało się opublikować gry. Opiekun sprawdzi problem."
-            fi
-            if [ -n "$change_snippet" ]; then
-              main_message="$(printf '%s\n> %s' "$main_message" "$change_snippet")"
-            fi
-            dev_message="❌ Zlecenie $REQUEST_ID: PR #$PR_NUMBER scalony, ale wdrożenie Cloudflare nie powiodło się. GitHub Actions: $RUN_URL"
-          fi
-          if [ -n "$MAIN_WEBHOOK" ]; then
-            if [ -n "$AUTHOR_ID" ]; then
-              payload="$(jq -n --arg content "$main_message" --arg id "$AUTHOR_ID" '{content:$content,allowed_mentions:{parse:[],users:[$id]}}')"
-            else
-              payload="$(jq -n --arg content "$main_message" '{content:$content,allowed_mentions:{parse:[],users:[]}}')"
-            fi
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
-          fi
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
+        run: node automation/notify.mjs production

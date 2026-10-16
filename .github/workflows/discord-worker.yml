@@ -1,10 +1,11 @@
-name: Deploy Dziki Pong Discord Worker
+name: Deploy Dziki Discord Worker
 
 on:
   push:
     branches: [main]
     paths:
       - automation/discord-worker/**
+      - automation/games.mjs
       - .github/workflows/discord-worker.yml
   workflow_dispatch:
 
@@ -19,6 +20,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Check Discord routing before deployment
+        run: node --test automation/*.test.mjs
+      - name: Report notification configuration
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: node -e "console.log('Existing Discord bot token configured:', Boolean(process.env.DISCORD_BOT_TOKEN))"
       - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,3 +1,5 @@
+import { GAMES, gameForInteraction, previewUrl, statusWebhook } from '../../games.mjs';
+
 const DISCORD_API = 'https://discord.com/api/v10';
 const blockedPatterns = [
   /(?:exfiltrat|steal|dump|print).*(?:secret|token|password|cookie|key)/i,
@@ -91,9 +93,10 @@ async function followup(interaction, content) {
   });
 }
 
-async function postStatus(env, content, mentionUserId) {
-  if (!env.DISCORD_STATUS_WEBHOOK_URL) return;
-  const response = await fetch(env.DISCORD_STATUS_WEBHOOK_URL, {
+async function postStatus(env, game, content, mentionUserId) {
+  const webhook = statusWebhook(env, game);
+  if (!webhook) return;
+  const response = await fetch(webhook, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -105,16 +108,17 @@ async function postStatus(env, content, mentionUserId) {
   if (!response.ok) throw new Error(`Discord status webhook failed: ${response.status}`);
 }
 
-async function processRequest(interaction, env, requestText) {
+async function processRequest(interaction, env, requestText, game) {
   const requesterId = interaction.member?.user?.id || interaction.user?.id;
   try {
-    await postStatus(env, `🟡 Dziki pracuje nad zmianą <@${requesterId}>:\n> ${requestSummary(requestText)}`, requesterId);
+    await postStatus(env, game, `🟡 ${game.name}: Dziki pracuje nad zmianą <@${requesterId}>:\n> ${requestSummary(requestText)}`, requesterId);
   } catch (error) {
     console.error(error);
   }
   try {
     await githubDispatch(env, 'dziki_request', {
       request_id: interaction.id,
+      game_id: game.id,
       request_text: requestText,
       discord_user_id: interaction.member?.user?.id || interaction.user?.id,
       discord_user_name: userName(interaction),
@@ -128,10 +132,12 @@ async function processRequest(interaction, env, requestText) {
   }
 }
 
-async function processPromotion(interaction, env, requestId) {
+async function processPromotion(interaction, env, requestId, game) {
   try {
     await githubDispatch(env, 'dziki_promote', {
       request_id: requestId,
+      game_id: game.id,
+      discord_channel_id: interaction.channel_id,
       is_admin: true,
       discord_user_id: interaction.member?.user?.id || interaction.user?.id,
       discord_user_name: userName(interaction),
@@ -144,7 +150,7 @@ async function processPromotion(interaction, env, requestId) {
 }
 export default {
   async fetch(request, env, ctx) {
-    if (request.method !== 'POST') return new Response('Dziki Pong Discord endpoint', { status: 200 });
+    if (request.method !== 'POST') return json({ service: 'Dziki Discord', games: Object.keys(GAMES) });
     const body = await request.text();
     if (!(await verifyDiscordSignature(request, body, env.DISCORD_PUBLIC_KEY))) return new Response('Invalid request signature', { status: 401 });
 
@@ -158,7 +164,8 @@ export default {
     if (interaction.type === 1) return json({ type: 1 });
     if (interaction.type !== 2) return ephemeral('Ta akcja Discorda nie jest obsługiwana.');
     if (env.DISCORD_GUILD_ID && interaction.guild_id !== env.DISCORD_GUILD_ID) return ephemeral('Ta komenda nie jest dostępna na tym serwerze.');
-    if (env.DISCORD_CHANNEL_ID && interaction.channel_id !== env.DISCORD_CHANNEL_ID) return ephemeral('Użyj tej komendy na kanale #dziki-pong.');
+    const game = gameForInteraction(interaction, env);
+    if (!game) return ephemeral('Użyj tej komendy na #dziki-pong, #dziki-sprzedawca, #dziki-bieg lub #dziki-karabin.');
     if (interaction.data?.name !== 'dzika') return ephemeral('Nie znam tej komendy.');
 
     const subcommand = interaction.data.options?.[0];
@@ -168,16 +175,16 @@ export default {
       const requestText = String(option(subcommand.options, 'text') || '').trim();
       const reason = validRequest(requestText);
       if (reason) return ephemeral(`Prośba odrzucona: ${reason}`);
-      ctx.waitUntil(processRequest(interaction, env, requestText));
-      return ephemeral(`✅ Przyjęte! Dziki pracuje nad zmianą:\n> ${requestSummary(requestText)}`);
+      ctx.waitUntil(processRequest(interaction, env, requestText, game));
+      return ephemeral(`✅ ${game.name}: przyjęte!\n> ${requestSummary(requestText)}\n\nPodgląd będzie dostępny po zakończeniu pracy: ${previewUrl(game, interaction.id)}\nZlecenie: \`${interaction.id}\`. Postęp i wynik: <#1398036719101542601>.`);
     }
 
     if (subcommand.name === 'promote') {
       if (!isAdmin(interaction, env)) return ephemeral('Tylko administrator może opublikować zmianę na żywo.');
       const requestId = String(option(subcommand.options, 'request_id') || '');
-      if (!/^[A-Za-z0-9_-]{3,80}$/.test(requestId)) return ephemeral('Nieprawidłowe oznaczenie prośby.');
-      ctx.waitUntil(processPromotion(interaction, env, requestId));
-      return ephemeral('✅ Publikowanie uruchomione.');
+      if (!/^[A-Za-z0-9_-]{3,40}$/.test(requestId)) return ephemeral('Nieprawidłowe oznaczenie prośby.');
+      ctx.waitUntil(processPromotion(interaction, env, requestId, game));
+      return ephemeral(`✅ ${game.name}: publikowanie uruchomione.`);
     }
 
     return ephemeral('Nie znam tej komendy.');

@@ -1,4 +1,25 @@
-# Dziki Pong
+# Dziki — gry i zmiany z Discorda
+
+Jedna komenda `/dzika zmiana text:opis zmiany` obsługuje cztery gry. Gra jest wybierana na podstawie kanału z podpisanej interakcji Discorda.
+
+| Kanał | Gra | Cloudflare Pages | Pliki gry |
+|---|---|---|---|
+| #dziki-pong | Dziki Pong | https://dziki-pong.pages.dev/ | katalog główny |
+| #dziki-sprzedawca | Dziki Sprzedawca | https://dzikisprzedawca.pages.dev/ | games/dziki-sprzedawca |
+| #dziki-bieg | Dziki Bieg | https://dzikibieg.pages.dev/ | games/dziki-bieg/dist |
+| #dziki-karabin | Dziki Karabin | https://dzikikarabin.pages.dev/ | games/dziki-karabin/dist |
+
+Komenda od razu zwraca numer zlecenia i adres jego przyszłego podglądu. Ten adres zacznie działać po zakończeniu generowania i wdrożenia. Postęp, błędy i gotowy PR trafiają również na istniejący kanał deweloperski. Każde zlecenie ma osobną gałąź i podgląd. Generowanie trwa maksymalnie 30 minut; cały przebieg ma limit 45 minut.
+
+Administrator publikuje sprawdzony podgląd komendą `/dzika promote request_id:numer` na tym samym kanale. Workflow weryfikuje grę, kanał, pliki PR-a i wersję zatwierdzanego commita przed scaleniem. Zmiana nie jest publikowana automatycznie po wygenerowaniu.
+
+Obsługa Discorda: [konfiguracja i testy](automation/discord-worker/README.md). Starszy `automation/discord-bot.mjs` jest historycznym botem Gateway i nie obsługuje nowych gier; aktywna integracja działa jako Worker `dziki-pong-discord`.
+
+Sprawdzenie integracji: `node --test automation/*.test.mjs`.
+Sprawdzenie dowolnej gry: `node automation/game-tools.mjs check dziki-sprzedawca`.
+Paczka publiczna: `node automation/game-tools.mjs build dziki-sprzedawca` → `.artifacts/dziki-sprzedawca/`.
+
+## Historia Ponga
 
 Recovered from the Cloudflare Pages deployment on 22 September 2026.
 
