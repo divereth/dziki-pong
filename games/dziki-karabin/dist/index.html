@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10211f">
+  <meta name="description" content="Dziki Karabin. Klockowy FPS 3D. Dwie drużyny, jedna arena i mecz do trzech zwycięstw.">
+  <title>Dziki Karabin — Klocki. Cel. Akcja.</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%2310211f'/%3E%3Ctext x='5' y='34' font-family='Arial' font-size='29' font-weight='900' fill='%23c7f56b'%3EDK%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+  <div id="world" aria-label="Trójwymiarowa arena Dziki Karabin"></div>
+  <div id="vignette"></div>
+  <div id="damage"></div>
+  <div id="loading"><span class="brand-icon">D<span>K</span></span><p>PRZYGOTOWUJEMY ARENĘ<span class="loading-dots">…</span></p></div>
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="./" aria-label="Dziki Karabin — strona główna"><span class="brand-icon">D<span>K</span></span><span>DZIKI<span class="brand-light"> KARABIN</span><small>KLOCKOWY FPS · DRUŻYNY 5 VS 5</small></span></a>
+    <div class="top-right"><span class="version"><i></i> GOTOWOŚĆ BOJOWA <b>V.1.2</b></span><button class="icon-button" id="sound-btn" aria-label="Wyłącz dźwięk" title="Dźwięk">♪</button><button class="icon-button" id="fullscreen-btn" aria-label="Pełny ekran" title="Pełny ekran">⛶</button></div>
+  </header>
+
+  <main id="menu" class="screen menu-screen">
+    <div class="menu-copy">
+      <div class="eyebrow"><span class="small-line"></span> MAŁE KLOCKI. DUŻA AKCJA.</div>
+      <h1>KAŻDY<br>KLOCEK<br><span>SIĘ LICZY.</span><span class="title-square"></span></h1>
+      <p class="intro">Zbierz drużynę. Sprawdź magazynek.<br>Na tej arenie wygrywa ostatni na nogach.</p>
+      <div class="match-chips"><span><b>5 <i>vs</i> 5</b> DRUŻYNY</span><span><b>3</b> RUNDY DO WYGRANEJ</span><span><b>3D</b> PERSPEKTYWA FPS</span></div>
+      <div class="control-picker" role="group" aria-label="Wybór sterowania"><button id="controls-mouse" aria-pressed="true">MYSZ + KLAWIATURA</button><button id="controls-touch" aria-pressed="false">DOTYK</button></div>
+      <button id="start-btn" class="primary large">WCHODZĘ DO GRY <span>↗</span></button>
+      <p class="solo-note"><i></i> TY + 9 BOTÓW <span>·</span> BEZ LOGOWANIA <span>·</span> GRA LOKALNA</p>
+      <p class="touch-menu-tip">Lewy kciuk: ruch. Prawy: celowanie i strzał.<br>Wygodniej gra się z ekranem w poziomie.</p>
+    </div>
+    <aside class="map-card"><div class="map-card-top"><span class="eyebrow">TWOJA NASTĘPNA ARENA</span><span class="map-index">01 / 01</span></div><div class="map-graphic"><svg viewBox="0 0 280 130" role="img" aria-label="Schemat areny"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M20 105V25H260V105Z"/><path d="M40 105V80H70V50H40V25M240 105V80H210V50H240V25M100 25V45H180V25M100 105V85H180V105"/><path d="M120 55H160V75H120Z"/><path d="M80 65H105M175 65H200M140 30V45M140 85V100" stroke-dasharray="3 4"/></g><rect x="25" y="58" width="12" height="14" fill="#b9e876"/><rect x="243" y="58" width="12" height="14" fill="#e6a26a"/><circle cx="140" cy="65" r="4" fill="#b9e876"/></svg><span class="map-coords">34°07′ N &nbsp; 06°49′ W</span></div><div class="map-card-bottom"><div><h2>POSTERUNEK 07</h2><p>Słoneczny dzień. Gorąca rozgrywka.</p></div><span class="map-tag">ELIMINACJA</span></div></aside>
+    <div class="menu-footer"><span><i></i> ZABÓJSTWO <b>+5 MONET</b><em>/</em> ŚMIERĆ <b>−1 MONETA</b></span><span>JEDNA ARENA. DWIE DRUŻYNY. ZERO PRZYPADKU.</span></div>
+  </main>
+
+  <section id="hud" class="hidden" aria-label="Informacje o rozgrywce">
+    <div class="round-hud"><div class="team-status cyan"><span>ODDZIAŁ MINT</span><div id="allies-alive" class="alive-icons"></div></div><div class="scores"><b id="score-blue">0</b><div><span id="round-label">RUNDA 01</span><small id="round-time">00:00</small></div><b id="score-red">0</b></div><div class="team-status orange"><span>ODDZIAŁ EMBER</span><div id="enemies-alive" class="alive-icons"></div></div></div>
+    <div class="minimap-panel"><canvas id="minimap" width="180" height="150" aria-label="Minimapa"></canvas><span>POSTERUNEK 07 <b>N ↑</b></span></div>
+    <div id="killfeed" aria-live="polite"></div>
+    <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker">×</div>
+    <div id="interaction" class="hidden"><span><kbd id="interaction-key">E</kbd> OTWÓRZ SKRZYNKĘ</span><small>Amunicja + apteczka</small><div><i id="interaction-progress"></i></div></div>
+    <div id="spectate" class="hidden"><span>OBSERWUJESZ DRUŻYNĘ</span><h2 id="spectate-name"></h2><p>Wrócisz do gry w następnej rundzie.</p></div>
+    <div id="round-banner" class="hidden"></div>
+    <div class="bottom-hud"><div class="health-block"><span class="health-icon">+</span><div><strong id="health">100</strong><small>PUNKTY ŻYCIA</small></div><div class="health-track"><i id="health-fill"></i></div></div><div class="weapon-shortcuts"><span id="slot-1" class="active"><kbd>1</kbd> KARABIN</span><span id="slot-2"><kbd>2</kbd> NÓŻ</span></div><div class="ammo-block"><div><small id="weapon-name">KARABINEK K-24</small><strong><b id="ammo">24</b><em>/</em><span id="reserve">72</span></strong></div><span class="bullet-icon">▰<br>▰<br>▰</span></div></div>
+    <div class="game-wallet"><span class="coin-icon">◈</span><b id="hud-coins">10</b><span>MONET</span></div>
+    <div class="game-hint"><kbd>W A S D</kbd> RUCH <span>·</span> <kbd>R</kbd> PRZEŁADUJ <span>·</span> <kbd>E</kbd> SKRZYNKA <span>·</span> <kbd>TAB</kbd> WYNIKI <span>·</span> <kbd>ESC</kbd> PAUZA</div>
+  </section>
+
+  <section id="touch-controls" aria-label="Sterowanie dotykowe">
+    <div id="touch-look" role="region" aria-label="Przesuwaj palcem, aby się rozglądać"></div>
+    <div class="touch-topbar"><button id="touch-scores" aria-label="Pokaż wyniki" aria-pressed="false">▤</button><button id="touch-pause" aria-label="Pauza">Ⅱ</button></div>
+    <div id="touch-joystick" role="group" aria-label="Joystick ruchu"><span class="joystick-cross"></span><i id="joystick-knob"></i><small>RUCH</small></div>
+    <div class="touch-actions">
+      <button id="touch-weapon" class="touch-small" aria-label="Zmień broń na nóż"><b>1 / 2</b><small id="touch-weapon-label">NÓŻ</small></button>
+      <button id="touch-aim" class="touch-small" aria-label="Przytrzymaj, aby przybliżyć"><b>⊕</b><small>CELUJ</small></button>
+      <button id="touch-jump" class="touch-small" aria-label="Skok"><b>↑</b><small>SKOK</small></button>
+      <button id="touch-reload" class="touch-small" aria-label="Przeładuj broń"><b>↻</b><small>ŁADUJ</small></button>
+      <button id="touch-fire" aria-label="Strzelaj lub użyj noża; przeciągaj, aby celować"><span class="fire-cross">⌖</span><small>STRZAŁ</small></button>
+      <button id="touch-interact" class="touch-small" aria-label="Przytrzymaj, aby otworzyć skrzynkę" disabled><b>▣</b><small>OTWÓRZ</small></button>
+    </div>
+    <p class="touch-hint">LEWY KCIUK: RUCH<br>PRAWY: CELUJ + STRZELAJ</p>
+  </section>
+
+  <section id="shop" class="screen modal-screen hidden" aria-labelledby="shop-title"><div class="shop-shell"><div class="shop-heading"><div><p class="eyebrow" id="shop-eyebrow">PRZYGOTOWANIE DO RUNDY 01</p><h2 id="shop-title">DOBRY PLAN.<br><span>LEPSZY EKWIPUNEK.</span></h2></div><div class="wallet"><span class="coin-icon">◈</span><div><strong id="shop-coins">10</strong><small>TWOJE MONETY</small></div></div></div><p id="shop-intro">Karabinek i nóż już czekają. Wybierz broń na nadchodzącą rundę.</p><div id="weapons" class="weapons"></div><div class="shop-bottom"><p><i></i> +5 za twoje zabójstwo <span>·</span> −1 za śmierć<br><small>Kupiona broń zostaje do końca meczu. Amunicja odnawia się co rundę.</small></p><button class="primary" id="ready-btn">ROZPOCZNIJ RUNDĘ <span>↗</span></button></div></div></section>
+
+  <section id="pause" class="screen modal-screen hidden"><div class="pause-card"><p class="eyebrow">CHWILA NA ODDECH</p><h2>PAUZA<span>.</span></h2><p>Twoja drużyna czeka na ciebie.</p><button id="resume-btn" class="primary">WRÓĆ DO GRY <span>↗</span></button><button id="quit-btn" class="secondary">ZAKOŃCZ MECZ</button><div class="sensitivity"><label for="sensitivity" id="sensitivity-label">Czułość myszy</label><input type="range" id="sensitivity" min="10" max="100" value="35"><span id="sensitivity-value">35</span></div><p class="pause-help"><kbd>WASD</kbd> ruch &nbsp; <kbd>MYSZ</kbd> celowanie<br><kbd>LPM</kbd> strzał / nóż &nbsp; <kbd>PPM</kbd> przybliżenie<br><kbd>1 / 2</kbd> broń &nbsp; <kbd>R</kbd> przeładuj<br><kbd>E</kbd> przytrzymaj, aby otworzyć skrzynkę<br><kbd>SHIFT</kbd> sprint &nbsp; <kbd>SPACJA</kbd> skok</p><p class="touch-pause-help">Lewy joystick — poruszanie. Pełne wychylenie — sprint.<br>Przesuwaj po prawej stronie ekranu — rozglądanie.<br>Przytrzymaj STRZAŁ i przesuwaj palec — ogień i celowanie.<br>Przy skrzynce przytrzymaj OTWÓRZ.</p></div></section>
+
+  <section id="results" class="screen modal-screen hidden"><div class="result-card"><p class="eyebrow" id="result-eyebrow">MECZ ZAKOŃCZONY</p><div class="result-emblem">✦</div><h2 id="result-title">ZWYCIĘSTWO!</h2><div class="result-score" id="result-score">3 <span>:</span> 0</div><p id="result-copy"></p><div class="result-stats"><div><strong id="result-kills">0</strong><span>ZABÓJSTW</span></div><div><strong id="result-deaths">0</strong><span>ŚMIERCI</span></div><div><strong id="result-coins">10</strong><span>MONET</span></div></div><button id="rematch-btn" class="primary">JESZCZE JEDEN MECZ <span>↗</span></button><button id="menu-btn" class="secondary">WRÓĆ DO MENU</button></div></section>
+
+  <section id="scoreboard" class="hidden" aria-label="Tabela wyników"><div class="scoreboard-card"><div class="scoreboard-heading"><h2>POSTERUNEK 07</h2><span>ELIMINACJA · DO 3 ZWYCIĘSTW</span><button id="close-scores" aria-label="Zamknij wyniki">×</button></div><div id="scoreboard-body"></div><small id="scoreboard-help">Przytrzymaj TAB, aby zobaczyć wyniki.</small></div></section>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="unsupported" class="hidden"><h2>Nie udało się uruchomić grafiki 3D.</h2><p>Otwórz grę w przeglądarce obsługującej WebGL, np. Chrome lub Safari.</p></div>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

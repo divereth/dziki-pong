@@ -1,0 +1,9 @@
+{
+  "name": "dziki-bieg",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test game.test.cjs viewport.test.cjs",
+    "build": "node ../../automation/game-tools.mjs build dziki-bieg"
+  }
+}

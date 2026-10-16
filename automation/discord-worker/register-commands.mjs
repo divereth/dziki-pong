@@ -10,7 +10,7 @@ for (const [name, value] of Object.entries({ DISCORD_BOT_TOKEN, DISCORD_APPLICAT
 
 const commands = [{
   name: 'dzika',
-  description: 'Zgłoś lub opublikuj zmianę w Dziki Pong',
+  description: 'Zgłoś lub opublikuj zmianę w grze przypisanej do kanału',
   type: 1,
   options: [
     {

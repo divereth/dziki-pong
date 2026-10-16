@@ -1,0 +1,5 @@
+export const STANDS=[...Array.from({length:7},(_,i)=>[-7,-i*6,Math.PI/2]),...Array.from({length:7},(_,i)=>[7,-i*6,-Math.PI/2]),[-3.1,-67,0],[3.1,-67,0],...Array.from({length:4},(_,i)=>[-7,-42-i*6,Math.PI/2]),...Array.from({length:4},(_,i)=>[7,-42-i*6,-Math.PI/2])];
+export const STAND_THEMES=['retro','clothes','food','phones','design','collect','other','retro','phones','food','clothes','collect','design','other','retro','design','food','clothes','phones','other','collect','design','retro','food'];
+export const STAND_NAMES=['STAROCIE U JANKA','SZAFA Z HISTORIĄ','SMAKI TARGU','TELEFONICZNY ZAKĄTEK','RZECZY Z DUSZĄ','DOBRY ROCZNIK','WSZYSTKO SIĘ PRZYDA','RETRO & SPÓŁKA','MOBILNE OKAZJE','CHLEB & MIÓD','DRUGA SZAFA','KOLEKCJONER','MAŁA GALERIA','SKARBY Z PODDASZA','DŹWIĘKI PRZESZŁOŚCI','DESIGN Z DRUGIEJ RĘKI','SPIŻARNIA BABCI','MODA NA DRUGI OBIEG','KOMÓRKOWY KRAM','NARZĘDZIA I CUDA','KLUB KOLEKCJONERA','PRACOWNIA RZECZY','ANALOGOWY ŚWIAT','SŁODKI ZAKĄTEK'];
+export const PLAYER_SHOP={x:6.8,z:7.7,approach:{x:5.15,z:10.4}};
+export const BOUNDS={left:-11.7,right:11.7,front:13,back:-71};

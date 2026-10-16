@@ -1,16 +1,37 @@
-# Cloudflare Discord Worker\n\nThis is the Cloudflare-native Discord bridge. It replaces the Gateway bot with Discord slash-command interactions, so it does not need an always-on Node process.\n\nCommands are available only in the configured server and `#dziki-pong` channel:\n\n```text\n/dziki request text:Make the background blink on collision\n/dziki promote request_id:123456789012345678\n```\n\nThe Worker verifies Discord's Ed25519 signature, rejects obvious destructive or secret-exfiltration requests, checks the configured admin role for promotion, and dispatches the existing GitHub Actions workflow.\n\n## Deploy\n\nThe repository workflow deploys this Worker on changes to `automation/discord-worker/**`. It needs these GitHub Actions secrets:\n\n- `CLOUDFLARE_API_TOKEN`\n- `CLOUDFLARE_ACCOUNT_ID`\n\nThe Cloudflare API token used by GitHub must include **Pages → Edit/Write** for preview and production deploys, plus **Workers Scripts → Edit/Write** for deploying this Discord Worker. **Account Settings → Read** is also required by Wrangler.\n\nSet the runtime secrets with Wrangler:\n\n```sh\nnpx wrangler secret put DISCORD_PUBLIC_KEY --config automation/discord-worker/wrangler.toml\nnpx wrangler secret put GITHUB_DISPATCH_TOKEN --config automation/discord-worker/wrangler.toml\n```\n\nThe public key is in the Discord Developer Portal under **General Information**. The GitHub token must be limited to this repository with **Contents: read and write**.\n\nRegister the commands after deployment:\n\n```sh\nDISCORD_BOT_TOKEN=... DISCORD_APPLICATION_ID=... DISCORD_GUILD_ID=1362446460720779295 node automation/discord-worker/register-commands.mjs\n```\n\nSet the Discord application's **Interactions Endpoint URL** to the deployed Worker URL, for example:\n\n```text\nhttps://dziki-pong-discord.<your-subdomain>.workers.dev\n```\n\nThe Worker uses no bot token at runtime. Reset the existing bot token before registering commands because the previous token file was exposed during setup.\n
-## Progress updates
+# Zmiany w grach z Discorda
 
-Public messages in `#dziki-pong` are short and friendly. Technical details go to the developer channel `1398036719101542601`.
+Istniejąca komenda obsługuje cztery kanały:
 
-Create one webhook in each channel:
+- `#dziki-pong` — Dziki Pong
+- `#dziki-sprzedawca` — Dziki Sprzedawca
+- `#dziki-bieg` — Dziki Bieg
+- `#dziki-karabin` — Dziki Karabin
 
-1. In `#dziki-pong`, open **Edit Channel → Integrations → Webhooks → New Webhook** and save its URL as the GitHub Actions secret `DISCORD_STATUS_WEBHOOK_URL`.
-2. In the developer channel (`1398036719101542601`), create another webhook and save its URL as `DISCORD_DEV_WEBHOOK_URL`.
-3. Add both secrets under **GitHub → Settings → Secrets and variables → Actions**.
+Na kanale wybranej gry wpisz:
 
-The public channel receives friendly Polish updates and the preview link. The developer channel receives request IDs, GitHub Actions links, pull requests, Cloudflare details, and failure diagnostics.
+```text
+/dzika zmiana text:Dodaj fioletowy kolor nieba
+```
 
-The Worker also needs the public-channel webhook as its Cloudflare secret `DISCORD_STATUS_WEBHOOK_URL` so it can send the acknowledgement immediately. Set it with `npx wrangler secret put DISCORD_STATUS_WEBHOOK_URL --config automation/discord-worker/wrangler.toml`.
+Otrzymasz numer zlecenia i adres przyszłego podglądu. Podgląd zacznie działać po zakończeniu generowania i publikacji. Postęp, wynik i ewentualny błąd są zgłaszane na dotychczasowym kanale deweloperskim. Każda prośba ma osobną gałąź, pull request i podgląd. Pozostałe gry pozostają bez zmian.
 
-Requests are independent: each gets a unique branch, pull request, and preview URL, so requests sent close together do not overwrite one another. GitHub may run them in parallel or briefly queue them when runner capacity is busy; there is no strict first-in-first-out application queue.
+Po sprawdzeniu podglądu administrator może opublikować zmianę na tym samym kanale gry:
+
+```text
+/dzika promote request_id:NUMER_ZLECENIA
+```
+
+Integracja sprawdza uprawnienia administratora oraz zgodność gry, kanału i zmienionych plików. Generowanie samo w sobie nie publikuje zmiany w głównej wersji gry.
+
+Nie trzeba tworzyć nowej aplikacji ani rejestrować dodatkowej komendy. Integracja korzysta z obecnej usługi i zachowuje zapisane sekrety. Rozszerzenie nie publikuje wartości kluczy.
+
+## Sprawdzenie kodu
+
+```sh
+node --test automation/*.test.mjs
+node automation/game-tools.mjs check dziki-sprzedawca
+node automation/game-tools.mjs check dziki-bieg
+node automation/game-tools.mjs check dziki-karabin
+```
+
+Testy integracji używają lokalnych atrap Discorda i GitHuba. Nie wysyłają wiadomości na serwer i nie uruchamiają API GPT.

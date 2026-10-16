@@ -1,0 +1,1 @@
+{"name":"dziki-sprzedawca","version":"3.0.0","private":true,"type":"module","scripts":{"test":"node --test economy.test.js customers.test.js market.test.js","build":"node ../../automation/game-tools.mjs build dziki-sprzedawca"}}

@@ -1,4 +1,4 @@
-name: Dziki Pong Discord request
+name: Dziki Discord request
 
 on:
   repository_dispatch:
@@ -8,251 +8,121 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  GAME_ID: ${{ github.event.client_payload.game_id || 'dziki-pong' }}
+  REQUEST_ID: ${{ github.event.client_payload.request_id }}
+  DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
+
 jobs:
   request:
     if: github.event.action == 'dziki_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      REQUEST_ID: ${{ github.event.client_payload.request_id }}
-      REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
-      DISCORD_USER: ${{ github.event.client_payload.discord_user_name }}
-      DISCORD_USER_ID: ${{ github.event.client_payload.discord_user_id }}
-      CF_PROJECT: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+    timeout-minutes: 45
     steps:
-      - name: Check out main
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-
-      - name: Validate request payload
-        shell: bash
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Prepare trusted tools and select game
+        env:
+          REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
         run: |
-          test -n "$REQUEST_ID"
-          test -n "$REQUEST_TEXT"
-          case "$REQUEST_ID" in
-            *[!A-Za-z0-9_-]*) echo "Invalid request id"; exit 1 ;;
-          esac
-
-      - name: Create request branch
-        shell: bash
-        run: |
-          git config user.name "dziki-pong automation"
+          mkdir -p "$RUNNER_TEMP/dziki-tools"
+          cp automation/*.mjs "$RUNNER_TEMP/dziki-tools/"
+          echo "DZIKI_REPOSITORY_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          node automation/game-tools.mjs configure
+          node automation/request.mjs prompt
+          git config user.name "Dziki automation"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "discord/$REQUEST_ID"
-
       - name: Report started
         env:
-          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/dziki"
-          base64 --decode assets/dziki-working-loop.gif.b64 > "$RUNNER_TEMP/dziki/dziki-working-loop.gif"
-          if [ -n "$MAIN_WEBHOOK" ]; then
-            if [[ "$DISCORD_USER_ID" =~ ^[0-9]+$ ]]; then
-              payload="$(jq -n --arg user "$DISCORD_USER_ID" '{content: ("🐗 Dziki pracuje nad zmianą dla <@" + $user + ">! Trzymaj kciuki."),allowed_mentions:{parse:[],users:[$user]}}')"
-            else
-              payload="$(jq -n '{content:"🐗 Dziki zabrał się za pracę nad zmianą! Trzymaj kciuki.",allowed_mentions:{parse:[],users:[]}}')"
-            fi
-            curl --fail-with-body -sS -F "payload_json=$payload" -F "files[0]=@$RUNNER_TEMP/dziki/dziki-working-loop.gif;type=image/gif;filename=dziki-working-loop.gif" "$MAIN_WEBHOOK" || true
-          fi
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg id "$REQUEST_ID" --arg user "$DISCORD_USER" --arg run "$RUN_URL" '{content: ("🟡 Zlecenie " + $id + " rozpoczęte przez " + $user + ". Codex analizuje repozytorium. GitHub Actions: " + $run)}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
-      - name: Build Codex prompt
-        shell: bash
-        run: |
-          {
-            cat .github/codex/discord-request.md
-            printf '%s\n' "$REQUEST_TEXT"
-            printf '\nRequest metadata: Discord user %s, request id %s.\n' "$DISCORD_USER" "$REQUEST_ID"
-          } > .github/codex/runtime-request.md
-
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" started
       - name: Run Codex
         timeout-minutes: 30
         uses: openai/codex-action@v1.11
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           codex-version: "0.158.0"
-          prompt-file: .github/codex/runtime-request.md
+          prompt-file: ${{ runner.temp }}/dziki-request.md
           sandbox: workspace-write
           model: gpt-6-luna
           effort: high
-          output-file: codex-output.md
-
-      - name: Report Codex progress
-        if: success()
-        env:
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
-        shell: bash
+          output-file: ${{ runner.temp }}/dziki-output.md
+      - name: Validate game boundary and run game checks
         run: |
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg id "$REQUEST_ID" '{content: ("🔵 Zlecenie " + $id + ": Codex zakończył pracę. Trwa sprawdzanie zmian i przygotowanie PR-a.")}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
-      - name: Check and commit changes
-        shell: bash
-        run: |
-          node --check game.js
-          rm -f .github/codex/runtime-request.md codex-output.md
-          changed="$({ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u)"
-          test -n "$changed"
-          while IFS= read -r path; do
-            normalized_path="${path,,}"
-            case "$normalized_path" in
-              game.js|index.html|style.css|*.png|*.jpg|*.jpeg|*.gif|*.webp|*.svg|*.ico|*.avif|*.bmp|*.apng|*.mp3|*.wav|*.ogg|*.oga|*.opus|*.m4a|*.aac|*.flac|*.mid|*.midi) ;;
-              *) echo "Blocked unexpected file change: $path"; exit 1 ;;
-            esac
-          done <<< "$changed"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "Codex made no changes."
-            exit 1
-          fi
-          git commit -m "Discord request $REQUEST_ID"
-          git push --set-upstream origin "discord/$REQUEST_ID"
-
-      - name: Open pull request
+          node "$RUNNER_TEMP/dziki-tools/game-tools.mjs" validate
+          node "$RUNNER_TEMP/dziki-tools/game-tools.mjs" check
+          node "$RUNNER_TEMP/dziki-tools/game-tools.mjs" build
+      - name: Commit request and open PR
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
+          REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
+          DISCORD_USER_ID: ${{ github.event.client_payload.discord_user_id }}
         run: |
-          metadata="$(jq -cn --arg request_id "$REQUEST_ID" --arg author_id "$DISCORD_USER_ID" --arg request_text "$REQUEST_TEXT" '{request_id:$request_id,author_discord_id:$author_id,request_text:$request_text}')"
-          body="$(printf 'Requested by %s.\n\nDiscord requester ID: %s\n\nChange request:\n%s\n\nReview the Codex-generated change before publishing.\n\n<!-- dziki-pong-request:start -->\n%s\n<!-- dziki-pong-request:end -->' "$DISCORD_USER" "$DISCORD_USER_ID" "$REQUEST_TEXT" "$metadata")"
-          url="$(gh pr create --base main --head "discord/$REQUEST_ID" --title "Discord request $REQUEST_ID" --body "$body")"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-
-      - name: Report PR ready
-        if: success()
-        env:
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
-          PR_URL: ${{ steps.pr.outputs.url }}
-        shell: bash
-        run: |
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg id "$REQUEST_ID" --arg pr "$PR_URL" '{content: ("🟣 Zlecenie " + $id + ": PR gotowy do przeglądu: " + $pr + ". Za chwilę uruchamiam podgląd.")}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
+          gh auth setup-git
+          git add -- "$GAME_SITE"
+          git commit -m "$GAME_NAME: Discord request $REQUEST_ID"
+          git push --set-upstream origin "discord/$REQUEST_ID"
+          node "$RUNNER_TEMP/dziki-tools/request.mjs" pr
       - name: Deploy request preview
         id: preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        shell: bash
         run: |
-          for attempt in 1 2 3; do
-            if npx --yes wrangler@latest pages deploy . --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" > cloudflare.log 2>&1; then
-              cat cloudflare.log
-              break
-            else
-              status=$?
-              cat cloudflare.log
-              if [ "$attempt" -eq 3 ]; then
-                exit "$status"
-              fi
-              echo "Cloudflare preview upload failed (attempt $attempt/3); retrying in 10 seconds."
-              sleep 10
-            fi
-          done
-          preview_url="$(grep -Eo 'https://[A-Za-z0-9.-]+pages.dev' cloudflare.log | tail -1 || true)"
-          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
-
+          npx --yes wrangler@latest pages deploy ".artifacts/$GAME_ID" --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" --commit-dirty=true
+          echo "url=https://discord-$REQUEST_ID.$CF_PROJECT.pages.dev/" >> "$GITHUB_OUTPUT"
       - name: Report result
         if: always()
         env:
-          MAIN_WEBHOOK: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           PR_URL: ${{ steps.pr.outputs.url }}
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           JOB_STATUS: ${{ job.status }}
-        shell: bash
-        run: |
-          if [ "$JOB_STATUS" = "success" ] && [ -n "$PREVIEW_URL" ]; then
-            main_message="✅ Gotowe! Podgląd zmiany: $PREVIEW_URL"
-            dev_message="✅ Zlecenie $REQUEST_ID gotowe. Podgląd: $PREVIEW_URL | PR: $PR_URL | GitHub Actions: $RUN_URL"
-          elif [ "$JOB_STATUS" = "success" ]; then
-            main_message="✅ Zmiana jest gotowa. Opiekun sprawdzi podgląd."
-            dev_message="✅ Zlecenie $REQUEST_ID zakończone, ale nie udało się odczytać adresu podglądu. PR: $PR_URL | GitHub Actions: $RUN_URL"
-          else
-            main_message="⚠️ Coś poszło nie tak. Opiekun zajrzy do kanału deweloperskiego."
-            dev_message="❌ Zlecenie $REQUEST_ID nie powiodło się. Sprawdź GitHub Actions: $RUN_URL | PR: $PR_URL"
-          fi
-          if [ -n "$MAIN_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$main_message" '{content: $content}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$MAIN_WEBHOOK" || true
-          fi
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$dev_message" '{content: $content}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
+        run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" result
 
   promote:
     if: github.event.action == 'dziki_promote' && github.event.client_payload.is_admin == true
     runs-on: ubuntu-latest
-    env:
-      REQUEST_ID: ${{ github.event.client_payload.request_id }}
     steps:
-      - name: Find and merge reviewed PR
-        id: merge
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Select game
+        run: node automation/game-tools.mjs configure
+      - name: Verify game and channel, merge reviewed PR, start production deployment
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          test -n "$REQUEST_ID"
-          case "$REQUEST_ID" in
-            *[!A-Za-z0-9_-]*) echo "Invalid request id"; exit 1 ;;
-          esac
-          number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "discord/$REQUEST_ID" --json number --jq '.[0].number')"
-          test -n "$number"
-          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch=false --subject "Publish Discord request $REQUEST_ID" --body "Published by the configured Discord admin."
-          body="$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
-          metadata="$(printf '%s\n' "$body" | awk '/^<!-- dziki-pong-request:start -->$/ { getline; print; exit }')"
-          if [ -n "$metadata" ]; then
-            author_id="$(jq -r '.author_discord_id // empty' <<< "$metadata")"
-            request_text="$(jq -r '.request_text // empty' <<< "$metadata")"
-          else
-            author_id="$(printf '%s\n' "$body" | sed -nE 's/^Discord requester ID: ([0-9]+)$/\1/p' | head -n 1)"
-            request_text=""
-          fi
-          request_text_b64="$(printf '%s' "$request_text" | base64 -w0)"
-          echo "number=$number" >> "$GITHUB_OUTPUT"
-          echo "author_id=$author_id" >> "$GITHUB_OUTPUT"
-          echo "request_text_b64=$request_text_b64" >> "$GITHUB_OUTPUT"
-
-      - name: Start production deployment
-        id: dispatch
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ steps.merge.outputs.number }}
-          AUTHOR_ID: ${{ steps.merge.outputs.author_id }}
-          REQUEST_TEXT_B64: ${{ steps.merge.outputs.request_text_b64 }}
-        shell: bash
-        run: |
-          jq -n --arg id "$REQUEST_ID" --arg author "$AUTHOR_ID" --arg pr "$PR_NUMBER" --arg change "$REQUEST_TEXT_B64" \
-            '{event_type:"deploy_production",client_payload:{request_id:$id,discord_user_id:$author,pr_number:$pr,request_text_b64:$change}}' \
-            | gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" --input -
-
-      - name: Report merge and deployment start
+        run: node automation/request.mjs promote
+      - name: Report promotion
         if: always()
         env:
-          DEV_WEBHOOK: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           JOB_STATUS: ${{ job.status }}
-        shell: bash
-        run: |
-          if [ "$JOB_STATUS" = "success" ]; then
-            message="🟣 Zlecenie $REQUEST_ID: PR #${{ steps.merge.outputs.number }} scalony. Wdrożenie produkcji uruchomione; czekam na potwierdzenie Cloudflare. GitHub Actions: $RUN_URL"
-          else
-            message="❌ Nie udało się scalić lub uruchomić wdrożenia zlecenia $REQUEST_ID. Sprawdź GitHub Actions: $RUN_URL"
-          fi
-          if [ -n "$DEV_WEBHOOK" ]; then
-            payload="$(jq -n --arg content "$message" '{content: $content}')"
-            curl --fail-with-body -sS -H 'content-type: application/json' -d "$payload" "$DEV_WEBHOOK" || true
-          fi
+        run: node automation/notify.mjs promotion
