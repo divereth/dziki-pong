@@ -30,7 +30,7 @@
     const red = clamp((Math.hypot(ball.vx, ball.vy)-SERVE_SPEED)/(MAX_SPEED-SERVE_SPEED),0,1);
     return `hsl(${51*(1-red)} 100% 50%)`;
   }
-  const state = { mode: 'ready', twoPlayer: false, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
+  const state = { mode: 'ready', twoPlayer: false, targetScore: 10, cpu: 0, human: 0, left: (H-PH)/2, right: (H-PH)/2,
     balls: [makeBall(W/2+90,H/2,0,0)], splitUsed: false, paddleEffects: { left: null, right: null },
     barriers: { left: false, right: false }, barrierAge: { left: null, right: null },
     delay: 0, aiTimer: 0, aiTarget: H/2, rally: 0, time: 0 };
@@ -140,6 +140,7 @@
     $('cpu-score').textContent = state.cpu; $('human-score').textContent = state.human;
     $('announcement').textContent = `${leftName()} ${state.cpu}, ${rightName()} ${state.human}.`;
   }
+  function targetScoreText() { return `${state.targetScore} ${state.targetScore===1 ? 'punktu' : 'punktów'}`; }
   function serve(direction) {
     const angle = Math.random()*.7-.35;
     // Keep serves clear of the center obstacle field.
@@ -214,6 +215,10 @@
     }
   }
   function start() {
+    const selectedTarget = $('target-score').valueAsNumber;
+    state.targetScore = Number.isFinite(selectedTarget) ? clamp(Math.round(selectedTarget),1,99) : 10;
+    $('target-score').value = state.targetScore;
+    $('target-score-unit').textContent = state.targetScore===1 ? 'punktu' : 'punktów';
     state.cpu = state.human = 0; state.left = state.right = (H-PH)/2;
     state.barriers.left = state.barriers.right = false;
     state.barrierAge.left = state.barrierAge.right = null;
@@ -221,7 +226,7 @@
     obstacles.length = 0; state.paddleEffects.left = state.paddleEffects.right = null;
     particles.length = 0; keys.clear(); scores();
     $('overlay').hidden = true; $('pause').disabled = false; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
-    $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('round-message').textContent = 'Pierwszy serwis!';
+    $('status').textContent = `Gramy! Mecz do ${targetScoreText()}`; $('round-message').textContent = 'Pierwszy serwis!';
     serve(Math.random()>.5 ? 1 : -1);
     canvas.focus({preventScroll:true});
   }
@@ -238,7 +243,7 @@
       $('status').textContent = 'Mecz wstrzymany'; $('pause').querySelector('span').textContent = 'Wznów'; $('pause').setAttribute('aria-label','Wznów mecz');
     } else {
       state.mode = 'playing'; syncCourtCursor(); $('overlay').hidden = true;
-      $('status').textContent = 'Gramy! Mecz do 10 punktów'; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
+      $('status').textContent = `Gramy! Mecz do ${targetScoreText()}`; $('pause').querySelector('span').textContent = 'Pauza'; $('pause').setAttribute('aria-label','Wstrzymaj mecz');
       canvas.focus({preventScroll:true});
     }
   }
@@ -250,14 +255,14 @@
       const name=obstacleNames[obstacle.kind];
       $('announcement').textContent += ` Nowa przeszkoda: ${name}.`;
     }
-    if (state[who] === 10) {
+    if (state[who] >= state.targetScore) {
       state.mode = 'ended'; syncCourtCursor(); $('pause').disabled = true; $('round-message').textContent = '';
       resetControls();
       const humanWon = who === 'human';
       const winner=humanWon ? rightName() : leftName();
       const title=state.twoPlayer ? `${winner} wygrywa!` : humanWon ? 'Dzikie zwycięstwo!' : 'Komputer wygrywa.';
       overlay(title, `${leftName()} ${state.cpu} : ${state.human} ${rightName()}. Czas na rewanż?`, 'Gramy rewanż! ↗', 'KONIEC MECZU');
-      $('status').textContent = `${winner} — zwycięstwo! 10 punktów.`;
+      $('status').textContent = `${winner} — zwycięstwo! Mecz do ${targetScoreText()}.`;
       $('announcement').textContent += ` ${title}`;
       $('play').focus({preventScroll:true});
     }
@@ -618,7 +623,7 @@
           if(state.mode==='ended') return;
           if(state.balls.length===0){
             $('round-message').textContent=`${who==='human' ? rightName() : leftName()} +1`;
-            $('status').textContent='Gramy! Mecz do 10 punktów';
+            $('status').textContent=`Gramy! Mecz do ${targetScoreText()}`;
             serve(who==='human' ? 1 : -1);return;
           }
           $('status').textContent='Punkt! Druga piłka nadal w grze';
@@ -765,6 +770,9 @@
   document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
   updateFullscreenButton();
   $('play').addEventListener('click',()=>state.mode==='paused' ? pause() : start());
+  $('target-score').addEventListener('input',()=>{
+    $('target-score-unit').textContent = $('target-score').valueAsNumber===1 ? 'punktu' : 'punktów';
+  });
   $('mode-solo').addEventListener('click',()=>setMode(false));
   $('mode-duo').addEventListener('click',()=>setMode(true));
   $('restart').addEventListener('click',start); $('pause').addEventListener('click',pause);
