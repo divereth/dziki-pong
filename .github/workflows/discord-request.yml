@@ -12,12 +12,16 @@ env:
   GAME_ID: ${{ github.event.client_payload.game_id || 'dziki-pong' }}
   REQUEST_ID: ${{ github.event.client_payload.request_id }}
   DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
+  DISCORD_DEV_CHANNEL_ID: '1398036719101542601'
 
 jobs:
   request:
     if: github.event.action == 'dziki_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      preview_url: ${{ steps.preview.outputs.url }}
+      pr_url: ${{ steps.pr.outputs.url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,18 +103,6 @@ jobs:
         run: |
           npx --yes wrangler@latest pages deploy ".artifacts/$GAME_ID" --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" --commit-dirty=true
           echo "url=https://discord-$REQUEST_ID.$CF_PROJECT.pages.dev/" >> "$GITHUB_OUTPUT"
-      - name: Report result
-        if: always()
-        env:
-          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
-          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
-          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          PR_URL: ${{ steps.pr.outputs.url }}
-          PREVIEW_URL: ${{ steps.preview.outputs.url }}
-          JOB_STATUS: ${{ job.status }}
-        run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" result
 
   promote:
     if: github.event.action == 'dziki_promote' && github.event.client_payload.is_admin == true
@@ -129,13 +121,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node automation/request.mjs promote
-      - name: Report promotion
-        if: always()
+
+  report:
+    needs: [request, promote]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Report completed, failed or timed out task
         env:
           DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
           DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
           DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          JOB_STATUS: ${{ job.status }}
-        run: node automation/notify.mjs promotion
+          PR_URL: ${{ needs.request.outputs.pr_url }}
+          PREVIEW_URL: ${{ needs.request.outputs.preview_url }}
+          JOB_STATUS: ${{ github.event.action == 'dziki_request' && needs.request.result || needs.promote.result }}
+          REPORT_STAGE: ${{ github.event.action == 'dziki_request' && 'result' || 'promotion' }}
+        run: node automation/notify.mjs "$REPORT_STAGE"

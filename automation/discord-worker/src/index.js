@@ -1,5 +1,6 @@
 import { GAMES, gameForInteraction } from '../../games.mjs';
 import { recentChanges, historyMessage } from '../../history.mjs';
+import { notifyDeveloper } from '../../notify.mjs';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const blockedPatterns = [
@@ -86,6 +87,7 @@ async function githubDispatch(env, eventType, payload) {
       'user-agent': 'dziki-pong-cloudflare-worker',
     },
     body: JSON.stringify({ event_type: eventType, client_payload: payload }),
+    signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error(`GitHub dispatch failed: ${response.status}`);
 }
@@ -110,9 +112,13 @@ async function processRequest(interaction, env, requestText, game) {
       is_admin: isAdmin(interaction, env),
       received_at: new Date().toISOString(),
     });
+    await notifyDeveloper(`🟡 **${game.name} · zlecenie ${interaction.id}**\nPrzyjęto zmianę. Oczekiwanie na rozpoczęcie zadania.`, { game, channelId: interaction.channel_id, env });
   } catch (error) {
     console.error(error);
-    await followup(interaction, '⚠️ Nie udało się przyjąć prośby. Opiekun sprawdzi, co się stało.');
+    await Promise.allSettled([
+      followup(interaction, '⚠️ Nie udało się przyjąć prośby. Opiekun sprawdzi, co się stało.'),
+      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${interaction.id}**\nNie udało się przekazać zmiany do GitHuba. Zadanie nie zostało uruchomione.`, { game, channelId: interaction.channel_id, env }),
+    ]);
   }
 }
 
@@ -137,9 +143,13 @@ async function processPromotion(interaction, env, requestId, game) {
       discord_user_name: userName(interaction),
       received_at: new Date().toISOString(),
     });
+    await notifyDeveloper(`🟣 **${game.name} · zlecenie ${requestId}**\nPrzyjęto prośbę o publikację głównej wersji gry.`, { game, channelId: interaction.channel_id, env });
   } catch (error) {
     console.error(error);
-    await followup(interaction, '⚠️ Nie udało się uruchomić publikowania. Opiekun sprawdzi, co się stało.');
+    await Promise.allSettled([
+      followup(interaction, '⚠️ Nie udało się uruchomić publikowania. Opiekun sprawdzi, co się stało.'),
+      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${requestId}**\nNie udało się przekazać prośby o publikację do GitHuba.`, { game, channelId: interaction.channel_id, env }),
+    ]);
   }
 }
 export default {

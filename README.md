@@ -9,7 +9,7 @@ Jedna komenda `/dzika zmiana text:opis zmiany` obsługuje cztery gry. Gra jest w
 | #dziki-bieg | Dziki Bieg | https://dzikibieg.pages.dev/ | games/dziki-bieg/dist |
 | #dziki-karabin | Dziki Karabin | https://dzikikarabin.pages.dev/ | games/dziki-karabin/dist |
 
-Komenda publikuje opis zmiany i numer zlecenia dla wszystkich na kanale danej gry. Na tym samym kanale pojawiają się postęp pracy, gotowy podgląd lub informacja o błędzie. Powiadomienia nie są kopiowane na inne kanały. Każde zlecenie ma osobną gałąź i podgląd. Generowanie trwa maksymalnie 30 minut; cały przebieg ma limit 45 minut.
+Komenda publikuje opis zmiany i numer zlecenia dla wszystkich na kanale danej gry. Na tym samym kanale pojawiają się postęp pracy, gotowy podgląd lub informacja o błędzie. Dla Dzikiego Sprzedawcy, Dzikiego Biegu i Dzikiego Karabinu raporty trafiają również na `#dev`: przyjęcie zlecenia, kolejne etapy, podgląd, publikacja i błędy, razem z linkiem do zadania GitHuba. Osobny raport końcowy działa także po błędzie lub przekroczeniu limitu czasu zadania. Każde zlecenie ma osobną gałąź i podgląd. Generowanie trwa maksymalnie 30 minut; cały przebieg ma limit 45 minut.
 
 `/ostatnie zmiany` pokazuje publicznie pięć ostatnich zmian gry przypisanej do kanału: osobę zlecającą, datę, opis i link do działającego podglądu. Historia obejmuje gotowe podglądy, również dla zleceń utworzonych przed dodaniem tej komendy. Nie uruchamia API GPT.
 
