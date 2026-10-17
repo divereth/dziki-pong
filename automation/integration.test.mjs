@@ -6,11 +6,11 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import worker from './discord-worker/src/index.js';
-import { GAMES, getGame, gameForInteraction, statusWebhook, previewUrl } from './games.mjs';
+import { GAMES, getGame, gameForInteraction, statusWebhook } from './games.mjs';
 import { allowedChange, buildGame, filesUnder, validateChanges } from './game-tools.mjs';
 import { validateRequest, validatePromotion, metadataFor } from './request.mjs';
 import { gamesForPaths } from './select-games.mjs';
-import { notify } from './notify.mjs';
+import { notify, progressMessage } from './notify.mjs';
 
 const keys = await webcrypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
 const publicKey = Buffer.from(await webcrypto.subtle.exportKey('raw', keys.publicKey)).toString('hex');
@@ -33,12 +33,14 @@ async function call(data, customEnv = {}) {
   } finally { globalThis.fetch = previousFetch; }
 }
 
-test('signed commands dispatch each of the four games and return its own preview URL', async () => {
+test('signed commands publicly acknowledge each game and dispatch only that game', async () => {
   for (const [id, config] of Object.entries(GAMES)) {
     const { response, calls } = await call(interaction(id));
     assert.equal(response.type, 4);
     assert.match(response.data.content, new RegExp(config.name));
-    assert.ok(response.data.content.includes(previewUrl(getGame(id), '1551969431788453888')));
+    assert.equal((response.data.flags || 0) & 64, 0);
+    assert.match(response.data.content, /Postęp i link do gotowego podglądu pojawią się tutaj/);
+    assert.ok(!response.data.content.includes('1398036719101542601'));
     assert.equal(calls.length, 1);
     const dispatched = JSON.parse(calls[0].options.body);
     assert.equal(dispatched.event_type, 'dziki_request');
@@ -79,21 +81,37 @@ test('Pong webhook is never reused for another game', async () => {
   assert.equal(statusWebhook(config, getGame('dziki-bieg')), '');
   const calls = [];
   await notify('Podgląd gotowy', { env: config, game: getGame('dziki-bieg'), channelId: '123456789012345678', send: async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); } });
-  assert.deepEqual(calls.map(x => x.url), ['https://discord.test/dev']);
-  assert.match(calls[0].options.body, /Dziki Bieg/);
+  assert.deepEqual(calls, []);
 });
 
-test('existing bot token can post results to the source channel without new webhooks', async () => {
-  const calls = [];
-  await notify('Gotowe', { env: { DISCORD_BOT_TOKEN: 'fake-bot' }, game: getGame('dziki-sprzedawca'), channelId: '123456789012345678', send: async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); } });
-  assert.equal(calls[0].url, 'https://discord.com/api/v10/channels/123456789012345678/messages');
-  assert.equal(calls[0].options.headers.authorization, 'Bot fake-bot');
+test('every game posts publicly to its source channel only, without developer copies', async () => {
+  for (const id of Object.keys(GAMES)) {
+    const calls = [];
+    const delivered = await notify('Gotowe', { env: { DISCORD_BOT_TOKEN: 'fake-bot', DISCORD_DEV_WEBHOOK_URL: 'https://discord.test/dev', DISCORD_STATUS_WEBHOOK_URL: 'https://discord.test/pong' }, game: getGame(id), channelId: '123456789012345678', send: async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); } });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://discord.com/api/v10/channels/123456789012345678/messages');
+    assert.equal(calls[0].options.headers.authorization, 'Bot fake-bot');
+    assert.equal(JSON.parse(calls[0].options.body).flags, undefined);
+    assert.deepEqual(JSON.parse(calls[0].options.body).allowed_mentions, { parse: [] });
+    assert.equal(delivered.delivered, true);
+  }
 });
 
-test('a failed public notification does not block the game or developer update', async () => {
+test('a failed public notification does not block the game or copy messages elsewhere', async () => {
   let attempts = 0;
   await notify('Gotowe', { env: { DISCORD_STATUS_WEBHOOK_URL: 'https://discord.test/pong', DISCORD_DEV_WEBHOOK_URL: 'https://discord.test/dev' }, game: getGame(), send: async () => { attempts++; if (attempts === 1) throw new Error('offline'); return new Response(null, { status: 204 }); } });
-  assert.equal(attempts, 2);
+  assert.equal(attempts, 1);
+});
+
+test('progress is readable publicly and a completed preview message contains the working link', () => {
+  const env = { GAME_ID: 'dziki-bieg', REQUEST_ID: '12345', JOB_STATUS: 'success', PREVIEW_URL: 'https://discord-12345.dzikibieg.pages.dev/' };
+  for (const stage of ['started', 'generated', 'preview']) {
+    const content = progressMessage(stage, env);
+    assert.match(content, /Dziki Bieg/);
+    assert.ok(!content.includes(env.PREVIEW_URL));
+  }
+  assert.ok(progressMessage('result', env).includes(env.PREVIEW_URL));
+  assert.match(progressMessage('result', { ...env, JOB_STATUS: 'failure' }), /Nie udało/);
 });
 
 test('game file boundaries reject other games, CI, vendor, tests, and traversal', () => {
