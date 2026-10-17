@@ -43,7 +43,7 @@ export async function recentChanges(game, env, { send = fetch, limit = 5 } = {})
   return result.slice(0, limit);
 }
 
-const summary = text => text.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 700).replace(/[\\`*_{}[\]()~>|]/g, '\\$&');
+const summary = text => text.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[\\`*_{}[\]()~>|]/g, '\\$&').slice(0, 700);
 
 export function historyMessage(game, entries) {
   if (!entries.length) return { content: `📜 **${game.name} — ostatnie zmiany**\nNie ma jeszcze gotowych podglądów zmian tej gry.`, allowed_mentions: { parse: [] } };

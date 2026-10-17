@@ -68,6 +68,15 @@ test('public history renders all required fields without pinging anyone', () => 
   assert.match(historyMessage(game, []).content, /Nie ma jeszcze gotowych podglądów/);
 });
 
+test('five descriptions with heavy Markdown stay within Discord embed limits', () => {
+  const game = getGame('dziki-bieg');
+  const entries = Array.from({ length: 5 }, (_, i) => ({ ...historyCandidate(pr(game.id), game), id: `${i}560576345384296479`, change: '['.repeat(2000) }));
+  const message = historyMessage(game, entries);
+  const total = message.embeds.reduce((sum, embed) => sum + embed.title.length + embed.description.length + embed.footer.text.length + embed.fields.reduce((n, field) => n + field.name.length + field.value.length, 0), 0);
+  assert.ok(total <= 6000);
+  assert.ok(message.embeds.every(embed => embed.description.length <= 700));
+});
+
 test('command registration adds the history command without deleting unrelated commands', async () => {
   const calls = [];
   const registered = await registerCommands({ token: 'test-bot-token', guildId: '123456789012345678', send: async (url, options) => {
