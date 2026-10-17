@@ -70,7 +70,6 @@ jobs:
         if: always() && github.event_name == 'repository_dispatch'
         env:
           DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
           DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}

@@ -42,7 +42,6 @@ jobs:
       - name: Report started
         env:
           DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
           DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
@@ -59,6 +58,14 @@ jobs:
           model: gpt-6-luna
           effort: high
           output-file: ${{ runner.temp }}/dziki-output.md
+      - name: Report code ready
+        env:
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" generated
       - name: Validate game boundary and run game checks
         run: |
           node "$RUNNER_TEMP/dziki-tools/game-tools.mjs" validate
@@ -76,6 +83,14 @@ jobs:
           git commit -m "$GAME_NAME: Discord request $REQUEST_ID"
           git push --set-upstream origin "discord/$REQUEST_ID"
           node "$RUNNER_TEMP/dziki-tools/request.mjs" pr
+      - name: Report preview upload
+        env:
+          DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
+          DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
+          DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
+          DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" preview
       - name: Deploy request preview
         id: preview
         env:
@@ -88,7 +103,6 @@ jobs:
         if: always()
         env:
           DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
           DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
@@ -119,7 +133,6 @@ jobs:
         if: always()
         env:
           DISCORD_STATUS_WEBHOOK_URL: ${{ secrets.DISCORD_STATUS_WEBHOOK_URL }}
-          DISCORD_DEV_WEBHOOK_URL: ${{ secrets.DISCORD_DEV_WEBHOOK_URL }}
           DISCORD_SPRZEDAWCA_WEBHOOK_URL: ${{ secrets.DISCORD_SPRZEDAWCA_WEBHOOK_URL }}
           DISCORD_BIEG_WEBHOOK_URL: ${{ secrets.DISCORD_BIEG_WEBHOOK_URL }}
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}

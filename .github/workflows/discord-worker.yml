@@ -6,6 +6,7 @@ on:
     paths:
       - automation/discord-worker/**
       - automation/games.mjs
+      - automation/history.mjs
       - .github/workflows/discord-worker.yml
   workflow_dispatch:
 
@@ -32,3 +33,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         # Deploy again after the Cloudflare token permissions were updated.
         run: npx --yes wrangler@latest deploy --config automation/discord-worker/wrangler.toml
+      - name: Register public game history command
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_APPLICATION_ID: ${{ vars.DISCORD_APPLICATION_ID }}
+        run: node automation/discord-worker/register-commands.mjs

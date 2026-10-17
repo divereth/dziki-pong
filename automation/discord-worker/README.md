@@ -13,7 +13,15 @@ Na kanale wybranej gry wpisz:
 /dzika zmiana text:Dodaj fioletowy kolor nieba
 ```
 
-Otrzymasz numer zlecenia i adres przyszłego podglądu. Podgląd zacznie działać po zakończeniu generowania i publikacji. Postęp, wynik i ewentualny błąd są zgłaszane na dotychczasowym kanale deweloperskim. Każda prośba ma osobną gałąź, pull request i podgląd. Pozostałe gry pozostają bez zmian.
+Wszyscy na kanale zobaczą opis zmiany i numer zlecenia. Bot publicznie informuje o rozpoczęciu pracy, gotowym kodzie, sprawdzaniu gry i publikowaniu podglądu. Po udanym wdrożeniu zamieszcza link do gotowej gry; w razie błędu publikuje informację o niepowodzeniu. Wszystkie wiadomości trafiają wyłącznie na kanał tej gry. Każda prośba ma osobną gałąź, pull request i podgląd.
+
+Historia zmian jest dostępna dla każdego na kanale gry:
+
+```text
+/ostatnie zmiany
+```
+
+Lista zawiera pięć najnowszych działających podglądów: osobę zlecającą, datę, opis i link do gry ze zmianą. Nie obejmuje zleceń, dla których nie udało się opublikować podglądu. Starsze zlecenia Ponga są obsługiwane. Odczyt historii nie uruchamia API GPT.
 
 Po sprawdzeniu podglądu administrator może opublikować zmianę na tym samym kanale gry:
 
@@ -23,7 +31,7 @@ Po sprawdzeniu podglądu administrator może opublikować zmianę na tym samym k
 
 Integracja sprawdza uprawnienia administratora oraz zgodność gry, kanału i zmienionych plików. Generowanie samo w sobie nie publikuje zmiany w głównej wersji gry.
 
-Nie trzeba tworzyć nowej aplikacji ani rejestrować dodatkowej komendy. Integracja korzysta z obecnej usługi i zachowuje zapisane sekrety. Rozszerzenie nie publikuje wartości kluczy.
+Integracja korzysta z obecnej usługi i zapisanego sekretu `DISCORD_BOT_TOKEN`. Bot musi mieć możliwość wysyłania wiadomości na kanałach gier. Wdrożenie automatycznie rejestruje `/ostatnie zmiany`, zachowując inne komendy aplikacji. Rozszerzenie nie publikuje wartości kluczy.
 
 ## Sprawdzenie kodu
 
