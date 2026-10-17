@@ -48,6 +48,7 @@ jobs:
       GAME_ID: ${{ matrix.game_id }}
       REQUEST_ID: ${{ github.event.client_payload.request_id }}
       DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
+      DISCORD_DEV_CHANNEL_ID: '1398036719101542601'
     steps:
       - uses: actions/checkout@v4
         with:

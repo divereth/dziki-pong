@@ -10,7 +10,7 @@ import { GAMES, getGame, gameForInteraction, statusWebhook } from './games.mjs';
 import { allowedChange, buildGame, filesUnder, validateChanges } from './game-tools.mjs';
 import { validateRequest, validatePromotion, metadataFor } from './request.mjs';
 import { gamesForPaths } from './select-games.mjs';
-import { notify, progressMessage } from './notify.mjs';
+import { notify, notifyDeveloper, developerMessage, progressMessage } from './notify.mjs';
 
 const keys = await webcrypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
 const publicKey = Buffer.from(await webcrypto.subtle.exportKey('raw', keys.publicKey)).toString('hex');
@@ -18,13 +18,13 @@ const env = { DISCORD_PUBLIC_KEY: publicKey, DISCORD_GUILD_ID: 'guild', DISCORD_
 function interaction(id, command = 'zmiana', roles = []) {
   return { id: '1551969431788453888', type: 2, application_id: 'app', token: 'private-interaction-token', guild_id: 'guild', channel_id: id === 'dziki-pong' ? 'pong-channel' : `${id}-channel`, channel: { name: id, type: 0 }, member: { roles, user: { id: '123456789012345678', username: 'Tester' } }, data: { name: 'dzika', options: [{ name: command, options: command === 'zmiana' ? [{ name: 'text', value: 'Dodaj fioletowy kolor nieba' }] : [{ name: 'request_id', value: '1551969431788453888' }] }] } };
 }
-async function call(data, customEnv = {}) {
+async function call(data, customEnv = {}, respond = () => new Response(null, { status: 204 })) {
   const body = JSON.stringify(data), timestamp = String(Math.floor(Date.now() / 1000));
   const signature = Buffer.from(await webcrypto.subtle.sign('Ed25519', keys.privateKey, new TextEncoder().encode(timestamp + body))).toString('hex');
   const request = new Request('https://discord.example/', { method: 'POST', body, headers: { 'x-signature-ed25519': signature, 'x-signature-timestamp': timestamp } });
   const pending = [], calls = [];
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); };
+  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return respond(url, options); };
   try {
     const result = await worker.fetch(request, { ...env, ...customEnv }, { waitUntil(promise) { pending.push(promise); } });
     const response = await result.json();
@@ -84,7 +84,7 @@ test('Pong webhook is never reused for another game', async () => {
   assert.deepEqual(calls, []);
 });
 
-test('every game posts publicly to its source channel only, without developer copies', async () => {
+test('every game retains public source-channel delivery when dev reporting is not configured', async () => {
   for (const id of Object.keys(GAMES)) {
     const calls = [];
     const delivered = await notify('Gotowe', { env: { DISCORD_BOT_TOKEN: 'fake-bot', DISCORD_DEV_WEBHOOK_URL: 'https://discord.test/dev', DISCORD_STATUS_WEBHOOK_URL: 'https://discord.test/pong' }, game: getGame(id), channelId: '123456789012345678', send: async (url, options) => { calls.push({ url, options }); return new Response(null, { status: 204 }); } });
@@ -97,10 +97,81 @@ test('every game posts publicly to its source channel only, without developer co
   }
 });
 
-test('a failed public notification does not block the game or copy messages elsewhere', async () => {
+test('a failed public notification does not block the game or use unconfigured destinations', async () => {
   let attempts = 0;
   await notify('Gotowe', { env: { DISCORD_STATUS_WEBHOOK_URL: 'https://discord.test/pong', DISCORD_DEV_WEBHOOK_URL: 'https://discord.test/dev' }, game: getGame(), send: async () => { attempts++; if (attempts === 1) throw new Error('offline'); return new Response(null, { status: 204 }); } });
   assert.equal(attempts, 1);
+});
+
+const reportingEnv = { DISCORD_BOT_TOKEN: 'fake-bot', DISCORD_DEV_CHANNEL_ID: '1398036719101542601', GITHUB_REPOSITORY: 'divereth/dziki-pong', GITHUB_RUN_ID: '123456' };
+
+test('all progress and failure stages for the three new games reach dev and their public game channel', async () => {
+  for (const id of ['dziki-sprzedawca', 'dziki-bieg', 'dziki-karabin']) {
+    for (const [stage, status] of [['started','success'],['generated','success'],['preview','success'],['result','success'],['result','failure'],['result','cancelled'],['promotion','failure'],['production','failure']]) {
+      const game=getGame(id), config={ ...reportingEnv, GAME_ID:id, REQUEST_ID:'request-123', JOB_STATUS:status, PREVIEW_URL:'https://preview.test/' };
+      const calls=[];
+      const result=await notify(progressMessage(stage,config),{game,channelId:'123456789012345678',env:config,send:async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return new Response(null,{status:204});}});
+      assert.equal(calls.length,2);
+      assert.equal(result.delivered,true);
+      assert.equal(result.developer.delivered,true);
+      const dev=calls.find(c=>c.url.endsWith('/1398036719101542601/messages'));
+      assert.ok(dev);
+      assert.ok(dev.body.content.includes(game.name));
+      assert.ok(dev.body.content.includes('request-123'));
+      assert.ok(dev.body.content.includes('https://github.com/divereth/dziki-pong/actions/runs/123456'));
+      assert.ok(dev.body.content.includes('<#123456789012345678>'));
+      assert.equal(dev.body.flags,undefined);
+      assert.deepEqual(dev.body.allowed_mentions,{parse:[]});
+      if(status==='failure') assert.match(dev.body.content,/Nie udało/);
+    }
+  }
+});
+
+test('Pong is not added to the new games dev feed', async () => {
+  const calls=[];
+  await notify('Pong progress',{game:getGame(),channelId:'123456789012345678',env:reportingEnv,send:async url=>{calls.push(url);return new Response(null,{status:204});}});
+  assert.deepEqual(calls,['https://discord.com/api/v10/channels/123456789012345678/messages']);
+});
+
+test('a broken public notification still reaches dev, and a broken dev delivery leaves the public update working', async () => {
+  for(const failure of ['public','dev']) {
+    const calls=[];
+    const result=await notify('Failure report',{game:getGame('dziki-bieg'),channelId:'123456789012345678',env:reportingEnv,send:async url=>{
+      calls.push(url);
+      const isDev=url.endsWith('/1398036719101542601/messages');
+      if(failure==='public'&&!isDev) throw new Error('unavailable');
+      return new Response(null,{status:failure==='dev'&&isDev?403:204});
+    }});
+    assert.equal(calls.length,2);
+    assert.equal(result.delivered,failure!=='public');
+    assert.equal(result.developer.delivered,failure!=='dev');
+  }
+});
+
+test('invalid dev configuration cannot redirect reports and long reports preserve their run link within Discord limits', async () => {
+  let attempts=0;
+  const result=await notifyDeveloper('failure',{game:getGame('dziki-karabin'),env:{...reportingEnv,DISCORD_DEV_CHANNEL_ID:'not-a-channel'},send:()=>{attempts++;assert.fail();}});
+  assert.equal(result.delivered,false);
+  assert.equal(attempts,0);
+  const text=developerMessage('x'.repeat(3000),reportingEnv,'123456789012345678');
+  assert.ok(text.length<=2000);
+  assert.ok(text.includes('/actions/runs/123456'));
+});
+
+test('new game dispatch acceptance and failures reach dev before a GitHub job exists', async () => {
+  for(const id of ['dziki-sprzedawca','dziki-bieg','dziki-karabin']) {
+    for(const command of ['zmiana','promote']) {
+      for(const status of [204,500]) {
+        const result=await call(interaction(id,command,['admin']),reportingEnv,url=>new Response(null,{status:url.startsWith('https://api.github.com/')?status:204}));
+        const dev=result.calls.filter(c=>c.url.endsWith('/1398036719101542601/messages'));
+        assert.equal(dev.length,1);
+        const text=JSON.parse(dev[0].options.body).content;
+        assert.ok(text.includes(getGame(id).name));
+        assert.match(text,status===500?/Nie udało się przekazać/:/Przyjęto/);
+        assert.ok(text.includes('https://github.com/divereth/dziki-pong/actions'));
+      }
+    }
+  }
 });
 
 test('progress is readable publicly and a completed preview message contains the working link', () => {

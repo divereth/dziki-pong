@@ -1,7 +1,10 @@
 import { getGame, statusWebhook } from './games.mjs';
 
+const runtimeEnv = typeof process === 'undefined' ? {} : process.env || {};
+const developerGames = new Set(['dziki-sprzedawca', 'dziki-bieg', 'dziki-karabin']);
+
 export function notificationTarget(game, channelId, env) {
-  // The signed interaction's channel is authoritative. Never copy a game update elsewhere.
+  // Public game updates still use the originating signed interaction's channel.
   if (env.DISCORD_BOT_TOKEN && /^\d{15,22}$/.test(channelId || '')) {
     return { url: `https://discord.com/api/v10/channels/${channelId}/messages`, headers: { 'content-type': 'application/json', authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, type: 'bot' };
   }
@@ -9,20 +12,48 @@ export function notificationTarget(game, channelId, env) {
   return webhook ? { url: webhook, headers: { 'content-type': 'application/json' }, type: 'webhook' } : null;
 }
 
-export async function notify(content, { game = getGame(process.env.GAME_ID || 'dziki-pong'), channelId = process.env.DISCORD_CHANNEL_ID, env = process.env, send = fetch } = {}) {
-  const target = notificationTarget(game, channelId, env);
+export function developerNotificationTarget(game, env) {
+  if (!developerGames.has(game.id) || !env.DISCORD_BOT_TOKEN || !/^\d{15,22}$/.test(env.DISCORD_DEV_CHANNEL_ID || '')) return null;
+  return { url: `https://discord.com/api/v10/channels/${env.DISCORD_DEV_CHANNEL_ID}/messages`, headers: { 'content-type': 'application/json', authorization: `Bot ${env.DISCORD_BOT_TOKEN}` }, type: 'bot' };
+}
+
+export function developerMessage(content, env, channelId) {
+  const context = [];
+  if (/^\d{15,22}$/.test(channelId || '')) context.push(`Kanał gry: <#${channelId}>`);
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY || '')) {
+    const run = /^\d+$/.test(env.GITHUB_RUN_ID || '') ? `/runs/${env.GITHUB_RUN_ID}` : '';
+    context.push(`[Przebieg zadania](https://github.com/${env.GITHUB_REPOSITORY}/actions${run})`);
+  }
+  const suffix = context.length ? `\n\n${context.join(' · ')}` : '';
+  return `${content.slice(0, 2000 - suffix.length)}${suffix}`;
+}
+
+async function deliver(target, content, send, label) {
   if (!target) {
-    console.error(`Public notifications are not configured for ${game.name}. Set DISCORD_BOT_TOKEN with permission to send messages in the game channel.`);
     return { delivered: false, destination: null };
   }
   try {
-    const response = await send(target.url, { method: 'POST', headers: target.headers, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) });
-    if (!response.ok) console.error(`Public game notification failed (${response.status}); check the bot's channel permissions.`);
+    const response = await send(target.url, { method: 'POST', headers: target.headers, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }), signal: AbortSignal.timeout(10000) });
+    if (!response.ok) console.error(`${label} notification failed (${response.status}); check the bot's channel permissions.`);
     return { delivered: response.ok, destination: target.type, status: response.status };
   } catch {
-    console.error('Discord notification unavailable; game workflow continues.');
+    console.error(`${label} notification unavailable; game workflow continues.`);
     return { delivered: false, destination: target.type };
   }
+}
+
+export async function notifyDeveloper(content, { game = getGame(runtimeEnv.GAME_ID || 'dziki-pong'), channelId = runtimeEnv.DISCORD_CHANNEL_ID, env = runtimeEnv, send = fetch } = {}) {
+  return deliver(developerNotificationTarget(game, env), developerMessage(content, env, channelId), send, 'Developer');
+}
+
+export async function notify(content, { game = getGame(runtimeEnv.GAME_ID || 'dziki-pong'), channelId = runtimeEnv.DISCORD_CHANNEL_ID, env = runtimeEnv, send = fetch } = {}) {
+  const target = notificationTarget(game, channelId, env);
+  if (!target) console.error(`Public notifications are not configured for ${game.name}. Set DISCORD_BOT_TOKEN with permission to send messages in the game channel.`);
+  const [result, developer] = await Promise.all([
+    deliver(target, content, send, 'Public game'),
+    notifyDeveloper(content, { game, channelId, env, send }),
+  ]);
+  return { ...result, developer };
 }
 
 export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki-pong')) {
@@ -45,6 +76,6 @@ export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki
   return messages[stage];
 }
 
-if (process.argv[1]?.replaceAll('\\', '/').endsWith('/automation/notify.mjs')) {
+if (typeof process !== 'undefined' && process.argv?.[1]?.replaceAll('\\', '/').endsWith('/automation/notify.mjs')) {
   await notify(progressMessage(process.argv[2], process.env));
 }
