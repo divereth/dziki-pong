@@ -15,6 +15,7 @@ jobs:
       - name: Check existing credential locations without printing token values
         env:
           BOT_SECRET_PRESENT: ${{ secrets.DISCORD_BOT_TOKEN != '' }}
+          BOT_ALIAS_PRESENT: ${{ secrets.DISCORD_TOKEN != '' }}
           BOT_VARIABLE_PRESENT: ${{ vars.DISCORD_BOT_TOKEN != '' }}
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -23,5 +24,9 @@ jobs:
           const response = await fetch('https://api.cloudflare.com/client/v4/accounts/' + process.env.CF_ACCOUNT + '/workers/scripts/dziki-pong-discord/secrets', { headers: { authorization: 'Bearer ' + process.env.CF_TOKEN } });
           let runtimeBotSecret = null;
           if (response.ok) { const body = await response.json(); runtimeBotSecret = (body.result || []).some(secret => secret.name === 'DISCORD_BOT_TOKEN'); }
-          console.log(JSON.stringify({ githubProductionBotSecret: process.env.BOT_SECRET_PRESENT === 'true', githubBotVariable: process.env.BOT_VARIABLE_PRESENT === 'true', cloudflareBotSecret: runtimeBotSecret, metadataStatus: response.status }));
+          const settings = await fetch('https://api.cloudflare.com/client/v4/accounts/' + process.env.CF_ACCOUNT + '/workers/scripts/dziki-pong-discord/settings', { headers: { authorization: 'Bearer ' + process.env.CF_TOKEN } });
+          let runtimeBotBinding = null;
+          let runtimeDiscordAlias = null;
+          if (settings.ok) { const body = await settings.json(); const bindings = body.result?.bindings || []; runtimeBotBinding = bindings.some(binding => binding.name?.toUpperCase() === 'DISCORD_BOT_TOKEN'); runtimeDiscordAlias = bindings.some(binding => binding.name?.toUpperCase() === 'DISCORD_TOKEN'); }
+          console.log(JSON.stringify({ githubDiscordTokenAlias: process.env.BOT_ALIAS_PRESENT === 'true', cloudflareBotBinding: runtimeBotBinding, cloudflareDiscordTokenAlias: runtimeDiscordAlias, settingsStatus: settings.status, githubProductionBotSecret: process.env.BOT_SECRET_PRESENT === 'true', githubBotVariable: process.env.BOT_VARIABLE_PRESENT === 'true', cloudflareBotSecret: runtimeBotSecret, metadataStatus: response.status }));
           JS
