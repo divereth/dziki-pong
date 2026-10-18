@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#10211f">
   <meta name="description" content="Dziki Karabin. Klockowy FPS 3D. Dwie drużyny, jedna arena i mecz do trzech zwycięstw.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>Dziki Karabin — Klocki. Cel. Akcja.</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%2310211f'/%3E%3Ctext x='5' y='34' font-family='Arial' font-size='29' font-weight='900' fill='%23c7f56b'%3EDK%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -74,5 +77,12 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <div id="unsupported" class="hidden"><h2>Nie udało się uruchomić grafiki 3D.</h2><p>Otwórz grę w przeglądarce obsługującej WebGL, np. Chrome lub Safari.</p></div>
   <script type="module" src="game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
