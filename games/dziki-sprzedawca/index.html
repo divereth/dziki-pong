@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#192c24">
   <meta name="description" content="Dziki Sprzedawca — gra 3D. 24 stoiska, własne ceny i negocjacje z klientami. Od 100 zł do miliona.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Dziki Sprzedawca">
   <title>Dziki Sprzedawca — Od stówki do miliona</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%232b5943'/%3E%3Cpath d='M11 28L28 11M13 11h15v15' fill='none' stroke='%23efdaa4' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -43,4 +48,11 @@
   <dialog id="help-dialog"><div class="dialog-top"><span class="eyebrow">JAK GRAĆ</span><button class="icon-btn" data-close aria-label="Zamknij ustawienia"><svg><use href="#i-close"/></svg></button></div><h2>Od stówki do miliona.</h2><div class="help-steps"><p><b>1. Wypatruj okazji.</b> Na targu są 24 stoiska. Wykupiony towar wraca po 12–18 sekundach. Podejdź i użyj E lub przycisku Kup.</p><p><b>2. Ustal cenę.</b> W plecaku B wybierz szybką sprzedaż, cenę rynkową lub większy zysk. Przyciski +/− pozwalają dopasować kwotę, a pole przyjmuje przecinek i kropkę.</p><p><b>3. Negocjuj.</b> Klient mówiący „Za drogo” poczeka około 50 sekund. Kliknij go lub podejdź, wyceluj i użyj E. Przyjmij kontrofertę albo zaproponuj własną cenę. Masz trzy próby.</p><p><b>4. Rozwijaj interes.</b> Zbierz 1 000 000 zł w gotówce. Nowy dzień przynosi inne ceny i oferty; własne towary pozostają na straganie.</p><p class="help-note">Komputer: WASD / strzałki — ruch, mysz — rozglądanie, E — działanie, B — plecak, Shift — bieg, Spacja — skok. Bez przechwycenia kursora przytrzymaj mysz, by się rozejrzeć.<br>Telefon / tablet: lewy kciuk — joystick, prawy — rozglądanie. Dotknij klienta, by porozmawiać. Przycisk torby otwiera plecak. Obróć urządzenie według uznania.</p></div><div class="settings"><button id="touch-toggle" class="secondary" aria-pressed="false">Sterowanie dotykowe: wył.</button><button id="sound-btn" class="secondary" aria-pressed="false">Dźwięk: wył.</button></div><button id="reset-btn" class="text-btn danger">Rozpocznij nową grę</button><div id="reset-confirm" hidden><p>Usunąć zapis i zacząć ze 100 zł?</p><button id="reset-yes" class="primary">Tak, nowa gra</button><button id="reset-no" class="text-btn">Anuluj</button></div></dialog>
   <dialog id="win-dialog"><span class="eyebrow">DZIKI MILIONER</span><h2>Witaj w klubie<br>milionerów.</h2><p id="win-detail"></p><button id="keep-playing" class="primary">Gram dalej <svg><use href="#i-next"/></svg></button></dialog>
   <script type="module" src="game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      }, {once: true});
+    }
+  </script>
 </body></html>
