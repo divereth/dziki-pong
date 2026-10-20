@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import {getGame} from './games.mjs';
 import {buildGame,repositoryRoot,allowedChange} from './game-tools.mjs';
 import {metadataFor,validatePromotion} from './request.mjs';
+import '../games/dziki-bieg/hosting/uniboar-alias/worker.test.mjs';
 
 test('Bieg previews build the current Uniboar edition and its complete offline soundtrack',()=>{
  const output=buildGame(getGame('dziki-bieg'));

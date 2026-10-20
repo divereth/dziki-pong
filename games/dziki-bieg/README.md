@@ -1,6 +1,6 @@
 # Robot Uniboar Attack (Dziki Bieg)
 
-This directory is the current source for https://dzikibieg.pages.dev/ and
+This directory is the game source for https://dzikibieg.pages.dev/ and
 `/dzika zmiana` requests from #dziki-bieg. The old Dziki Bieg runner was replaced
 on 2026-10-20 with the current Uniboar game, including its forest artwork,
 Always Free soundtrack, larger fairy pickup boxes and offscreen cone cleanup.
@@ -20,6 +20,16 @@ node automation/game-tools.mjs build dziki-bieg
 The public deploy package is `.artifacts/dziki-bieg/`. Each build regenerates
 `dist/sw.js` from `sw-template.js` and hashes the current assets into a new PWA
 cache. Both request previews and production promotions use this same package.
+`https://uniboar.pages.dev/` forwards to this canonical address, so there is one
+live game and no second copy to keep synchronized. Pushes and approved Discord
+changes update the canonical game through the existing production workflow.
+Both addresses use the shared production leaderboard. Discord request previews
+remain under `discord-REQUEST.dzikibieg.pages.dev`.
+
+The one-time alias deployment is maintained in `hosting/uniboar-alias/`. It also
+retires the old Uniboar service worker and clears only that origin's game caches,
+then moves open windows to the canonical game. Legacy leaderboard API calls are
+proxied to the same backend so older open tabs can still read and save scores.
 
 Future game updates must reach this repository, because Discord checks out main;
 a direct Cloudflare upload alone does not update the bot's source.
