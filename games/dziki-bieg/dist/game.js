@@ -4,7 +4,7 @@
   const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),shell=document.getElementById('game-shell');
   const $=id=>document.getElementById(id),game=new Game();
   const ui={score:$('score'),distance:$('distance'),speed:$('speed'),best:$('best'),overlay:$('overlay'),start:$('start-card'),pause:$('pause-card'),end:$('end-card'),dashFill:$('dash-fill'),dashLabel:$('dash-label')};
-  let record=0,soundOn=false,audio=null,previous=0,accumulator=0,clock=0,particles=[],popups=[],ghosts=[],shake=0,flash=0,viewY=0,lastState='',newRecord=false;
+  let record=0,soundOn=false,audio=null,previous=0,accumulator=0,clock=0,particles=[],popups=[],ghosts=[],shake=0,flash=0,viewY=0,lastState='',newRecord=false,leaderboard=loadLeaderboard(),pendingLeaderboardScore=null;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const coarsePointer=matchMedia('(any-pointer: coarse)'),compactScreen=matchMedia('(max-width: 1100px)');
   let touchLayout=false,view=RunViewport.layout(1280,600),resizeFrame=0,expandedScroll=0,lastWide=innerWidth>innerHeight,paintNeeded=true;
@@ -40,13 +40,48 @@
   function updateBest(){ui.best.innerHTML=fmt(record)+' <small>pkt</small>';}
   updateBest();
 
+  function sortLeaderboard(entries){return entries.sort((a,b)=>b.score-a.score||a.createdAt-b.createdAt);}
+  function loadLeaderboard(){
+    try{
+      const stored=JSON.parse(localStorage.getItem('dziki-bieg-leaderboard')||'[]');
+      if(!Array.isArray(stored))return [];
+      return sortLeaderboard(stored.map(entry=>({name:typeof entry?.name==='string'?entry.name.trim().slice(0,16):'',score:Number(entry?.score),createdAt:Number(entry?.createdAt)||0})).filter(entry=>entry.name&&Number.isFinite(entry.score)&&entry.score>=0)).slice(0,6);
+    }catch{return [];}
+  }
+  function renderLeaderboard(){
+    const entries=leaderboard.slice();
+    if(pendingLeaderboardScore!==null)entries.push({name:'Twój nick',score:pendingLeaderboardScore,createdAt:Date.now(),pending:true});
+    sortLeaderboard(entries);
+    const body=$('leaderboard-rows');body.replaceChildren();
+    for(let i=0;i<6;i++){
+      const entry=entries[i],row=document.createElement('tr');
+      const place=document.createElement('td'),name=document.createElement('td'),score=document.createElement('td');
+      place.textContent=String(i+1);
+      if(entry){name.textContent=entry.name;score.textContent=fmt(entry.score);if(entry.pending)row.classList.add('leaderboard-pending');}
+      else{name.textContent='—';score.textContent='—';}
+      row.append(place,name,score);body.append(row);
+    }
+  }
+  function qualifiesForLeaderboard(score){return leaderboard.length<6||score>leaderboard[leaderboard.length-1].score;}
+  $('leaderboard-entry').addEventListener('submit',event=>{
+    event.preventDefault();
+    const input=$('leaderboard-name'),name=input.value.trim().slice(0,16);
+    if(!name){input.setCustomValidity('Wpisz nick.');input.reportValidity();return;}
+    input.setCustomValidity('');
+    if(pendingLeaderboardScore===null)return;
+    const updated=sortLeaderboard([...leaderboard,{name,score:pendingLeaderboardScore,createdAt:Date.now()}]).slice(0,6);
+    try{localStorage.setItem('dziki-bieg-leaderboard',JSON.stringify(updated));}
+    catch{$('leaderboard-status').textContent='Nie udało się zapisać wyniku w pamięci przeglądarki.';return;}
+    leaderboard=updated;pendingLeaderboardScore=null;$('leaderboard-entry').hidden=true;$('leaderboard-status').textContent='Wynik zapisany na tym urządzeniu.';renderLeaderboard();
+  });
+
   function tone(freq,type='sine',duration=.1,volume=.05,slide=1){
     if(!soundOn)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,audio.currentTime);o.frequency.exponentialRampToValueAtTime(freq*slide,audio.currentTime+duration);g.gain.setValueAtTime(volume,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration);}catch{}
   }
   function syncSound(){const b=$('sound');b.classList.toggle('sound-on',soundOn);b.setAttribute('aria-pressed',String(soundOn));b.setAttribute('aria-label',soundOn?'Wyłącz dźwięk':'Włącz dźwięk');}
   syncSound();
   function toggleSound(){soundOn=!soundOn;syncSound();try{localStorage.setItem('dziki-bieg-sound',String(soundOn));}catch{}if(soundOn)tone(660,'sine',.12,.035,1.5);}
-  function start(){game.reset();game.start();particles=[];popups=[];ghosts=[];shake=0;flash=0;viewY=0;newRecord=false;accumulator=0;releaseControls();previous=performance.now();tone(520,'sine',.16,.045,1.5);updateUI();}
+  function start(){game.reset();game.start();particles=[];popups=[];ghosts=[];shake=0;flash=0;viewY=0;newRecord=false;pendingLeaderboardScore=null;$('leaderboard-entry').reset();$('leaderboard-entry').hidden=true;$('leaderboard-status').textContent='';accumulator=0;releaseControls();previous=performance.now();tone(520,'sine',.16,.045,1.5);updateUI();}
   function pause(){if(game.state==='running'){game.pause();$('pause-caption').textContent='Gotowy na kolejną porcję przygody?';releaseControls();}else if(game.state==='paused')game.resume();updateUI();}
   function action(type){if(game.state!=='running')return;type==='jump'?game.jump():game.dash();}
   function expandedFallback(enabled){
@@ -111,10 +146,11 @@
     ui.overlay.hidden=game.state==='running';ui.start.hidden=game.state!=='ready';ui.pause.hidden=game.state!=='paused';ui.end.hidden=game.state!=='ended';$('pause').disabled=game.state!=='running';
     if(game.state==='ended'){
       newRecord=game.score>record;if(newRecord){record=game.score;try{localStorage.setItem('dziki-bieg-best',String(record));}catch{}updateBest();}
+      pendingLeaderboardScore=qualifiesForLeaderboard(game.score)?game.score:null;$('leaderboard-entry').hidden=pendingLeaderboardScore===null;$('leaderboard-status').textContent='';renderLeaderboard();
       $('end-eyebrow').textContent=newRecord?'✦ NOWY REKORD!':'DOBRY BIEG!';$('end-title').textContent=newRecord?'Ale to był apetyt!':'Jeszcze jedna runda?';$('end-reason').textContent=game.reason;
       $('final-score').textContent=fmt(game.score);$('final-distance').textContent=fmt(game.meters);$('final-koopas').textContent=game.koopaCount;$('final-eggs').textContent=game.eggCount;
       $('announcement').textContent=`Koniec gry. ${game.score} punktów. ${game.reason}`;
-      $('restart').focus({preventScroll:true});
+      if(pendingLeaderboardScore!==null)$('leaderboard-name').focus({preventScroll:true});else $('restart').focus({preventScroll:true});
     }else if(game.state==='paused'){$('resume').focus({preventScroll:true});$('announcement').textContent='Pauza.';}else if(game.state==='running'){$('announcement').textContent='Bieg rozpoczęty. Z — skok. Ponownie Z w powietrzu — drugi skok. X — dash.';if(document.activeElement instanceof HTMLElement)document.activeElement.blur();}
   }
   function ellipse(x,y,rx,ry,fill,stroke,angle=0){ctx.beginPath();ctx.ellipse(x,y,rx,ry,angle,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();}}

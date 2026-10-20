@@ -10,7 +10,7 @@
   <title>Dziki Bieg</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=mobile-2">
+  <link rel="stylesheet" href="style.css?v=leaderboard-1">
 </head>
 <body>
   <main class="app">
@@ -46,7 +46,7 @@
           <span class="start-hint touch-copy">Graj pionowo lub poziomo. Wybór należy do ciebie.</span>
         </div>
         <div id="pause-card" class="overlay-card pause-card" hidden><span class="eyebrow">CHWILA ODDECHU</span><h2>Wyspa poczeka.</h2><p id="pause-caption">Gotowy na kolejną porcję przygody?</p><button id="resume" class="primary-button">Wracamy do gry <span>→</span></button><button id="restart-pause" class="text-button">Zacznij od nowa</button></div>
-        <div id="end-card" class="overlay-card end-card" hidden><span id="end-eyebrow" class="eyebrow">DOBRY BIEG!</span><h2 id="end-title">Jeszcze jedna runda?</h2><p id="end-reason">Przygoda trwa dalej.</p><div class="end-score"><strong id="final-score">0</strong><span>punktów</span></div><div class="end-stats"><span><b id="final-distance">0</b> m</span><span><b id="final-koopas">0</b> Koop</span><span><b id="final-eggs">0</b> jajek</span></div><button id="restart" class="primary-button">Jeszcze raz <span>↻</span></button><span class="start-hint">lub naciśnij <kbd>ENTER</kbd></span></div>
+        <div id="end-card" class="overlay-card end-card" hidden><span id="end-eyebrow" class="eyebrow">DOBRY BIEG!</span><h2 id="end-title">Jeszcze jedna runda?</h2><p id="end-reason">Przygoda trwa dalej.</p><div class="end-score"><strong id="final-score">0</strong><span>punktów</span></div><div class="end-stats"><span><b id="final-distance">0</b> m</span><span><b id="final-koopas">0</b> Koop</span><span><b id="final-eggs">0</b> jajek</span></div><section class="leaderboard" aria-labelledby="leaderboard-title"><h3 id="leaderboard-title">NAJLEPSZE WYNIKI <small>na tym urządzeniu</small></h3><table><thead><tr><th scope="col">#</th><th scope="col">Nick</th><th scope="col">Wynik</th></tr></thead><tbody id="leaderboard-rows"></tbody></table><form id="leaderboard-entry" hidden><label for="leaderboard-name">Wskakujesz do TOP 6. Podaj nick:</label><div class="leaderboard-input-row"><input id="leaderboard-name" name="nickname" type="text" maxlength="16" autocomplete="nickname" required><button class="leaderboard-submit" type="submit">Zapisz</button></div></form><p id="leaderboard-status" class="leaderboard-status" aria-live="polite"></p></section><button id="restart" class="primary-button">Jeszcze raz <span>↻</span></button><span class="start-hint">lub naciśnij <kbd>ENTER</kbd></span></div>
       </div>
 
       <div class="game-bottom"><span class="world-label"><i></i> DZIKA WYSPA</span><div class="ability-indicators"><div class="jump-indicator" id="jump-indicator" aria-label="Pozostałe skoki: 2 z 2"><span>↑↑</span> <b id="jump-count">2/2</b><kbd>Z</kbd></div><div class="dash-indicator" id="dash-indicator"><span class="dash-bolt">ϟ</span><span id="dash-label">DASH GOTOWY</span><span class="dash-track"><i id="dash-fill"></i></span><kbd>X</kbd></div></div></div>
@@ -63,7 +63,7 @@
   </main>
   <script src="engine.js?v=mobile-2"></script>
   <script src="viewport.js?v=mobile-2"></script>
-  <script src="game.js?v=mobile-2"></script>
+  <script src="game.js?v=leaderboard-1"></script>
   <script src="pwa.js"></script>
 </body>
 </html>

@@ -1,12 +1,12 @@
 'use strict';
 
-const CACHE_NAME = 'dziki-bieg-pwa-v1';
+const CACHE_NAME = 'dziki-bieg-pwa-v2';
 const APP_FILES = [
   './index.html',
-  './style.css?v=mobile-2',
+  './style.css?v=leaderboard-1',
   './engine.js?v=mobile-2',
   './viewport.js?v=mobile-2',
-  './game.js?v=mobile-2',
+  './game.js?v=leaderboard-1',
   './pwa.js',
   './icon.svg',
   './icon-192.png',
