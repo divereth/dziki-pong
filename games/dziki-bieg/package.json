@@ -1,9 +1,9 @@
 {
-  "name": "dziki-bieg",
-  "version": "1.0.0",
+  "name": "robot-uniboar-attack",
   "private": true,
+  "type": "module",
   "scripts": {
-    "test": "node --test game.test.cjs viewport.test.cjs",
-    "build": "node ../../automation/game-tools.mjs build dziki-bieg"
+    "test": "node tests/mechanics.mjs && node tests/presentation.mjs",
+    "build": "node build-pwa.mjs"
   }
 }

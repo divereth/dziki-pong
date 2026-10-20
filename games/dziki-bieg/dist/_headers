@@ -1,0 +1,7 @@
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+/pwa.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache

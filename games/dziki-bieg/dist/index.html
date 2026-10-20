@@ -1,69 +1,16 @@
 <!doctype html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f6f7ee">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="Dziki Bieg — platformówka 2D z Yoshim. Ogromne jajka, wielkie przepaście, podwójny skok i coraz szybsze tempo. Pobij swój rekord!">
-  <title>Dziki Bieg</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=mobile-2">
-</head>
-<body>
-  <main class="app">
-    <header class="site-header">
-      <a class="brand" href="./" aria-label="Dziki Bieg — strona główna"><svg viewBox="0 0 42 48" aria-hidden="true"><path d="M37 30C37 42 29 46 21 46S5 42 5 30 13 3 21 3s16 15 16 27Z" fill="#e5edcd" stroke="#1b563d" stroke-width="2.5"/><ellipse cx="13" cy="29" rx="5" ry="7" fill="#398852" transform="rotate(-20 13 29)"/><ellipse cx="27" cy="36" rx="5" ry="6" fill="#398852"/><ellipse cx="24" cy="13" rx="4" ry="5" fill="#398852" transform="rotate(-22 24 13)"/></svg><span>Dziki Bieg<span class="brand-dot">.</span></span></a>
-      <span class="header-note"><i></i> Dwa skoki. Jeden dziki bieg.</span>
-      <div class="header-actions">
-        <button id="sound" class="icon-button" aria-label="Włącz dźwięk" aria-pressed="false" title="Dźwięk (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path class="sound-waves" d="M15 8c2 2 2 6 0 8m3-11c4 4 4 10 0 14"/><path class="sound-off" d="m16 9 6 6m0-6-6 6"/></svg></button>
-        <button id="fullscreen" class="icon-button" aria-label="Pełny ekran" title="Pełny ekran (F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
-      </div>
-    </header>
-
-    <section class="title-row" aria-label="O grze">
-      <div><p class="eyebrow">ENDLESS RUNNER <span>✦</span> TURBO</p><h1>Dziki Bieg<span>.</span></h1></div>
-      <div class="personal-best"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm0 2H4v3a4 4 0 0 0 5 4m7-7h4v3a4 4 0 0 1-5 4m-3 1v6m-5 2h10"/></svg><div><span>TWÓJ REKORD</span><strong id="best">0 <small>pkt</small></strong></div></div>
-    </section>
-
-    <section id="game-shell" class="game-shell" aria-label="Gra Dziki Bieg">
-      <canvas id="game" width="1280" height="600" aria-label="Yoshi biegnie w prawo. Z — skok, ponownie Z w powietrzu — drugi skok, X — dash, P — pauza."></canvas>
-      <div class="game-hud" id="hud">
-        <div class="hud-left"><div class="score-label">WYNIK<strong id="score">00000</strong></div><span class="hud-divider"></span><div class="distance-label"><span id="distance">0</span> <small>m</small></div></div>
-        <div class="hud-right"><span class="speed-label"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 7 5 3-5 3m7-6 5 3-5 3"/></svg><b id="speed">1.0</b>×</span><button id="pause" class="pause-button" aria-label="Pauza" title="Pauza (P / Escape)" disabled><svg viewBox="0 0 20 20" fill="currentColor"><rect x="5" y="4" width="3" height="12" rx="1"/><rect x="12" y="4" width="3" height="12" rx="1"/></svg></button><button id="exit-expanded" class="pause-button exit-expanded" aria-label="Wyjdź z pełnego ekranu" title="Wyjdź z pełnego ekranu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-      </div>
-
-      <div id="overlay" class="overlay">
-        <div id="start-card" class="overlay-card start-card">
-          <div class="island-tag"><span></span> DZIKA WYSPA · 01</div>
-          <h2>Większy skok.<br><em>Jeszcze dzikszy bieg.</em></h2>
-          <p class="keyboard-copy">Ogromne jajka. Wielkie przepaście. Tempo rośnie!<br class="desktop-break"> Z + Z — podwójny skok. X — dash przez jajka.</p>
-          <p class="touch-copy">Dotknij SKOK, a potem ponownie w powietrzu.<br>DASH rozbija jajka i wydłuża lot.</p>
-          <button id="start" class="primary-button">Zaczynamy <span>↗</span></button>
-          <span class="start-hint keyboard-copy">lub naciśnij <kbd>ENTER</kbd></span>
-          <span class="start-hint touch-copy">Graj pionowo lub poziomo. Wybór należy do ciebie.</span>
-        </div>
-        <div id="pause-card" class="overlay-card pause-card" hidden><span class="eyebrow">CHWILA ODDECHU</span><h2>Wyspa poczeka.</h2><p id="pause-caption">Gotowy na kolejną porcję przygody?</p><button id="resume" class="primary-button">Wracamy do gry <span>→</span></button><button id="restart-pause" class="text-button">Zacznij od nowa</button></div>
-        <div id="end-card" class="overlay-card end-card" hidden><span id="end-eyebrow" class="eyebrow">DOBRY BIEG!</span><h2 id="end-title">Jeszcze jedna runda?</h2><p id="end-reason">Przygoda trwa dalej.</p><div class="end-score"><strong id="final-score">0</strong><span>punktów</span></div><div class="end-stats"><span><b id="final-distance">0</b> m</span><span><b id="final-koopas">0</b> Koop</span><span><b id="final-eggs">0</b> jajek</span></div><button id="restart" class="primary-button">Jeszcze raz <span>↻</span></button><span class="start-hint">lub naciśnij <kbd>ENTER</kbd></span></div>
-      </div>
-
-      <div class="game-bottom"><span class="world-label"><i></i> DZIKA WYSPA</span><div class="ability-indicators"><div class="jump-indicator" id="jump-indicator" aria-label="Pozostałe skoki: 2 z 2"><span>↑↑</span> <b id="jump-count">2/2</b><kbd>Z</kbd></div><div class="dash-indicator" id="dash-indicator"><span class="dash-bolt">ϟ</span><span id="dash-label">DASH GOTOWY</span><span class="dash-track"><i id="dash-fill"></i></span><kbd>X</kbd></div></div></div>
-      <div class="mobile-controls" id="mobile-controls"><button id="touch-jump" aria-label="Skok"><span class="control-icon" aria-hidden="true">↑</span><span class="control-label">SKOK</span></button><span class="touch-guide">Dwa dotknięcia<br>to podwójny skok</span><button id="touch-dash" aria-label="Dash"><span class="control-icon" aria-hidden="true">ϟ</span><span class="control-label">DASH</span></button></div>
-      <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="instructions" aria-label="Sterowanie i punktacja">
-      <div class="instruction"><kbd>Z</kbd><div><h3>Podwójny skok</h3><p class="keyboard-copy">Naciśnij ponownie Z w powietrzu.</p><p class="touch-copy">Dotknij SKOK drugi raz w powietrzu.</p></div><span class="points">SKOK ×2 ↗</span></div>
-      <div class="instruction"><kbd>X</kbd><div><h3>Pełna moc</h3><p>Rozbijaj wielkie jajka dashem.</p></div><span class="points">+200 PKT</span></div>
-      <div class="instruction auto"><span class="mini-koopa" aria-hidden="true">✦</span><div><h3>Smacznego!</h3><p>Koopy przed tobą zjadasz automatycznie.</p></div><span class="points">+100 PKT</span></div>
-    </section>
-    <footer><span>Każdy metr to punkt. Każda runda to nowa szansa.</span><span><kbd>P</kbd> pauza <i>·</i> Tempo nie czeka na nikogo <span class="footer-spark">✧</span></span></footer>
-  </main>
-  <script src="engine.js?v=mobile-2"></script>
-  <script src="viewport.js?v=mobile-2"></script>
-  <script src="game.js?v=mobile-2"></script>
-  <script src="pwa.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#254f37"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Uniboar"><meta name="description" content="Robot Uniboar Attack. Race through the forest, jump mossy platforms and smash giant pine cones. Z to jump, X to leaf dash."><title>Robot Uniboar Attack</title><link rel="icon" type="image/svg+xml" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="stylesheet" href="style.css"></head>
+<body><main class="game-wrap">
+<section id="game-frame" class="game-frame" aria-label="Robot Uniboar Attack">
+  <canvas id="game" width="1280" height="720" tabindex="-1" aria-label="Robot Uniboar Attack game"></canvas>
+  <div id="hud" class="hud" hidden><div id="lives" class="lives" aria-label="Three wishes remaining"></div><span id="score">0</span></div>
+  <div id="dash-hint" class="dash-hint" role="status" hidden>Press <kbd>X</kbd> to dash</div>
+  <div id="title-screen" class="title-screen"><img class="title-art" src="forest-panorama.webp" alt="A sunlit woodland with ancient oaks, ferns and pine cones"><h1 class="forest-logo"><span>ROBOT</span>UNIBOAR<span>ATTACK</span></h1><div class="title-hero" aria-hidden="true"></div><button id="play" class="magic play">CLICK to PLAY!</button><div id="instructions" class="instructions" hidden><p>Z - jump, double jump&nbsp;&nbsp; X - leaf dash</p><button id="begin" class="magic">Press Z to make your wishes come true!</button></div></div>
+  <div id="intro" class="purple-screen intro" hidden><p class="magic">You get 3 wishes!</p><div class="wish-spirit" aria-hidden="true"></div><p class="magic">You will fail!</p></div>
+  <div id="result" class="purple-screen result" aria-live="polite" hidden><h1 class="magic" id="result-title">Wish 1</h1><div id="wish-scores" class="wish-scores"></div><div class="result-head-wrap"><canvas id="result-head" width="480" height="320" role="img" aria-label="The Uniboar's wrecked robotic head, with cracked armor and torn wires"></canvas></div><p id="result-total" class="result-total" hidden></p><p id="result-message" class="magic">Don't give up on your dreams.</p><button id="next" class="magic"></button></div>
+  <div id="paused" class="purple-screen paused" hidden><h2 class="magic">Paused</h2><button id="resume" class="magic">Press P to keep dreaming</button></div>
+  <div class="touch-controls" id="touch-controls" hidden><button id="jump" aria-label="Jump">Z</button><button id="dash" aria-label="Leaf dash">X</button></div>
+</section>
+<div class="toolbar"><span>Z: jump / double jump &nbsp; X: leaf dash</span><div><button id="install" aria-label="Install Robot Uniboar Attack" hidden>INSTALL</button><button id="sound" aria-label="Mute sound">SOUND ON</button><button id="pause" aria-label="Pause game">PAUSE</button><button id="fullscreen" aria-label="Enter full screen">FULL SCREEN</button><label for="track" id="track-label" tabindex="0" role="button">MUSIC FILE</label><input id="track" type="file" accept="audio/*" hidden></div></div>
+<p id="notice" class="notice" role="status"></p>
+</main><audio id="default-music" src="always-free.mp3" preload="metadata" loop hidden></audio><script type="module" src="main.js"></script><script defer src="pwa.js?v=uniboar-pwa-1"></script></body></html>

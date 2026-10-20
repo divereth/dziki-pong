@@ -66,7 +66,7 @@ export function checkGame(game) {
   }
   const tests = {
     'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js'],
-    'dziki-bieg': ['game.test.cjs', 'viewport.test.cjs'],
+    'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs'],
     'dziki-karabin': ['tests/core.test.mjs', 'tests/runtime.test.mjs', 'tests/touch.test.mjs'],
   }[game.id];
   if (tests) execFileSync(process.execPath, ['--test', ...tests], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });
@@ -74,6 +74,8 @@ export function checkGame(game) {
 
 export function buildGame(game) {
   const site = resolve(repositoryRoot, game.site);
+  // Rebuild Uniboar's content-hashed offline cache for every preview and release.
+  if (game.id === 'dziki-bieg') execFileSync(process.execPath, ['build-pwa.mjs'], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });
   const output = resolve(repositoryRoot, '.artifacts', game.id);
   mkdirSync(output, { recursive: true });
   const candidates = game.id === 'dziki-pong'

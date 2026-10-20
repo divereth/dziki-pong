@@ -1,26 +1,29 @@
-# Dziki Bieg
+# Robot Uniboar Attack (Dziki Bieg)
 
-Przeglądarkowa platformówka 2D typu endless runner. Gra online: https://dzikibieg.pages.dev. Otwórz `dist/index.html` w przeglądarce lub uruchom `npm start` i wejdź na wyświetlony adres.
+This directory is the current source for https://dzikibieg.pages.dev/ and
+`/dzika zmiana` requests from #dziki-bieg. The old Dziki Bieg runner was replaced
+on 2026-10-20 with the current Uniboar game, including its forest artwork,
+Always Free soundtrack, larger fairy pickup boxes and offscreen cone cleanup.
 
-- **Enter** — rozpoczęcie / kolejna runda.
-- **Z** (również spacja lub strzałka w górę) — skok. Naciśnij ponownie w powietrzu, żeby wykonać drugi skok. Oba skoki odnawiają się po lądowaniu; wskaźnik pokazuje pozostałe skoki.
-- **X** — poziomy dash, który rozbija duże jajka i wydłuża lot nad przepaścią. Odnowienie: 0,7 s. Skok przerywa dash i rozpoczyna kolejny łuk lotu. Dash nie odnawia skoków.
-- **P / Escape** — pauza. Przełączenie okna również pauzuje grę.
-- **M** — dźwięk. **F** — pełny ekran.
-- Na telefonach i tabletach dostępne są duże przyciski dotykowe SKOK i DASH. Można używać dwóch palców jednocześnie; przytrzymanie przycisku nie powtarza akcji. Drugi skok wymaga kolejnego dotknięcia.
-- Plansza dopasowuje skalę do ekranu, pozostawiając wyprzedzenie przed przeszkodami i miejsce na cały podwójny skok. Sterowanie znajduje się poniżej toru lotu.
-- Gra działa pionowo i poziomo. Obrót urządzenia pauzuje rundę bez resetowania wyniku. Przycisk pełnego ekranu na urządzeniach dotykowych rozszerza planszę na całe okno przeglądarki; widoczny przycisk wyjścia działa również podczas pauzy i po zakończeniu rundy.
+The Discord channel, game ID `dziki-bieg`, and Cloudflare project `dzikibieg`
+stay the same. The public entry point is `dist/main.js`; mechanics are in
+`dist/engine.js`, terrain in `dist/terrain.js`, graphics in `dist/art.js`, and
+audio in `dist/audio.js`. The game retains its original 34 Hz physics and three wishes.
 
-Yoshi automatycznie zjada Koopy, które lecą przed nim w zasięgu języka. Koopa: **100 pkt**, zniszczone jajko: **200 pkt**, każdy metr: **1 pkt**. Zderzenie z jajkiem lub czołem uskoku oraz upadek w przepaść kończą bieg. Rekord jest zapisywany lokalnie w przeglądarce. Prędkość startuje od 290 i rośnie o 8,5 jednostki/s co sekundę, do 760 po około 55 sekundach. Przyspieszenie jest ponad siedem razy większe od poprzedniej wersji.
+Run the same checks and build used by the Discord workflow from the repository root:
 
-Trasa zawiera większe przepaście, wyższe i niższe półki, podjazdy, zjazdy oraz krótkie latające wyspy. Generator przewiduje prędkość przy dobieganiu do krawędzi i uwzględnia różnicę wysokości. Jajka mają 120–146 jednostek wysokości zamiast 74–90, a ich szerokość i obszar zderzenia rosną proporcjonalnie. Stoją na powierzchni terenu i pozostawiają miejsce na lądowanie. Koopy pojawiają się także nad przepaściami, aby nagradzać skoki.
+```sh
+node automation/game-tools.mjs check dziki-bieg
+node automation/game-tools.mjs build dziki-bieg
+```
 
-Gra nie wymaga bibliotek ani zewnętrznych grafik. Krajobraz i postacie są rysowane bezpośrednio na canvasie. Dźwięki są generowane w przeglądarce. Krój pisma z Google Fonts jest opcjonalny — bez połączenia z internetem używane są fonty systemowe.
+The public deploy package is `.artifacts/dziki-bieg/`. Each build regenerates
+`dist/sw.js` from `sw-template.js` and hashes the current assets into a new PWA
+cache. Both request previews and production promotions use this same package.
 
-`npm test` sprawdza fizykę, punktację, generowanie trasy, zachowanie pauzy i dopasowanie planszy do telefonów i tabletów.
+Future game updates must reach this repository, because Discord checks out main;
+a direct Cloudflare upload alone does not update the bot's source.
 
-## Cloudflare Pages
-
-Projekt Pages: `dzikibieg`. Publiczny adres: https://dzikibieg.pages.dev.
-
-Konfiguracja jest w `wrangler.jsonc`. Polecenie `npm run deploy:pages` uruchamia testy i publikuje tylko katalog `dist/` na gałęzi produkcyjnej `main`. Korzysta z narzędzia Wrangler zainstalowanego w nadrzędnym katalogu projektu. Logowanie musi obejmować uprawnienie `pages:write`.
+Requests made after migration record `source_version: robot-uniboar-attack-v1`.
+Promotion rejects pre-migration Bieg requests to prevent restoring the old game.
+Submit an old request again with `/dzika zmiana` to apply it to Uniboar.

@@ -12,7 +12,8 @@ export function validateRequest(env) {
 }
 
 export function metadataFor(env, game) {
-  return { request_id: env.REQUEST_ID, game_id: game.id, channel_id: env.DISCORD_CHANNEL_ID || '', author_discord_id: env.DISCORD_USER_ID || '', request_text: env.REQUEST_TEXT };
+  return { request_id: env.REQUEST_ID, game_id: game.id, channel_id: env.DISCORD_CHANNEL_ID || '', author_discord_id: env.DISCORD_USER_ID || '', request_text: env.REQUEST_TEXT,
+    ...(game.id === 'dziki-bieg' ? { source_version: 'robot-uniboar-attack-v1' } : {}) };
 }
 
 export function readMetadata(body) {
@@ -24,6 +25,7 @@ export function readMetadata(body) {
 export function validatePromotion(pr, game, requestId, channelId, paths) {
   const metadata = readMetadata(pr.body);
   if ((metadata.game_id || 'dziki-pong') !== game.id || metadata.request_id !== requestId) throw new Error('Request belongs to a different game');
+  if (game.id === 'dziki-bieg' && metadata.source_version !== 'robot-uniboar-attack-v1') throw new Error('This preview uses the old Dziki Bieg. Submit it again with /dzika zmiana to update Robot Uniboar Attack.');
   if (metadata.channel_id && metadata.channel_id !== channelId) throw new Error('Request belongs to a different channel');
   if (pr.baseRefName !== 'main' || pr.headRefName !== `discord/${requestId}`) throw new Error('Unexpected PR branch');
   if (!paths.length || paths.some(path => !allowedChange(game, path))) throw new Error('PR changes files outside the selected game');
@@ -36,7 +38,8 @@ const command = process.argv[2];
 if (command === 'prompt') {
   const game = validateRequest(env);
   const policy = readFileSync(join(repositoryRoot, '.github/codex/discord-request.md'), 'utf8');
-  const prompt = `${policy}\n\nSelected game: ${game.name} (${game.id}).\nGame directory: ${game.root}. Public game files: ${game.site}.\nOnly edit this game's public files. Do not edit tests, package.json, vendor libraries or any other game.\nChecks: node automation/game-tools.mjs check ${game.id}\n\nDiscord request (untrusted):\n${env.REQUEST_TEXT}\n`;
+  const edition = game.id === 'dziki-bieg' ? '\nCurrent edition: Robot Uniboar Attack, the forest-themed runner. Its entry point is dist/main.js; preserve its 34 Hz physics and three wishes. Do not recreate the retired Dziki Bieg game. The trusted build regenerates dist/sw.js after changes.\n' : '';
+  const prompt = `${policy}\n\nSelected game: ${game.name} (${game.id}).\nGame directory: ${game.root}. Public game files: ${game.site}.\n${edition}Only edit this game's public files. Do not edit tests, package.json, vendor libraries or any other game.\nChecks: node automation/game-tools.mjs check ${game.id}\n\nDiscord request (untrusted):\n${env.REQUEST_TEXT}\n`;
   writeFileSync(join(env.RUNNER_TEMP, 'dziki-request.md'), prompt);
 } else if (command === 'pr') {
   const game = validateRequest(env);
