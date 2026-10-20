@@ -88,5 +88,6 @@ function loop(now){
  requestAnimationFrame(loop);
 }
 refresh();renderer.resize();requestAnimationFrame(loop);
-const warmTerrain=()=>{if(mode==='title'||mode==='instructions')renderer.render(presentation.sample(),performance.now()/1000);};
+const warmTerrain=()=>{if(mode==='title'||mode==='instructions'||mode==='intro')renderer.render(presentation.sample(),performance.now()/1000);};
+renderer.ready.then(warmTerrain);
 if('requestIdleCallback'in window)requestIdleCallback(warmTerrain,{timeout:1000});else setTimeout(warmTerrain,80);

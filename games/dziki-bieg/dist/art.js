@@ -56,7 +56,7 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.assetTasks=[];this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.ready=Promise.all(this.assetTasks).then(()=>{this.assetsReady=true;});this.resize();
+    this.assetTasks=[];this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.ready=Promise.all(this.assetTasks).then(()=>{this.warmArtwork();this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
   loadAsset(src,prepare){
@@ -66,6 +66,24 @@ export class Renderer{
       image.onerror=resolve;image.src=src;
     }));
     return image;
+  }
+  warmArtwork(){
+    // Upload rarely used frames and compile effect shaders before live input.
+    // A separate surface keeps the game's canvas on its accelerated draw path.
+    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+    const c=canvas.getContext('2d'),previous=this.ctx;
+    try{
+      this.ctx=c;c.setTransform(2,0,0,2,128,128);
+      for(const f of this.spriteFrames)c.drawImage(f.image,-43,-40,84,60);
+      for(const image of [...this.treeImages,...this.fairyFrames,...this.leafSprites,...(this.coneFragments||[]).map(part=>part.image),this.pineConeSprite,this.forestImage])if(image?.width)c.drawImage(image,-60,-60,120,120);
+      c.filter='brightness(1.12) saturate(1.08)';c.shadowColor='#c9df75';c.shadowBlur=5;
+      this.hero({animState:'charge',grounded:false,gravity:0});
+      c.filter='none';c.shadowBlur=0;this.fireball(0,0,31,5,1);
+      c.font='italic 27px Georgia,serif';c.shadowColor='#a8d06c';c.shadowBlur=12;c.fillText('First Second Third Wish!',-60,0);
+      // One four-byte read forces only this disposable warmup surface to finish.
+      // No artwork scanning or readback occurs on the gameplay canvas.
+      c.getImageData(0,0,1,1);
+    }catch{}finally{this.ctx=previous;canvas.width=0;canvas.height=0;}
   }
   terrainPrefix(p,density){return p.templateId+'|'+(p.seed??p.templateId*.17)+'|'+density;}
   initTerrainWorker(){

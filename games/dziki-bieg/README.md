@@ -74,6 +74,12 @@ change backend code, bindings or reserved Pages routing files.
 Terrain textures are prepared ahead of the camera in a module worker,
 dist/terrain-worker.js, using the original art.js painter. Its pending queue is
 limited to 24 tiles and its bitmap cache to 32 MiB; evicted bitmaps are closed.
+The worker requests a CPU-backed canvas with willReadFrequently, so vector
+rasterization does not stall the foreground GPU queue. Only completed bitmap
+tiles are uploaded for display. Once artwork is ready, the title/instructions/
+intro screen warms the complete scene before live input begins. Character poses,
+tree/fairy/leaf/cone textures, dash filters and explosion/text shaders are warmed
+once on a disposable surface; the gameplay canvas never needs a pixel readback.
 Browsers without worker canvas support use the existing synchronous painter.
 The worker is included in the PWA precache. Initial artwork decoding and texture
 preparation finish before the first wish starts. Known sprite/crop bounds and

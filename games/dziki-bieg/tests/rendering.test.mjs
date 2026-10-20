@@ -23,3 +23,19 @@ test('worker queue is bounded, discards retired terrain and recovers from worker
   assert.equal(r.terrainWorker,null);assert.equal(terminated,1);assert.equal(r.terrainJobs.size,0);assert.equal(r.terrainRunning,false);
  }finally{globalThis.Worker=originalWorker;globalThis.OffscreenCanvas=originalCanvas;}
 });
+test('terrain worker isolates rasterization from the game GPU and transfers finished tiles',async()=>{
+ const previousSelf=globalThis.self,previousCanvas=globalThis.OffscreenCanvas,paint=Renderer.prototype.paintNativePlatform;
+ let options,message,transferred,painted=false;const bitmap={};
+ globalThis.OffscreenCanvas=class{
+  constructor(width,height){this.width=width;this.height=height;}
+  getContext(type,attributes){assert.equal(type,'2d');options=attributes;return{setTransform(){}};}
+  transferToImageBitmap(){assert.equal(painted,true);return bitmap;}
+ };
+ globalThis.self={postMessage(data,transfer){message=data;transferred=transfer;}};
+ Renderer.prototype.paintNativePlatform=function(platform){assert.equal(platform.templateId,1);painted=true;};
+ try{
+  await import('../dist/terrain-worker.js');
+  self.onmessage({data:{key:'test',templateId:1,seed:.3,density:2,ox:0,oy:0,tw:256,th:256,pad:2}});
+  assert.equal(options.willReadFrequently,true);assert.equal(message.bitmap,bitmap);assert.equal(message.bytes,520*520*4);assert.deepEqual(transferred,[bitmap]);assert.equal(message.error,undefined);
+ }finally{globalThis.self=previousSelf;globalThis.OffscreenCanvas=previousCanvas;Renderer.prototype.paintNativePlatform=paint;}
+});
