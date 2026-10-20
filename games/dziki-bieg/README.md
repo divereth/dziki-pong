@@ -27,3 +27,20 @@ a direct Cloudflare upload alone does not update the bot's source.
 Requests made after migration record `source_version: robot-uniboar-attack-v1`.
 Promotion rejects pre-migration Bieg requests to prevent restoring the old game.
 Submit an old request again with `/dzika zmiana` to apply it to Uniboar.
+
+## Global leaderboard
+
+The final game-over screen loads the global best six totals across all three
+wishes from `/api/leaderboard`. A qualifying score can be saved with a nickname;
+the server checks qualification again when saving, including concurrent scores.
+Nickname entry does not trigger game controls. Only the nickname preference is
+stored locally; rankings are always read from the server. Offline play continues,
+with an explicit retry control for unavailable global scores.
+
+`backend/worker.mjs` is a trusted Pages worker injected by the build, with
+`_routes.json` limiting it to the leaderboard endpoint. D1 binding `SCORES_DB`
+uses separate production and preview stores; both public game domains share the
+production leaderboard. Database IDs are recorded in `backend/deployment.json`.
+The schema is in `backend/schema.sql`. Apply it before publishing to a new binding.
+Discord-generated changes can edit `dist/leaderboard.js` and its UI, but cannot
+change backend code, bindings or reserved Pages routing files.

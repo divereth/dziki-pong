@@ -2,7 +2,9 @@ import {Game} from './engine.js';
 import {Renderer} from './art.js';
 import {AudioSystem} from './audio.js';
 import {Presentation} from './presentation.js';
+import {Leaderboard} from './leaderboard.js';
 const $=id=>document.getElementById(id),canvas=$('game'),renderer=new Renderer(canvas),audio=new AudioSystem($('default-music'));
+const leaderboard=new Leaderboard($('leaderboard'));
 let best=0,muted=false,mode='title',lastChange=performance.now(),introEnds=0,introAction='start',musicWanted=false,musicRequest=0;
 try{best=Number(localStorage.getItem('uniboar-best'))||0;muted=localStorage.getItem('uniboar-muted')==='true';}catch{}
 const game=new Game({event:name=>{
@@ -16,8 +18,9 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');game.reducedMotion=m
 const lifeSVG='<svg viewBox="0 0 72 40" aria-hidden="true"><path d="M3 26 1 20 6 22 10 20C7 5 38 7 43 12L48 8 49 2 54 9 59 7 61 1 64 12 71 16 69 24 60 26 57 30 51 29 49 20 43 22 40 36 34 36 35 25 21 25 18 35 12 35 12 27 7 29Z"/><path d="M64 22q8 0 6-7" fill="none" stroke="white" stroke-width="3"/></svg>';
 $('lives').innerHTML=[0,1,2].map(()=>`<span class="life">${lifeSVG}</span>`).join('');
 function audioUI(){$('sound').textContent=muted?'SOUND OFF':'SOUND ON';$('sound').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('sound').setAttribute('aria-pressed',String(muted));}audioUI();
-function changeMode(next){mode=next;lastChange=performance.now();presentation.reset();refresh();}
+function changeMode(next){mode=next;lastChange=performance.now();presentation.reset();refresh();if(next==='over')leaderboard.show(game.total);else leaderboard.close();}
 function refresh(){
+ $('result').classList.toggle('has-leaderboard',mode==='over');
  $('title-screen').hidden=!['title','instructions'].includes(mode);$('play').hidden=mode!=='title';$('instructions').hidden=mode!=='instructions';$('intro').hidden=mode!=='intro';$('result').hidden=!['dead','over'].includes(mode);$('paused').hidden=mode!=='paused';$('hud').hidden=!['playing','dying','paused'].includes(mode);$('touch-controls').hidden=mode!=='playing';
  if(mode==='dead'||mode==='over'){
   $('result-title').textContent=mode==='over'?'Three wishes complete':`Wish ${game.wish} complete`;

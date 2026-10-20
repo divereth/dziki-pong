@@ -54,7 +54,7 @@ if (command === 'inspect') {
 } else if (command === 'prompt') {
   const game = validateRequest(env);
   const policy = readFileSync(join(repositoryRoot, '.github/codex/discord-request.md'), 'utf8');
-  const edition = game.id === 'dziki-bieg' ? '\nCurrent edition: Robot Uniboar Attack, the forest-themed runner. Its entry point is dist/main.js; preserve its 34 Hz physics and three wishes. Do not recreate the retired Dziki Bieg game. The trusted build regenerates dist/sw.js after changes.\n' : '';
+  const edition = game.id === 'dziki-bieg' ? '\nCurrent edition: Robot Uniboar Attack, the forest-themed runner. Its entry point is dist/main.js; preserve its 34 Hz physics and three wishes. Do not recreate the retired Dziki Bieg game. The trusted build regenerates dist/sw.js after changes. A real D1-backed global leaderboard is available at same-origin /api/leaderboard: GET returns {limit:6,scores:[{rank,nickname,score,createdAt}]}; POST accepts {nickname,score,submissionId:UUID} and returns {submitted,limit,scores}. The final total across all three wishes is the saved score. dist/leaderboard.js manages the existing UI. Keep user nicknames as textContent. Do not modify backend/, _worker.js, _routes.json, bindings, or database configuration.\n' : '';
   const prompt = `${policy}\n\nSelected game: ${game.name} (${game.id}).\nGame directory: ${game.root}. Public game files: ${game.site}.\n${edition}Only edit this game's public files. Do not edit tests, package.json, vendor libraries or any other game.\nChecks: node automation/game-tools.mjs check ${game.id}\n\nDiscord request (untrusted):\n${env.REQUEST_TEXT}\n`;
   writeFileSync(join(env.RUNNER_TEMP, 'dziki-request.md'), prompt);
 } else if (command === 'pr') {

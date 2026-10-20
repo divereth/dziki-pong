@@ -1,0 +1,17 @@
+{
+  "account": "2bb0bd47efff9e5a4d02ee15e1220579",
+  "databases": {
+    "production": {
+      "name": "uniboar-scores-production",
+      "id": "531dc2da-0ce2-476a-a25d-4cf665098c13"
+    },
+    "preview": {
+      "name": "uniboar-scores-preview",
+      "id": "9ddf1b00-352e-495c-82fc-2ef4941f715c"
+    }
+  },
+  "projects": [
+    "dzikibieg",
+    "uniboar"
+  ]
+}

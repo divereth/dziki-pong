@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {getGame} from './games.mjs';
-import {buildGame,repositoryRoot} from './game-tools.mjs';
+import {buildGame,repositoryRoot,allowedChange} from './game-tools.mjs';
 import {metadataFor,validatePromotion} from './request.mjs';
 
 test('Bieg previews build the current Uniboar edition and its complete offline soundtrack',()=>{
@@ -20,6 +20,10 @@ test('Bieg previews build the current Uniboar edition and its complete offline s
  assert.equal(existsSync(join(output,'game.js')),false,'retired entry point is absent');
  assert.equal(existsSync(join(output,'viewport.js')),false,'retired viewport is absent');
  assert.equal(worker,readFileSync(join(repositoryRoot,'games/dziki-bieg/dist/sw.js'),'utf8'));
+ assert.equal(readFileSync(join(output,'_worker.js'),'utf8'),readFileSync(join(repositoryRoot,'games/dziki-bieg/backend/worker.mjs'),'utf8'));
+ assert.deepEqual(JSON.parse(readFileSync(join(output,'_routes.json'),'utf8')),{version:1,include:['/api/leaderboard'],exclude:[]});
+ assert.ok(worker.includes('./leaderboard.js'));
+ for(const file of ['dist/_worker.js','dist/_routes.json','backend/worker.mjs','backend/schema.sql'])assert.equal(allowedChange(getGame('dziki-bieg'),'games/dziki-bieg/'+file),false);
 });
 
 test('Uniboar request metadata permits current previews and blocks old Bieg promotions',()=>{

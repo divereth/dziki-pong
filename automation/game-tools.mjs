@@ -1,4 +1,4 @@
-import { readdirSync, lstatSync, mkdirSync, copyFileSync, appendFileSync, readFileSync } from 'node:fs';
+import { readdirSync, lstatSync, mkdirSync, copyFileSync, appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -18,6 +18,7 @@ export function allowedChange(game, path) {
   const prefix = game.site === '.' ? '' : `${game.site}/`;
   if (!path.startsWith(prefix)) return false;
   const local = path.slice(prefix.length);
+  if (game.id === 'dziki-bieg' && ['_worker.js','_routes.json','_redirects'].includes(local)) return false;
   if (!publicFile(game, local) || local === '_headers' || local.startsWith('vendor/')) return false;
   if (game.id === 'dziki-pong' && !local.includes('/')) return ['game.js', 'style.css', 'index.html', 'manifest.webmanifest', 'service-worker.js'].includes(local);
   return true;
@@ -66,7 +67,7 @@ export function checkGame(game) {
   }
   const tests = {
     'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js'],
-    'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs'],
+    'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs', 'tests/leaderboard.test.mjs', 'backend/worker.test.mjs'],
     'dziki-karabin': ['tests/core.test.mjs', 'tests/runtime.test.mjs', 'tests/touch.test.mjs'],
   }[game.id];
   if (tests) execFileSync(process.execPath, ['--test', ...tests], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });
@@ -84,6 +85,11 @@ export function buildGame(game) {
   for (const path of candidates.filter(path => publicFile(game, path))) {
     mkdirSync(join(output, path, '..'), { recursive: true });
     copyFileSync(join(site, path), join(output, path));
+  }
+  // Server code is trusted infrastructure, outside the Discord agent's files.
+  if (game.id === 'dziki-bieg') {
+    copyFileSync(resolve(repositoryRoot, game.root, 'backend/worker.mjs'), join(output, '_worker.js'));
+    writeFileSync(join(output, '_routes.json'), JSON.stringify({version:1,include:['/api/leaderboard'],exclude:[]})+'\n');
   }
   // A missing entry point should never produce a successful deployment.
   readFileSync(join(output, 'index.html'));
