@@ -53,3 +53,9 @@ Fullscreen is always available at the top-left inside the game, including settin
 The top-right pause control is shown during play; P also pauses/resumes.
 The external toolbar and local music-file picker have been removed. Installation
 and offline readiness remain available inside Settings.
+
+On mobile, the left screen half jumps (hold for height; release and tap again
+for a double jump), and the right half dashes. Touches in the letterboxing also
+work. Both hands can be used simultaneously. Subtle per-action hints disappear
+when that move is first performed, remain cleared across wishes, and reset for
+a new game. Menu, pause and fullscreen buttons retain their normal touch actions.

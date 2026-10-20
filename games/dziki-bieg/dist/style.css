@@ -110,3 +110,16 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .settings-card button{min-height:28px;padding:.55em .9em;border:1px solid #b9d193;border-radius:6px;background:#4d733d;color:#f1f8df;font:inherit;touch-action:manipulation}
 #settings-done{display:block;width:100%;margin-top:1.3cqw}
 #install{display:block;margin:1cqw auto}
+
+/* Two invisible touch zones replace the small Z/X buttons during mobile play. */
+.touch-controls{display:none!important;position:absolute;inset:0;z-index:20;pointer-events:none}
+.touch-device .touch-controls:not([hidden]){display:block!important}
+.touch-controls .touch-half{position:absolute;top:0;bottom:0;width:50%;height:100%;padding:0;border:0;border-radius:0;background:none;color:#eff8dc;box-shadow:none;text-shadow:none;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.touch-jump{left:0}.touch-dash{right:0}
+.touch-half::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .25s;background:linear-gradient(0deg,#c7dd8b12,transparent 75%);pointer-events:none}
+.touch-jump::before{border-right:1px solid #e3f3bc30}
+.touch-hint{position:absolute;left:0;right:0;bottom:16%;display:flex;align-items:center;flex-direction:column;gap:.4cqw;opacity:0;transition:opacity .25s;color:#eaf7d3aa;font:600 clamp(11px,2cqw,20px)/1.2 Arial,sans-serif;letter-spacing:.14em;text-shadow:0 1px 5px #163b2c;pointer-events:none}
+.touch-symbol{font:400 clamp(26px,4.5cqw,44px)/1 Arial,sans-serif;letter-spacing:0}
+.touch-half.needs-hint::before,.touch-half.needs-hint .touch-hint{opacity:1}
+.touch-playing,.touch-playing body{touch-action:none;overscroll-behavior:none}
+@media(prefers-reduced-motion:reduce){.touch-half::before,.touch-hint{transition:none}}

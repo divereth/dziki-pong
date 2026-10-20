@@ -4,23 +4,26 @@ import {AudioSystem} from './audio.js';
 import {Presentation} from './presentation.js';
 import {Leaderboard} from './leaderboard.js';
 import {Settings} from './settings.js';
+import {TouchControls} from './touch.js';
 const $=id=>document.getElementById(id),canvas=$('game'),renderer=new Renderer(canvas),audio=new AudioSystem($('default-music'));
 const leaderboard=new Leaderboard($('leaderboard'));
 const settings=new Settings(audio);
 let best=0,mode='title',lastChange=performance.now(),introEnds=0,introAction='start',musicWanted=false,musicRequest=0;
 try{best=Number(localStorage.getItem('uniboar-best'))||0;}catch{}
 const game=new Game({event:name=>{
- if(name==='start'||name==='resume'){const firstWish=name==='start'&&game.wish===1;if(firstWish)audio.resetMusic();musicWanted=true;requestMusic(firstWish);}
+ if(name==='start'||name==='resume'){const firstWish=name==='start'&&game.wish===1;if(firstWish){touch.resetHints();audio.resetMusic();}musicWanted=true;requestMusic(firstWish);}
  else if(name==='pause'){musicWanted=false;++musicRequest;audio.stopMusic();}
  else if(name==='death'){if(game.state==='over'){musicWanted=false;++musicRequest;audio.stopMusic();}audio.effect('death');best=Math.max(best,game.best);try{localStorage.setItem('uniboar-best',String(best));}catch{}}
- else audio.effect(name);
+ else {if(name==='jump'||name==='double')touch.markUsed('jump');if(name==='dash')touch.markUsed('dash');audio.effect(name);}
 }});const presentation=new Presentation(game);game.best=best;
+const touch=new TouchControls(game,()=>mode);
 function requestMusic(firstWish=false){const request=++musicRequest;audio.unlock().then(ready=>{if(!ready||request!==musicRequest||!musicWanted)return;audio.startMusic();if(firstWish)audio.effect('boar');}).catch(()=>{});}
 const motion=matchMedia('(prefers-reduced-motion: reduce)');game.reducedMotion=motion.matches;motion.addEventListener('change',()=>game.reducedMotion=motion.matches);
 const lifeSVG='<svg viewBox="0 0 72 40" aria-hidden="true"><path d="M3 26 1 20 6 22 10 20C7 5 38 7 43 12L48 8 49 2 54 9 59 7 61 1 64 12 71 16 69 24 60 26 57 30 51 29 49 20 43 22 40 36 34 36 35 25 21 25 18 35 12 35 12 27 7 29Z"/><path d="M64 22q8 0 6-7" fill="none" stroke="white" stroke-width="3"/></svg>';
 $('lives').innerHTML=[0,1,2].map(()=>`<span class="life">${lifeSVG}</span>`).join('');
 function changeMode(next){settings.close();mode=next;lastChange=performance.now();presentation.reset();refresh();if(next==='over')leaderboard.show(game.total);else leaderboard.close();}
 function refresh(){
+ touch.sync(mode==='playing');
  $('menu-actions').hidden=!['title','instructions','dead','over','paused'].includes(mode);$('pause').hidden=mode!=='playing';
  $('result').classList.toggle('has-leaderboard',mode==='over');
  $('title-screen').hidden=!['title','instructions'].includes(mode);$('play').hidden=mode!=='title';$('instructions').hidden=mode!=='instructions';$('intro').hidden=mode!=='intro';$('result').hidden=!['dead','over'].includes(mode);$('paused').hidden=mode!=='paused';$('hud').hidden=!['playing','dying','paused'].includes(mode);$('touch-controls').hidden=mode!=='playing';
@@ -44,14 +47,15 @@ function advance(){
 }
 $('play').addEventListener('click',advance);$('begin').addEventListener('click',advance);$('next').addEventListener('click',advance);$('resume').addEventListener('click',advance);
 function pause(){if(mode==='playing'){game.pause();changeMode('paused');}else if(mode==='paused')advance();}
-$('pause').addEventListener('click',pause);
-$('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('game-frame').closest('.game-wrap').requestFullscreen();}catch{$('notice').textContent='Full screen is unavailable in this browser.';}});
+function controlButton(id,action){
+ let lastTouch=-Infinity;const button=$(id);
+ button.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'){event.preventDefault();lastTouch=performance.now();action();}});
+ button.addEventListener('click',()=>{if(performance.now()-lastTouch>600)action();});
+}
+controlButton('pause',pause);
+controlButton('fullscreen',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('game-frame').closest('.game-wrap').requestFullscreen();}catch{$('notice').textContent='Full screen is unavailable in this browser.';}});
 function resizeView(){renderer.resize();if(mode==='paused')renderer.render(presentation.sample(),performance.now()/1000);}
 document.addEventListener('fullscreenchange',()=>{resizeView();$('fullscreen').setAttribute('aria-label',document.fullscreenElement?'Exit full screen':'Enter full screen');});
-for(const name of ['jump','dash']){
- const button=$(name);button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(mode==='playing')game[name]();});
- const release=()=>{if(name==='jump')game.releaseJump();else game.releaseDash();};button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);
-}
 document.addEventListener('keydown',e=>{
  if(settings.handleKeydown(e))return;
  const key=e.key.toLowerCase();if(e.target instanceof HTMLInputElement)return;
