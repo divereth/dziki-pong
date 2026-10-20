@@ -295,14 +295,65 @@ test('actual original runtime: 18 upper-limit frames preserve gravity and follow
     near(g.player.thrust,thrust,label+' thrust');assert.ok(g.player.bodyY>=-600);
   }
 });
-test('star bonuses preserve the original delayed missed-star reset quirk',()=>{
-  const g=flatGame();g.starChain=1;g.dash();tick(g);g.releaseDash();
-  const add=()=>{g.stars=[{x:g.distance+g.player.x+10,y:g.player.y-31,r:54,broken:false,missed:false}];tick(g);};
-  add();assert.equal(g.bonus,200,'counter starts at 1 before the first synthetic visible star');
-  add();assert.equal(g.bonus,500);
-  g.stars=[{x:g.distance+g.player.x-150,y:900,r:54,broken:false,missed:false}];tick(g);
-  assert.equal(g.starChain,3,'missing sets a different native counter; chain resets on platform recycle');
-  g.starChain=0;add();assert.equal(g.bonus,600,'a newly reset/recycled star begins at 100');
+test('cone combos add 100 per shatter and reset once on a real miss, independently of visual despawn',()=>{
+  const g=flatGame();assert.equal(g.starChain,0);g.player.animState='charge';
+  const add=()=>{
+    const cone={x:g.distance+g.player.x+10,y:g.player.y-31,r:54,broken:false,missed:false};
+    g.stars.push(cone);g.collect();return cone;
+  };
+  add();assert.equal(g.bonus,100);
+  add();assert.equal(g.bonus,300);
+  add();assert.equal(g.bonus,600);assert.equal(g.starChain,3);
+  g.pixieChain=4;
+  const miss={x:g.distance+g.player.x-65,y:900,r:54,broken:false,missed:false};
+  g.stars.push(miss);g.collect();
+  assert.equal(g.starChain,0);assert.equal(g.pixieChain,4);
+  assert.equal(miss.comboMissed,true);assert.equal(miss.missed,false,'keep the visible cone until offscreen');
+  add();assert.equal(g.bonus,700);assert.equal(g.starChain,1);
+  g.collect();assert.equal(g.starChain,1,'an already missed cone cannot reset the new combo repeatedly');
+  miss.x=g.distance-200;g.collect();
+  assert.equal(miss.missed,true);assert.equal(g.starChain,1,'later visual despawn cannot break a new combo');
+});
+
+test('empty platforms, new cones, and recycled broken cones never reset an active combo',()=>{
+  const g=new Game({random:()=>.99});g.start();g.starChain=3;g.pixieChain=4;g.platformSerial=3;
+  const recycle=()=>{g.platforms[0].nativeCenterX=-1495;g.moveWorld(14);};
+  for(let i=0;i<3;i++){
+    recycle();assert.equal(g.stars.length,0);assert.equal(g.starChain,3);
+  }
+  g.random=()=>0;recycle();
+  assert.equal(g.stars.length,1);assert.equal(g.starChain,3,'spawn after empty platforms preserves combo');
+  g.stars[0].broken=true;recycle();
+  assert.equal(g.starChain,3,'recycling a broken cone preserves combo');
+  assert.equal(g.pixieChain,4,'terrain recycling cannot affect fairy combo');
+});
+
+test('fairies award 10, 20, 30 then restart at 10 after a miss without resetting cones',()=>{
+  const g=flatGame();g.starChain=5;
+  const add=()=>{
+    g.pixies.push({x:g.distance+g.player.x-3,y:g.player.y-30,nextBobPhase:0,collected:false,missed:false});
+    g.collect();
+  };
+  add();assert.equal(g.bonus,10);
+  add();assert.equal(g.bonus,30);
+  add();assert.equal(g.bonus,60);assert.equal(g.pixieChain,3);
+  g.pixies.push({x:g.distance+g.player.x-100,y:900,collected:false,missed:false});g.collect();
+  assert.equal(g.pixieChain,0);assert.equal(g.starChain,5);
+  add();assert.equal(g.bonus,70);assert.equal(g.pixieChain,1);
+});
+
+test('a cone still within the dash collision box has not been missed',()=>{
+  const g=flatGame();g.starChain=3;g.player.y=-1000;
+  const cone={x:g.distance+g.player.x-64.59,y:224,broken:false,missed:false};g.stars=[cone];
+  g.collect();assert.equal(g.starChain,3);assert.equal(cone.comboMissed,undefined);
+  cone.x-=.02;g.collect();assert.equal(g.starChain,0);assert.equal(cone.comboMissed,true);
+});
+
+test('a simultaneous miss resets before a shatter even when objects are stored out of order',()=>{
+  const g=flatGame();g.starChain=4;g.player.animState='charge';
+  g.stars=[{x:g.player.x,y:g.player.y-31,broken:false,missed:false},
+    {x:g.player.x-80,y:900,broken:false,missed:false}];
+  g.collect();assert.equal(g.bonus,100);assert.equal(g.starChain,1);
 });
 test('native fields retain separate ceilings, walkable shelves and air gaps',()=>{
   assert.equal(TERRAIN_TEMPLATES.length,20);let checked=false;

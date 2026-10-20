@@ -17,7 +17,7 @@ export class Game{
   reset(){this.scores=[];this.wish=1;this.total=0;this.time=0;this.setupWish();}
   setupWish(){
     this.distance=0;this.runTime=0;this.ticks=0;this.accumulator=0;this.speedPerFrame=14;this.speed=476;
-    this.score=0;this.runPoints=0;this.bonus=0;this.starChain=1;this.pixieChain=0;this.cameraY=-102;
+    this.score=0;this.runPoints=0;this.bonus=0;this.starChain=0;this.pixieChain=0;this.cameraY=-102;
     this.cameraX=0;this.engineX=320;this.shakeDirection=1;this.cameraAccumulator=0;
     this.player={x:60,nativeX:-260,bodyY:-41.25,y:-15.1,vy:0,jumps:0,grounded:false,
       gravity:0,thrust:0,applyGravity:true,touchGround:0,coyote:0,upPress:false,
@@ -31,7 +31,7 @@ export class Game{
     this.platforms.forEach((p,i)=>{p.slot=i;p.ordinal=i+1;p.coneExempt=true;p.coneRolled=true;});
     this.stars=[];this.pixies=this.platforms.map((p,i)=>({platformId:i,localX:38.25,localY:-332.7,
       x:p.centerX+38.25,y:p.y-332.7,bobPhase:40,nextBobPhase:0,wingTop:-31.35,collected:false,missed:false}));
-    this.platforms.forEach(p=>{if(this.spawnPinecone(p))this.starChain=0;});
+    this.platforms.forEach(p=>this.spawnPinecone(p));
     this.particles=[];this.popups=[];this.shake=0;this.flash=0;this.death=null;
   }
   start(){this.reset();this.state='playing';this.event('start');}
@@ -94,12 +94,11 @@ export class Game{
         const fresh=createPlatform(id,0,0,this.random());
         const newX=other.nativeCenterX+other.layoutWidth/2+fresh.layoutWidth/2+400+amount*8+Math.floor(this.random()*100);
         const newY=300+Math.floor(this.random()*100);
-        const oldStar=this.stars.find(s=>s.platformId===i);
         this.stars=this.stars.filter(s=>s.platformId!==i);
         this.pixies=this.pixies.filter(s=>s.platformId!==i);
         platform=createPlatform(id,newX+this.distance,newY,fresh.seed);
         platform.nativeCenterX=twip(newX);platform.slot=i;platform.ordinal=++this.platformSerial;platform.coneGuaranteed=platform.ordinal===3;this.platforms[i]=platform;
-        if(this.spawnPinecone(platform)&&(!oldStar||!oldStar.broken))this.starChain=0;
+        this.spawnPinecone(platform);
         const dot=platform.dots.dot1;
         this.pixies.push({platformId:i,localX:dot.x-platform.centerX-(400+amount*2),
           localY:dot.y-platform.y-150+Math.floor(this.random()*30),bobPhase:40,nextBobPhase:40,wingTop:-31.35,collected:false,missed:false});
@@ -258,6 +257,14 @@ export class Game{
   }
   collect(){
     const p=this.player,wx=this.distance+p.x;
+    // Missing is a scoring event, independent of platform rolls and visual
+    // cleanup. Keep passed cones visible until their offscreen despawn point.
+    // Resolve misses before hits so array order cannot carry a stale combo.
+    for(const star of this.stars){
+      if(!star.broken&&!star.comboMissed&&star.x+32.05<=wx-32.55){
+        star.comboMissed=true;this.starChain=0;
+      }
+    }
     for(const star of this.stars){
       if(star.broken||star.missed)continue;
       const attacking=p.animState==='charge'||p.chargeEndTime>0;

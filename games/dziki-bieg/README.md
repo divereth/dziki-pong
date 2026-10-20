@@ -24,6 +24,15 @@ cache. Both request previews and production promotions use this same package.
 Future game updates must reach this repository, because Discord checks out main;
 a direct Cloudflare upload alone does not update the bot's source.
 
+## Collectible combos
+
+Fairies award 10, 20, 30… points for consecutive pickups. Pine cones award
+100, 200, 300… points for consecutive dash breaks. Missing an actual collectible
+resets only its own combo; empty platforms and spawning/recycling terrain never
+reset either combo. A passed cone resets its combo when it is beyond the boar's
+dash collision reach, but remains visible until its normal offscreen cleanup.
+Both combos start again from zero at the beginning of each wish.
+
 Requests made after migration record `source_version: robot-uniboar-attack-v1`.
 Promotion rejects pre-migration Bieg requests to prevent restoring the old game.
 Submit an old request again with `/dzika zmiana` to apply it to Uniboar.
