@@ -2,11 +2,13 @@ const LIMIT=1000000,PAGE_SIZE=25,MAX_BODY=1024;
 const fields='id,nickname,score,created_at',order='score DESC,created_at ASC,id ASC';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const publicRow=(row,rank,mine)=>({rank,nickname:row.nickname,score:row.score,createdAt:row.created_at,...(row.id===mine?{mine:true}:{})});
-const cursor=row=>btoa(JSON.stringify([row.score,row.created_at,row.id])).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
+const cursor=row=>btoa(JSON.stringify([row.score,row.created_at,row.id,...(row.nickname_key!==undefined?[encodeURIComponent(row.nickname_key)]:[])])).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
+const nicknameKey=value=>value.normalize('NFKD').toLowerCase().replace(/\p{M}/gu,'').replaceAll('ł','l');
+function prefixEnd(value){const chars=Array.from(value);for(let i=chars.length-1;i>=0;i--){const point=chars[i].codePointAt(0);if(point<0x10ffff)return chars.slice(0,i).join('')+String.fromCodePoint(point+1);}return null;}
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value);
 function decode(value){
- if(!value||value.length>256)throw Error('query');
- try{const [score,created_at,id]=JSON.parse(atob(value.replaceAll('-','+').replaceAll('_','/')));if(!Number.isSafeInteger(score)||score<0||typeof created_at!=='string'||created_at.length>30||!uuid(id))throw Error();return {score,created_at,id};}catch{throw Error('query');}
+ if(!value||value.length>2048)throw Error('query');
+ try{const [score,created_at,id,key]=JSON.parse(atob(value.replaceAll('-','+').replaceAll('_','/'))),nickname_key=key===undefined?undefined:decodeURIComponent(key);if(!Number.isSafeInteger(score)||score<0||typeof created_at!=='string'||created_at.length>30||!uuid(id)||(nickname_key!==undefined&&(typeof nickname_key!=='string'||nickname_key.length>160)))throw Error();return {score,created_at,id,nickname_key};}catch{throw Error('query');}
 }
 const parameters=row=>[row.score,row.score,row.created_at,row.created_at,row.id];
 const before='(score>? OR (score=? AND (created_at<? OR (created_at=? AND id<?))))';
@@ -17,11 +19,27 @@ async function smallBody(request){
  for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>MAX_BODY){await reader.cancel();throw Error('large');}text+=decoder.decode(value,{stream:true});}
  return JSON.parse(text+decoder.decode());
 }
-async function rank(db,row){
+function rankStatement(db,row){
  // Bucket totals avoid counting the entire higher-scoring part of a large ranking.
  const floor=Math.floor(row.score/1000)*1000;
- const result=await db.prepare('SELECT 1+(SELECT COALESCE(SUM(entries),0) FROM leaderboard_buckets WHERE bucket>?)+(SELECT COUNT(*) FROM leaderboard_entries WHERE score>=? AND score<=? AND '+before+') AS rank').bind(Math.floor(row.score/1000),row.score,Math.min(Number.MAX_SAFE_INTEGER,floor+999),...parameters(row)).all();
+ return db.prepare('SELECT 1+(SELECT COALESCE(SUM(entries),0) FROM leaderboard_buckets WHERE bucket>?)+(SELECT COUNT(*) FROM leaderboard_entries WHERE score>=? AND score<=? AND '+before+') AS rank').bind(Math.floor(row.score/1000),row.score,Math.min(Number.MAX_SAFE_INTEGER,floor+999),...parameters(row));
+}
+async function rank(db,row){
+ const result=await rankStatement(db,row).all();
  return result.results[0].rank;
+}
+async function search(db,term,anchor,direction){
+ const key=nicknameKey(term),upper=prefixEnd(key),previous=direction==='before';
+ if(!key||!upper||(anchor&&(typeof anchor.nickname_key!=='string'||!anchor.nickname_key.startsWith(key))))throw Error('query');
+ const args=[key,upper];let condition='nickname_key>=? AND nickname_key<?';
+ if(anchor){condition+=' AND (nickname_key'+(previous?'<':'>')+'? OR (nickname_key=? AND '+(previous?before:after)+'))';args.push(anchor.nickname_key,anchor.nickname_key,...parameters(anchor));}
+ const selected=(await db.prepare('SELECT '+fields+',nickname_key FROM leaderboard_entries WHERE '+condition+' ORDER BY '+(previous?'nickname_key DESC,score ASC,created_at DESC,id DESC':'nickname_key ASC,'+order)+' LIMIT ?').bind(...args,PAGE_SIZE+1).all()).results;
+ const more=selected.length>PAGE_SIZE;selected.splice(PAGE_SIZE);if(previous)selected.reverse();
+ const ranked=selected.length?await db.batch(selected.map(row=>rankStatement(db,row))):[];
+ const total=(await db.prepare('SELECT entries FROM leaderboard_stats WHERE singleton=1').all()).results[0].entries;
+ return {limit:LIMIT,total,pageSize:PAGE_SIZE,search:term,scores:selected.map((row,i)=>publicRow(row,ranked[i].results[0].rank)),myRank:null,
+  previous:selected.length&&(previous?more:!!anchor)?cursor(selected[0]):null,
+  next:selected.length&&(previous?!!anchor:more)?cursor(selected.at(-1)):null};
 }
 async function listing(db,{near,anchor,direction}={}){
  const total=(await db.prepare('SELECT entries FROM leaderboard_stats WHERE singleton=1').all()).results[0].entries;
@@ -60,8 +78,9 @@ export default {
   if(!env.SCORES_DB)return json({error:'Global leaderboard is not configured.'},503);
   try{
    if(request.method==='GET'){
-    const near=url.searchParams.get('near'),value=url.searchParams.get('cursor'),direction=url.searchParams.get('direction')||'after';
+    const near=url.searchParams.get('near'),value=url.searchParams.get('cursor'),direction=url.searchParams.get('direction')||'after',term=url.searchParams.get('search')?.normalize('NFC').trim();
     if((near&&!uuid(near))||!['before','after'].includes(direction))throw Error('query');
+    if(term!==undefined){if(!term||Array.from(term).length>20||/[\p{C}<>]/u.test(term)||near)throw Error('query');return json(await search(env.SCORES_DB,term,value?decode(value):null,direction));}
     return json(await listing(env.SCORES_DB,{near:near?.toLowerCase(),anchor:value?decode(value):null,direction}));
    }
    if(request.method!=='POST')return json({error:'Method not allowed.'},405);
@@ -71,7 +90,7 @@ export default {
    const nickname=typeof data?.nickname==='string'?data.nickname.normalize('NFC').trim():'';
    if(!nickname||Array.from(nickname).length>20||/[\p{C}<>]/u.test(nickname)||!Number.isSafeInteger(data.score)||data.score<0||!uuid(data.submissionId))return json({error:'Use a nickname of 1–20 characters and a valid score.'},400);
    const id=data.submissionId.toLowerCase();
-   await env.SCORES_DB.batch([env.SCORES_DB.prepare('INSERT INTO leaderboard_entries(id,nickname,score,created_at) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,nickname,data.score,new Date().toISOString())]);
+   await env.SCORES_DB.batch([env.SCORES_DB.prepare('INSERT INTO leaderboard_entries(id,nickname,score,created_at,nickname_key) VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,nickname,data.score,new Date().toISOString(),nicknameKey(nickname))]);
    const result=await listing(env.SCORES_DB,{near:id});
    return json({...result,submitted:result.myRank!==null});
   }catch(error){return error.message==='query'?json({error:'Invalid leaderboard page.'},400):json({error:'Leaderboard temporarily unavailable. Please try again.'},503);}

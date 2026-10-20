@@ -2,9 +2,11 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
  id TEXT PRIMARY KEY,
  nickname TEXT NOT NULL CHECK(length(nickname) BETWEEN 1 AND 40),
  score INTEGER NOT NULL CHECK(score BETWEEN 0 AND 9007199254740991),
- created_at TEXT NOT NULL
+ created_at TEXT NOT NULL,
+ nickname_key TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS leaderboard_order ON leaderboard_entries(score DESC,created_at ASC,id ASC);
+CREATE INDEX IF NOT EXISTS leaderboard_nicknames ON leaderboard_entries(nickname_key,score DESC,created_at ASC,id ASC);
 CREATE TABLE IF NOT EXISTS leaderboard_stats (singleton INTEGER PRIMARY KEY CHECK(singleton=1),entries INTEGER NOT NULL);
 INSERT OR IGNORE INTO leaderboard_stats VALUES(1,0);
 CREATE TABLE IF NOT EXISTS leaderboard_buckets (bucket INTEGER PRIMARY KEY,entries INTEGER NOT NULL);

@@ -10,7 +10,7 @@ function fixture(cap=1000000){
 const id=i=>'00000000-0000-4000-8000-'+String(i).padStart(12,'0');
 const request=(method='GET',data,query='',origin)=>new Request('https://game.test/api/leaderboard'+query,{method,headers:method==='POST'?{'Content-Type':'application/json',...(origin?{Origin:origin}:{})}:{},...(data?{body:JSON.stringify(data)}:{})});
 const call=async(env,method='GET',data,query='')=>{const response=await worker.fetch(request(method,data,query),env);assert.equal(response.status,200,await response.clone().text());return response.json();};
-function seed(db,n){const insert=db.prepare('INSERT INTO leaderboard_entries VALUES(?,?,?,?)');db.exec('BEGIN');for(let i=1;i<=n;i++)insert.run(id(i),'Player '+i,(n-i+1)*100,'2026-10-19T00:00:00.000Z');db.exec('COMMIT');}
+function seed(db,n){const insert=db.prepare('INSERT INTO leaderboard_entries(id,nickname,score,created_at) VALUES(?,?,?,?)');db.exec('BEGIN');for(let i=1;i<=n;i++)insert.run(id(i),'Player '+i,(n-i+1)*100,'2026-10-19T00:00:00.000Z');db.exec('COMMIT');}
 test('all scores persist, UUID retries are idempotent, place 424 shows top three plus 420–428',async()=>{
  const {db,env}=fixture();try{
   seed(db,500);const data={nickname:'Leśny dzik',score:7750,submissionId:crypto.randomUUID()};
@@ -24,7 +24,7 @@ test('all scores persist, UUID retries are idempotent, place 424 shows top three
 });
 test('keyset pages traverse ties forward and backward without skipping, and zero scores can save',async()=>{
  const {db,env}=fixture();try{
-  const insert=db.prepare('INSERT INTO leaderboard_entries VALUES(?,?,?,?)');for(let i=1;i<=70;i++)insert.run(id(i),'Tie '+i,100,'2026-10-19T00:00:00.000Z');
+  const insert=db.prepare('INSERT INTO leaderboard_entries(id,nickname,score,created_at) VALUES(?,?,?,?)');for(let i=1;i<=70;i++)insert.run(id(i),'Tie '+i,100,'2026-10-19T00:00:00.000Z');
   const first=await call(env),second=await call(env,'GET',undefined,'?cursor='+first.next),third=await call(env,'GET',undefined,'?cursor='+second.next);
   assert.deepEqual(first.scores.map(s=>s.rank),Array.from({length:25},(_,i)=>i+1));
   assert.deepEqual(second.scores.map(s=>s.rank),Array.from({length:25},(_,i)=>i+26));
@@ -49,7 +49,7 @@ test('legacy migration preserves rows and can safely run twice',()=>{
  const {db}=fixture();try{
   db.exec("CREATE TABLE scores(id TEXT PRIMARY KEY,nickname TEXT,score INTEGER,created_at TEXT);INSERT INTO scores VALUES('"+id(1)+"','Old player',1234,'2026-10-18T00:00:00.000Z');");
   const migration=readFileSync(new URL('./migrate-top-six.sql',import.meta.url),'utf8');db.exec(migration);db.exec(migration);
-  assert.deepEqual({...db.prepare('SELECT * FROM leaderboard_entries').get()},{id:id(1),nickname:'Old player',score:1234,created_at:'2026-10-18T00:00:00.000Z'});
+  assert.deepEqual({...db.prepare('SELECT * FROM leaderboard_entries').get()},{id:id(1),nickname:'Old player',score:1234,created_at:'2026-10-18T00:00:00.000Z',nickname_key:''});
   assert.equal(db.prepare('SELECT entries FROM leaderboard_stats').get().entries,1);
  }finally{db.close();}
 });
@@ -61,5 +61,33 @@ test('validation, origin checks, missing binding and malformed cursors fail expl
   for(const query of ['?cursor=broken','?near=invalid','?direction=sideways'])assert.equal((await worker.fetch(request('GET',undefined,query),env)).status,400);
   assert.equal((await worker.fetch(request(),{})).status,503);
   assert.equal(await(await worker.fetch(new Request('https://game.test/main.js'),env)).text(),'game asset');
+ }finally{db.close();}
+});
+test('nickname prefix search ignores case and Polish accents, returns true global places and paginates',async()=>{
+ const {db,env}=fixture();try{
+  seed(db,40);
+  for(let i=1;i<=33;i++)await call(env,'POST',{nickname:'Łukasz '+String(i).padStart(2,'0'),score:i*75,submissionId:crypto.randomUUID()});
+  const first=await call(env,'GET',undefined,'?search=lUkAsZ');
+  assert.equal(first.search,'lUkAsZ');assert.equal(first.scores.length,25);assert.equal(first.previous,null);assert.ok(first.next);
+  const ranked=db.prepare('SELECT nickname,ROW_NUMBER() OVER (ORDER BY score DESC,created_at,id) AS rank FROM leaderboard_entries').all();
+  for(const row of first.scores)assert.equal(row.rank,ranked.find(entry=>entry.nickname===row.nickname).rank);
+  const second=await call(env,'GET',undefined,'?search=ŁUKASZ&cursor='+first.next);assert.equal(second.scores.length,8);assert.equal(second.next,null);
+  assert.equal(new Set([...first.scores,...second.scores].map(row=>row.nickname)).size,33);
+  const previous=await call(env,'GET',undefined,'?search=lukasz&direction=before&cursor='+second.previous);assert.deepEqual(previous.scores,first.scores);
+  assert.equal((await call(env,'GET',undefined,'?search=lukasz%2005')).scores[0].nickname,'Łukasz 05');
+  assert.deepEqual((await call(env,'GET',undefined,'?search=nobody')).scores,[]);
+ }finally{db.close();}
+});
+test('search handles literal wildcards, composed accents and Unicode pagination safely',async()=>{
+ const {db,env}=fixture();try{
+  for(const nickname of ['%Dzik','_Dzik','Leśny','Les\u0301ny'])await call(env,'POST',{nickname,score:123,submissionId:crypto.randomUUID()});
+  assert.equal((await call(env,'GET',undefined,'?search=%25')).scores.length,1);
+  assert.equal((await call(env,'GET',undefined,'?search=_')).scores.length,1);
+  assert.equal((await call(env,'GET',undefined,'?search=LES')).scores.length,2);
+  for(let i=1;i<=28;i++)await call(env,'POST',{nickname:'🌲Żółw '+i,score:i,submissionId:crypto.randomUUID()});
+  const page=await call(env,'GET',undefined,'?search='+encodeURIComponent('🌲zolw'));
+  assert.equal(page.scores.length,25);assert.ok(page.next);
+  const next=await call(env,'GET',undefined,'?search='+encodeURIComponent('🌲żółw')+'&cursor='+page.next);assert.equal(next.scores.length,3);
+  for(const query of ['?search=','?search='+encodeURIComponent('a'.repeat(21)),'?search=foo&cursor='+page.next,'?search=a&near='+id(1)])assert.equal((await worker.fetch(request('GET',undefined,query),env)).status,400);
  }finally{db.close();}
 });

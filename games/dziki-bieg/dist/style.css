@@ -142,3 +142,5 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .leaderboard .leaderboard-top{position:sticky;z-index:1;background:#173e2e}
 .leaderboard td:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .leaderboard thead{z-index:2}
+.leaderboard-searching [role=status]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:480px){.leaderboard-searching h2 small{display:none}}

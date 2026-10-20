@@ -39,6 +39,14 @@ The score form and controls stay visible while the table scrolls.
 
 `GET /api/leaderboard` returns a first page; `?near=SUBMISSION_UUID` returns the
 personal window. `?cursor=TOKEN&direction=before|after` loads adjacent pages.
+Use Find to search a full nickname or its beginning, ignoring case and accents.
+The search=NICK query returns matching entries with global ranks. Keep search
+when following its previous / next cursors. Matches are ordered by folded
+nickname, then score; an indexed prefix range avoids a full-table substring scan.
+The search form temporarily replaces score entry; Top restores it with the
+unsaved game score intact. Apply backend/migrate-nickname-search.sql and
+backfill folded keys for existing rows before deploying this worker.
+
 Responses include `scores`, `total`, `myRank`, `previous`, `next`, `pageSize`, and
 `limit`. POST accepts `{nickname,score,submissionId}` and returns the personal
 view plus `submitted`. UUID retries are idempotent. Nicknames render as text.

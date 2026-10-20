@@ -7,19 +7,23 @@ export function displayRows(scores){
 export class Leaderboard{
  constructor(root){
   this.root=root;this.body=root.querySelector('tbody');this.status=root.querySelector('[role="status"]');this.form=root.querySelector('form');this.input=root.querySelector('input');this.button=this.form.querySelector('button');this.retry=root.querySelector('[data-retry]');this.navigation=root.querySelector('nav');this.version=0;this.requestVersion=0;
+  this.searchForm=root.querySelector('[data-search-form]');this.searchInput=this.searchForm.querySelector('input');
+  this.searchForm.addEventListener('submit',event=>{event.preventDefault();if(this.busy)return;const term=this.searchInput.value.normalize('NFC').trim();if(Array.from(term).length>20||/[\p{C}<>]/u.test(term)){this.status.textContent='Use a nickname of up to 20 characters.';return;}this.load(this.version,term?'?search='+encodeURIComponent(term):'');});
   this.form.addEventListener('submit',event=>{event.preventDefault();this.submit();});
   this.retry.addEventListener('click',()=>{if(!this.busy)this.load(this.version,this.lastQuery);});
   this.navigation.addEventListener('click',event=>{
    const action=event.target.closest('button')?.dataset.page;if(!action||this.busy)return;
-   const query=action==='mine'?'?near='+this.submissionId:action==='top'?'':('?cursor='+encodeURIComponent(this.page[action])+'&direction='+(action==='previous'?'before':'after'));
+   if(action==='find'){this.searching=!this.searching;this.forms();if(this.searching){this.searchInput.focus();this.status.textContent='Enter a nickname or its beginning.';}else this.load(this.version);return;}
+   if(action==='mine'||action==='top'){this.searching=false;this.forms();}
+   const query=action==='mine'?'?near='+this.submissionId:action==='top'?'':('?cursor='+encodeURIComponent(this.page[action])+'&direction='+(action==='previous'?'before':'after')+(this.page.search?'&search='+encodeURIComponent(this.page.search):''));
    this.load(this.version,query);
   });
   this.resizeObserver=new ResizeObserver(()=>this.focusOwn());this.resizeObserver.observe(root.querySelector('.leaderboard-table'));
   try{this.input.value=localStorage.getItem('uniboar-nickname')||'';}catch{}
  }
- close(){this.version++;this.requestVersion++;this.root.hidden=true;this.form.hidden=true;this.saving=false;this.busy=false;this.button.disabled=false;}
+ close(){this.version++;this.requestVersion++;this.root.hidden=true;this.form.hidden=true;this.searchForm.hidden=true;this.searching=false;this.searchInput.value='';this.saving=false;this.busy=false;this.button.disabled=false;}
  show(score){
-  this.close();this.score=score;this.submissionId=crypto.randomUUID();this.saved=false;this.root.hidden=false;this.form.hidden=!qualifies(score);this.retry.hidden=true;this.body.replaceChildren();
+  this.close();this.score=score;this.submissionId=crypto.randomUUID();this.saved=false;this.root.hidden=false;this.forms();this.retry.hidden=true;this.body.replaceChildren();
   this.load(this.version);
  }
  async api(query='',options={}){
@@ -34,6 +38,12 @@ export class Leaderboard{
   }
   this.button.disabled=this.busy;
   this.retry.disabled=this.busy;
+  this.searchForm.querySelector('button').disabled=this.busy;
+ }
+ forms(){
+  this.form.hidden=this.searching||this.saved||!qualifies(this.score);this.searchForm.hidden=!this.searching;
+  this.root.classList.toggle('leaderboard-searching',!!this.searching);
+  this.navigation.querySelector('[data-page="find"]').setAttribute('aria-expanded',String(!!this.searching));
  }
  focusOwn(){
   const table=this.root.querySelector('.leaderboard-table'),own=this.body.querySelector('.leaderboard-mine');
@@ -45,7 +55,7 @@ export class Leaderboard{
  }
  render(result){
   this.page=result;this.body.replaceChildren();
-  for(const score of displayRows(result.scores)){
+  for(const score of result.search?result.scores:displayRows(result.scores)){
    const row=document.createElement('tr');
    if(!score){const cell=document.createElement('td');cell.colSpan=3;cell.textContent='…';cell.className='leaderboard-gap';row.append(cell);}
    else{
@@ -55,7 +65,7 @@ export class Leaderboard{
    }
    this.body.append(row);
   }
-  if(!result.scores.length){const row=this.body.insertRow(),cell=row.insertCell();cell.colSpan=3;cell.textContent='Be the first to save a score!';}
+  if(!result.scores.length){const row=this.body.insertRow(),cell=row.insertCell();cell.colSpan=3;cell.textContent=result.search?'No players found. Try a shorter nickname.':'Be the first to save a score!';}
   this.root.querySelector('[data-total]').textContent=result.total.toLocaleString()+' scores';
   this.root.querySelector('.leaderboard-table').scrollTop=0;this.controls();this.focusOwn();
  }
@@ -63,8 +73,9 @@ export class Leaderboard{
   const requestVersion=++this.requestVersion;this.lastQuery=query;this.busy=true;this.retry.hidden=true;this.controls();this.status.textContent='Loading global scores…';
   try{
    const result=await this.api(query);if(version!==this.version||requestVersion!==this.requestVersion)return;
-   this.render(result);this.form.hidden=this.saved||!qualifies(this.score);
-   this.status.textContent=result.myRank!==null?'Your place: #'+result.myRank.toLocaleString():this.saved?'Your score is saved. Browse the global ranking.':'Every score counts. Enter your nickname to join.';
+   this.render(result);this.forms();
+   this.status.textContent=result.search?'Global places for “'+result.search+'”':result.myRank!==null?'Your place: #'+result.myRank.toLocaleString():this.saved?'Your score is saved. Browse the global ranking.':'Every score counts. Enter your nickname to join.';
+   this.status.title=this.status.textContent;
   }catch{if(version!==this.version||requestVersion!==this.requestVersion)return;this.status.textContent='Global scores are unavailable. Connect and retry.';this.retry.hidden=false;}
   finally{if(version===this.version&&requestVersion===this.requestVersion){this.busy=false;this.controls();}}
  }
