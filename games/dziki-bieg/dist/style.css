@@ -107,3 +107,21 @@
 .phone-landscape .ready .hud-left,.phone-landscape .ready .speed-label,.phone-landscape .ready #pause{visibility:hidden}
 .touch-layout .game-shell.expanded,.touch-layout .game-shell:fullscreen{height:100vh;height:100dvh;min-height:0;border-radius:0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+.leaderboard{max-width:310px;margin:0 auto 16px;text-align:left}
+.leaderboard h3{margin:0 0 7px;color:#78906d;font-size:8px;letter-spacing:1px;text-align:center}
+.leaderboard h3 small{display:block;margin-top:3px;font-size:8px;font-weight:400;letter-spacing:.2px;color:#9aa58d}
+.leaderboard table{width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums}
+.leaderboard th{padding:4px 7px;color:#9aa58d;text-align:left;font-size:8px;font-weight:600}
+.leaderboard td{padding:4px 7px;border-top:1px solid #e7ebdd;color:#62775a}
+.leaderboard th:first-child,.leaderboard td:first-child{width:28px;color:#9aa58d}
+.leaderboard th:last-child,.leaderboard td:last-child{text-align:right;font-weight:700;color:#365b3c}
+.leaderboard-pending td{color:#a17632!important;font-style:italic}
+#leaderboard-entry{margin-top:9px}
+#leaderboard-entry label{display:block;margin-bottom:6px;color:#55734d;font-size:10px;font-weight:600}
+.leaderboard-input-row{display:flex;gap:7px}
+.leaderboard-input-row input{min-width:0;flex:1;padding:8px 10px;border:1px solid #d8e0ce;border-radius:7px;background:#fffef5;color:#344b35;font:inherit;font-size:11px}
+.leaderboard-input-row input:focus-visible{outline:2px solid #d29432;outline-offset:2px}
+.leaderboard-submit{min-height:36px;padding:0 12px;border:0;border-radius:7px;background:#557b4b;color:#fffdeb;font:inherit;font-size:10px;font-weight:600}
+.leaderboard-status{margin:7px 0 0!important;color:#718469!important;font-size:9px!important;line-height:1.4!important}
+.leaderboard-status:empty{display:none}
