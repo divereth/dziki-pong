@@ -27,6 +27,8 @@ export class AudioSystem {
     this.musicBus = null;
     this.synthBus = null;
     this.effectsBus = null;
+    this.musicVolume = 1;
+    this.effectsVolume = 1;
     this.muted = false;
     this.playing = false;
     this.timer = null;
@@ -84,12 +86,12 @@ export class AudioSystem {
       limiter.release.value = 0.16;
       this.master.connect(limiter).connect(ctx.destination);
       this.musicBus = ctx.createGain();
-      this.musicBus.gain.value = 0.7;
+      this.musicBus.gain.value = 0.7 * this.musicVolume;
       this.musicBus.connect(this.master);
       this.synthBus = ctx.createGain();
       this.synthBus.connect(this.musicBus);
       this.effectsBus = ctx.createGain();
-      this.effectsBus.gain.value = 0.75;
+      this.effectsBus.gain.value = 0.75 * this.effectsVolume;
       this.effectsBus.connect(this.master);
 
       // A short stereo echo gives the synths space without a large impulse file.
@@ -104,7 +106,7 @@ export class AudioSystem {
       wet.gain.value = 0.14;
       this.synthBus.connect(echo);
       echo.connect(echoFilter).connect(feedback).connect(echo);
-      echoFilter.connect(wet).connect(this.master);
+      echoFilter.connect(wet).connect(this.musicBus);
 
       this.noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const data = this.noiseBuffer.getChannelData(0);
@@ -148,6 +150,23 @@ export class AudioSystem {
       this.master.gain.cancelScheduledValues(now);
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.58, now, 0.025);
     }
+  }
+
+  setMusicVolume(value) {
+    this.musicVolume = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    this.setBusVolume(this.musicBus, 0.7 * this.musicVolume);
+  }
+
+  setEffectsVolume(value) {
+    this.effectsVolume = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 1;
+    this.setBusVolume(this.effectsBus, 0.75 * this.effectsVolume);
+  }
+
+  setBusVolume(bus, volume) {
+    if (!bus) return;
+    const now = this.context.currentTime;
+    bus.gain.cancelScheduledValues(now);
+    bus.gain.setTargetAtTime(volume, now, 0.025);
   }
 
   startMusic() {

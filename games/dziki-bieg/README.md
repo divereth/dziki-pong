@@ -44,3 +44,12 @@ production leaderboard. Database IDs are recorded in `backend/deployment.json`.
 The schema is in `backend/schema.sql`. Apply it before publishing to a new binding.
 Discord-generated changes can edit `dist/leaderboard.js` and its UI, but cannot
 change backend code, bindings or reserved Pages routing files.
+
+## In-game settings
+
+Settings are available in the main menu, pause menu and result/game-over menu.
+Music and sound-effects levels are independent and saved on this device.
+Fullscreen is always available at the top-left inside the game, including settings.
+The top-right pause control is shown during play; P also pauses/resumes.
+The external toolbar and local music-file picker have been removed. Installation
+and offline readiness remain available inside Settings.

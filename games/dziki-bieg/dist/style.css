@@ -89,3 +89,24 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .result .leaderboard button{position:static;inset:auto;width:auto;margin:0;flex:none;padding:.6cqw .8cqw;border:1px solid #b8ce91;border-radius:.5cqw;background:#4d733d;color:#f1f8df;font:inherit;letter-spacing:normal;text-shadow:none;cursor:pointer}
 .leaderboard button:disabled{opacity:.65;cursor:wait}
 .leaderboard input:focus-visible,.leaderboard button:focus-visible{outline:2px solid #dfefb5;outline-offset:2px}
+
+/* All controls stay inside the game; no toolbar or reserved strip below it. */
+.game-wrap{width:min(960px,100vw,177.777778svh);margin:0 auto}
+.in-game-button{position:absolute;top:1cqw;width:clamp(28px,4.2cqw,40px);height:clamp(28px,4.2cqw,40px);padding:6px;border:1px solid #b8ce9180;border-radius:8px;background:#173c2de6;color:#eef9dc;display:grid;place-items:center;z-index:60;touch-action:manipulation}
+.in-game-button svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fullscreen-button{left:1cqw}
+.pause-button{right:1cqw;z-index:35}
+.lives{left:calc(clamp(28px,4.2cqw,40px) + 2cqw);top:1cqw}
+.menu-actions{position:absolute;right:1cqw;top:1cqw;z-index:35}
+.menu-actions button{min-height:clamp(28px,4.2cqw,40px);padding:.5em .9em;border:1px solid #b8ce9180;border-radius:8px;background:#173c2de6;color:#eef9dc;font:clamp(11px,1.5cqw,16px)/1.1 Arial,sans-serif;touch-action:manipulation}
+.result,.result:has(#result-total:not([hidden])),.result.has-leaderboard,.result.has-leaderboard:has(#result-total:not([hidden])){padding-top:clamp(36px,6cqw,56px)}
+.settings-screen{position:absolute;inset:0;z-index:50;display:grid;place-items:center;padding:clamp(9px,2.5cqw,24px);background:#102c23eb;color:#eaf5d7}
+.settings-card{width:min(400px,76%);max-height:100%;overflow:auto;padding:clamp(10px,2.8cqw,27px);border:1px solid #a4c18188;border-radius:clamp(8px,1.5cqw,14px);background:#234934;box-shadow:0 8px 32px #091b2266;font:clamp(11px,1.8cqw,17px)/1.3 Arial,sans-serif;scrollbar-width:thin;scrollbar-color:#a9c779 #244a35}
+.settings-card h2{margin:0 0 1.7cqw;color:#e7f4cb;font:italic 600 clamp(18px,3cqw,30px)/1.1 Georgia,serif;text-align:center}
+.settings-card label{display:flex;justify-content:space-between;gap:10px;margin:.7cqw 0 .5cqw}
+.settings-card output{font-variant-numeric:tabular-nums;color:#cee3a7}
+.settings-card input[type=range]{display:block;width:100%;height:clamp(25px,3.8cqw,36px);margin:0 0 .7cqw;accent-color:#b8d87b;cursor:pointer;touch-action:pan-y}
+.settings-controls,.settings-notice{font-size:.78em;line-height:1.5;color:#c4d8ad;text-align:center;margin:.7cqw 0}
+.settings-card button{min-height:28px;padding:.55em .9em;border:1px solid #b9d193;border-radius:6px;background:#4d733d;color:#f1f8df;font:inherit;touch-action:manipulation}
+#settings-done{display:block;width:100%;margin-top:1.3cqw}
+#install{display:block;margin:1cqw auto}
