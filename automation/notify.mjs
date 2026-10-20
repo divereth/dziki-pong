@@ -58,6 +58,10 @@ export async function notify(content, { game = getGame(runtimeEnv.GAME_ID || 'dz
 
 export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki-pong')) {
   const heading = `**${game.name} · zlecenie ${env.REQUEST_ID}**`;
+  if (stage === 'result' && env.JOB_STATUS === 'success' && env.REQUEST_CHANGED === 'false') {
+    const reason = Buffer.from(env.REQUEST_SUMMARY_B64 || '', 'base64').toString('utf8').slice(0, 1000);
+    return `ℹ️ ${heading}\nNie powstały zmiany w grze, więc nie utworzono podglądu ani PR-a.\n${reason || 'Generator nie podał wyjaśnienia.'}`;
+  }
   const messages = {
     started: `🐗 ${heading}\nDziki rozpoczął przygotowywanie zmiany.`,
     generated: `🔵 ${heading}\nKod zmiany jest gotowy. Trwa sprawdzanie poprawności gry.`,

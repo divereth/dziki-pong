@@ -38,13 +38,13 @@ export function filesUnder(directory) {
   return files;
 }
 
-export function validateChanges(game, cwd = repositoryRoot) {
+export function validateChanges(game, cwd = repositoryRoot, {allowEmpty = false} = {}) {
   const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8' });
   const paths = [...new Set([
     ...git('diff', '--name-only', '-z', 'HEAD').split('\0'),
     ...git('ls-files', '--others', '--exclude-standard', '-z').split('\0'),
   ].filter(Boolean))];
-  if (!paths.length) throw new Error('No game changes');
+  if (!paths.length && !allowEmpty) throw new Error('No game changes');
   for (const path of paths) {
     if (!allowedChange(game, path)) throw new Error(`Blocked unexpected file change: ${path}`);
     const full = resolve(cwd, path);

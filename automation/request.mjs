@@ -2,7 +2,7 @@ import { writeFileSync, readFileSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { getGame, previewUrl } from './games.mjs';
-import { repositoryRoot, allowedChange } from './game-tools.mjs';
+import { repositoryRoot, allowedChange, validateChanges } from './game-tools.mjs';
 
 export function validateRequest(env) {
   const game = getGame(env.GAME_ID || 'dziki-pong');
@@ -14,6 +14,20 @@ export function validateRequest(env) {
 export function metadataFor(env, game) {
   return { request_id: env.REQUEST_ID, game_id: game.id, channel_id: env.DISCORD_CHANNEL_ID || '', author_discord_id: env.DISCORD_USER_ID || '', request_text: env.REQUEST_TEXT,
     ...(game.id === 'dziki-bieg' ? { source_version: 'robot-uniboar-attack-v1' } : {}) };
+}
+
+export function inspectGeneratedChange(game, env = process.env, cwd = repositoryRoot) {
+  const paths = validateChanges(game, cwd, {allowEmpty: true});
+  let summary = '';
+  if (!paths.length) {
+    try { summary = readFileSync(join(env.RUNNER_TEMP, 'dziki-output.md'), 'utf8').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, 1000); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    summary ||= 'Generator nie zmienił żadnego pliku gry i nie podał wyjaśnienia. Sprawdź zakres zlecenia lub spróbuj ponownie.';
+  }
+  const result = {changed: paths.length > 0, summary_b64: Buffer.from(summary).toString('base64')};
+  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `changed=${result.changed}\nsummary_b64=${result.summary_b64}\n`);
+  if (!result.changed) console.log('No game edits were generated. Explanation: ' + summary);
+  return result;
 }
 
 export function readMetadata(body) {
@@ -35,7 +49,9 @@ export function validatePromotion(pr, game, requestId, channelId, paths) {
 const gh = (...args) => execFileSync('gh', args, { encoding: 'utf8' }).trim();
 const env = process.env;
 const command = process.argv[2];
-if (command === 'prompt') {
+if (command === 'inspect') {
+  console.log(inspectGeneratedChange(getGame(env.GAME_ID || 'dziki-pong')));
+} else if (command === 'prompt') {
   const game = validateRequest(env);
   const policy = readFileSync(join(repositoryRoot, '.github/codex/discord-request.md'), 'utf8');
   const edition = game.id === 'dziki-bieg' ? '\nCurrent edition: Robot Uniboar Attack, the forest-themed runner. Its entry point is dist/main.js; preserve its 34 Hz physics and three wishes. Do not recreate the retired Dziki Bieg game. The trusted build regenerates dist/sw.js after changes.\n' : '';
