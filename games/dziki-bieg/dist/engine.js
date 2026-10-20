@@ -127,11 +127,29 @@ export class Game{
       }
     }
   }
+  climbDashSlope(){
+    const p=this.player,[probeX,probeY]=PROBES.right,worldX=this.distance+p.x+probeX,worldY=p.y+probeY;
+    for(const platform of this.platforms){
+      if(!solidAt(platform,worldX,worldY))continue;
+      const surface=surfaceY(platform,worldX,worldY);if(!Number.isFinite(surface))continue;
+      // A fast dash can cross most of a short incline between physics ticks.
+      const rising=[8,16,32,48,64,72].some(offset=>{
+        const previous=surfaceY(platform,worldX-offset,worldY);
+        return Number.isFinite(previous)&&surface<previous-.05;
+      });
+      if(!rising)continue;
+      this.moveY(surface-p.y);
+      return true;
+    }
+    return false;
+  }
   contact(){
     const p=this.player;let ceiling=false;
     if(this.probe('top')){ceiling=true;this.resolve('top',1);}
     if(this.probe('bottom')){p.touchGround=1;p.rotationTarget-=this.resolve('bottom',-1)*3;}
-    if(this.probe('right')){this.score=this.runPoints+this.bonus;this.die('You crashed into the hillside.');return;}
+    if(this.probe('right')&&!(p.animState==='charge'&&this.climbDashSlope())){
+      this.score=this.runPoints+this.bonus;this.die('You crashed into the hillside.');return;
+    }
     if(p.applyGravity){
       if(this.probe('topRight')){ceiling=true;this.resolve('topRight',1,512);}
       for(const [name,direction] of [['bottomLeft',-1],['bottomRight',1]])if(this.probe(name)){
