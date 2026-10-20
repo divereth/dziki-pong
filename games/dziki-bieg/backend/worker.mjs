@@ -48,10 +48,17 @@ async function listing(db,{near,anchor,direction}={}){
   const own=(await db.prepare('SELECT '+fields+' FROM leaderboard_entries WHERE id=?').bind(near).all()).results[0];
   if(own){
    myRank=await rank(db,own);
+   // Keep nine nearby scores even at either end of the ranking. If that
+   // window overlaps the top three, fill the shared twelve-row budget instead
+   // of returning duplicates and leaving avoidable blank space in My score.
+   const nearby=Math.min(total,9);
+   let windowStart=Math.max(1,Math.min(myRank-4,total-nearby+1));
+   let windowEnd=windowStart+nearby-1;
+   if(windowStart<=4){windowStart=1;windowEnd=Math.min(total,12);}
    const results=await db.batch([
     db.prepare('SELECT '+fields+' FROM leaderboard_entries ORDER BY '+order+' LIMIT 3'),
-    db.prepare('SELECT '+fields+' FROM leaderboard_entries WHERE score>=? AND '+before+' ORDER BY score ASC,created_at DESC,id DESC LIMIT 4').bind(own.score,...parameters(own)),
-    db.prepare('SELECT '+fields+' FROM leaderboard_entries WHERE score<=? AND '+after+' ORDER BY '+order+' LIMIT 4').bind(own.score,...parameters(own))
+    db.prepare('SELECT '+fields+' FROM leaderboard_entries WHERE score>=? AND '+before+' ORDER BY score ASC,created_at DESC,id DESC LIMIT ?').bind(own.score,...parameters(own),myRank-windowStart),
+    db.prepare('SELECT '+fields+' FROM leaderboard_entries WHERE score<=? AND '+after+' ORDER BY '+order+' LIMIT ?').bind(own.score,...parameters(own),windowEnd-myRank)
    ]);
    top=results[0].results.map((row,i)=>publicRow(row,i+1,near));
    selected=[...results[1].results.reverse(),own,...results[2].results];

@@ -52,7 +52,10 @@ Submit an old request again with `/dzika zmiana` to apply it to Uniboar.
 Every final total across the three wishes, including zero, can be submitted with
 a nickname. The ranking retains the best 1,000,000 entries; ties favor older
 entries. After saving, the screen shows the top three and four entries either
-side of the player's highlighted place. Top / previous / next / my score controls
+side of the player's highlighted place. Near either end, the personal window
+shifts to show more entries on the available side. Overlap with the top three is
+backfilled to show up to 12 distinct scores; smaller rankings show every entry.
+Top / previous / next / my score controls
 browse 25 entries at a time, using indexed cursors rather than deep offsets.
 The score form and controls stay visible while the table scrolls.
 

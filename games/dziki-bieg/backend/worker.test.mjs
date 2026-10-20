@@ -34,6 +34,52 @@ test('keyset pages traverse ties forward and backward without skipping, and zero
   assert.equal((await call(env,'POST',{nickname:'Tie late',score:100,submissionId:crypto.randomUUID()})).myRank,71);
  }finally{db.close();}
 });
+
+test('My score fills its twelve-row budget at the top and bottom, and shows every entry in small rankings',async()=>{
+ for(const count of [1,2,3,5,8,11,12,13,30]){
+  const {db,env}=fixture();try{
+   seed(db,count);
+   for(const place of new Set([1,Math.ceil(count/2),count])){
+    const page=await call(env,'GET',undefined,'?near='+id(place));
+    const ranks=page.scores.map(row=>row.rank);
+    assert.equal(page.myRank,place);
+    assert.equal(page.scores.length,Math.min(count,12),'total '+count+' place '+place);
+    assert.equal(new Set(ranks).size,ranks.length);
+    assert.equal(page.scores.filter(row=>row.mine).length,1);
+    assert.equal(page.scores.find(row=>row.mine).rank,place);
+    assert.deepEqual(ranks.slice(0,Math.min(3,count)),Array.from({length:Math.min(3,count)},(_,i)=>i+1));
+    if(count<=12){
+     assert.deepEqual(ranks,Array.from({length:count},(_,i)=>i+1));
+     assert.equal(page.previous,null);assert.equal(page.next,null);
+    }
+    if(place===1&&count>12){
+     assert.deepEqual(ranks,Array.from({length:12},(_,i)=>i+1));
+     const next=await call(env,'GET',undefined,'?cursor='+page.next);
+     assert.equal(next.scores[0].rank,13,'next page starts after every displayed score');
+    }
+    if(place===count)assert.equal(page.next,null);
+   }
+  }finally{db.close();}
+ }
+});
+
+test('personal windows backfill tied scores with correct ranks and usable backwards cursors',async()=>{
+ const {db,env}=fixture();try{
+  const insert=db.prepare('INSERT INTO leaderboard_entries(id,nickname,score,created_at) VALUES(?,?,?,?)');
+  for(let i=1;i<=30;i++)insert.run(id(i),'Tie '+i,100,'2026-10-19T00:00:00.000Z');
+  for(const place of [1,2,3,4,5,6,7,8,9,15,28,29,30]){
+   const page=await call(env,'GET',undefined,'?near='+id(place));
+   assert.equal(page.scores.length,12,'tied place '+place);
+   assert.equal(page.scores.find(row=>row.mine).rank,place);
+   for(const row of page.scores)assert.equal(row.nickname,'Tie '+row.rank);
+   if(page.previous){
+    const previous=await call(env,'GET',undefined,'?cursor='+page.previous+'&direction=before');
+    const localStart=place<=8?1:Math.max(4,Math.min(place-4,22));
+    assert.equal(previous.scores.at(-1).rank,localStart-1);
+   }
+  }
+ }finally{db.close();}
+});
 test('retention evicts only the worst entry, favors older ties and maintains exact counts',async()=>{
  const {db,env}=fixture(30);try{
   seed(db,30);
