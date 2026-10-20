@@ -144,3 +144,20 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .leaderboard thead{z-index:2}
 .leaderboard-searching [role=status]{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:480px){.leaderboard-searching h2 small{display:none}}
+
+/* The HUD, intro and title use the same articulated Uniboar as gameplay. */
+.life{width:44px;height:29px}.life canvas{width:100%;height:100%;filter:drop-shadow(0 1px 2px #182d2680)}.life.used canvas{opacity:.28;filter:grayscale(.7)}
+canvas.title-hero{left:51%;top:23%;width:43%;height:auto;aspect-ratio:16/9;background:none}
+canvas.wish-spirit{left:32%;top:24%;width:36%;height:auto;aspect-ratio:16/10;background:none;mask:none}
+.settings-card .settings-toggle{align-items:center;margin:1.2cqw 0;padding:1cqw 0;border-top:1px solid #a8c37b45;border-bottom:1px solid #a8c37b45;font-size:.9em}.settings-toggle input{width:19px;height:19px;accent-color:#b8d87b;cursor:pointer;flex:none}
+@media(max-width:640px){
+ .life{width:6.5cqw;height:4.3cqw}
+ .settings-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,1.1fr);column-gap:12px}
+ .settings-card h2,.settings-card .settings-toggle,.settings-controls,.settings-notice,#settings-done{grid-column:1/-1}
+ .settings-card>label:not(.settings-toggle){grid-column:1;align-items:center;margin:0}
+ .settings-card input[type=range]{grid-column:2;margin:0;height:28px}
+ .settings-card .settings-toggle{margin:4px 0;padding:4px 0}
+ .settings-notice:empty{display:none}
+ .settings-card #install{grid-column:1;margin-bottom:0}
+ .settings-card:has(#install:not([hidden])) #settings-done{grid-column:2}
+}

@@ -1,5 +1,9 @@
 import {surfaceY as nativeSurfaceY,terrainTemplate} from './terrain.js';
 import {WIDTH as W,HEIGHT as H} from './engine.js';
+import {cameraView} from './camera.js';
+import {createTerrainMaterials,paintForestTerrain} from './terrain-material.js';
+import {UniboarRig} from './uniboar.js';
+import {WoodlandEffects} from './woodland.js';
 // Measured once from the shipped artwork; avoid synchronous pixel readbacks at startup.
 const ARTWORK_METRICS={"boar-run-brown.png":{"width":1774,"height":887,"frames":[{"x":15,"y":163,"width":423,"height":246,"centerY":117.93124019549333},{"x":11,"y":150,"width":429,"height":214,"centerY":106.69457250936232},{"x":11,"y":168,"width":429,"height":237,"centerY":110.62624556416976},{"x":12,"y":159,"width":425,"height":233,"centerY":106.37963793732811},{"x":15,"y":122,"width":420,"height":225,"centerY":112.42377843854115},{"x":2,"y":119,"width":439,"height":236,"centerY":113.31105150376828},{"x":23,"y":111,"width":416,"height":227,"centerY":112.26855766646786},{"x":11,"y":126,"width":428,"height":235,"centerY":112.40056340701265}]},"pine-cone-round.webp":{"width":1254,"height":1254,"frames":[{"x":125,"y":98,"width":1004,"height":1061,"centerY":573.416090351029}]},"boar-head-wrecked.webp":{"width":1536,"height":1024,"frames":[{"x":153,"y":65,"width":1229,"height":896,"centerY":461.71548261684836}]}};
 const TAU=Math.PI*2;
@@ -56,7 +60,7 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.assetTasks=[];this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.ready=Promise.all(this.assetTasks).then(()=>{this.warmArtwork();this.assetsReady=true;});this.resize();
+    this.assetTasks=[];this.rig=null;this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('uniboar-rig.webp',image=>{this.rig=new UniboarRig(image);this.drawWishIcons();});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
   loadAsset(src,prepare){
@@ -160,6 +164,7 @@ export class Renderer{
     const gravity=clamp(p.gravity||0,0,40);return gravity<16?-Math.sin(gravity/16*Math.PI)*.56:clamp((gravity-16)/20,0,1)*.19;
   }
   hero(p){
+    if(this.rig){this.rig.draw(this.ctx,p,this.effectTime||0);return;}
     if(this.spriteFrames.length!==8){drawBoar(this.ctx,0,0,1,p.anim||0,p.dash>0,!p.grounded);return;}
     const charging=p.animState?p.animState==='charge':p.dash>0,running=p.animState?p.animState==='run':p.grounded;
     const index=charging?5:!running?Math.floor(clamp((p.gravity||0)*8.75/301,0,.999)*8):Math.floor(mod(p.anim||0,TAU)/TAU*8),f=this.spriteFrames[index],scale=84/f.width;
@@ -171,6 +176,14 @@ export class Renderer{
       this.ctx.drawImage(f.image,0,0,f.width,split,-43,-legs-upper,84,upper+.15);
       this.ctx.drawImage(f.image,0,split,f.width,f.height-split,-43,-legs,84,legs);
     }else this.ctx.drawImage(f.image,-43,-20-f.centerY*scale,84,f.height*scale);
+  }
+  drawWishIcons(){
+    const draw=canvas=>{
+      if(this.rig){this.rig.drawIcon(canvas);return;}
+      const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);drawBoar(c,0,0,1,.35);c.restore();
+    };
+    for(const canvas of document.querySelectorAll('.life canvas'))draw(canvas);
+    for(const id of ['title-uniboar','wish-uniboar']){const canvas=document.getElementById(id);if(canvas)draw(canvas);}
   }
   cropArtwork(image,sx=0,sy=0,sw=image.naturalWidth,sh=image.naturalHeight){
     const measured=Object.values(ARTWORK_METRICS).find(item=>item.frames.length===1&&item.width===image.naturalWidth&&item.height===image.naturalHeight);
@@ -234,7 +247,7 @@ export class Renderer{
   forestBackground(distance,cameraY=0){
     const image=this.forestImage,c=this.ctx;
     // The distant light source stays fixed: it is never tiled or mirrored.
-    if(this.forestReady)c.drawImage(image,0,0,W,H);
+    if(this.forestReady){const scale=1+.12*clamp((1.25-(this.view?.extent||1))/.75,0,1);c.drawImage(image,-W*(scale-1)*.5,-H*(scale-1)*.45,W*scale,H*scale);}
     this.drawForestTrees(distance,cameraY,0);
     const mist=c.createLinearGradient(0,130,0,H);mist.addColorStop(0,'#d9e4bd00');mist.addColorStop(1,'#d5e0b74a');c.fillStyle=mist;c.fillRect(0,130,W,H-130);
     this.drawForestTrees(distance,cameraY,1);this.drawForestTrees(distance,cameraY,2);
@@ -242,7 +255,6 @@ export class Renderer{
   background(distance,cameraY,t,reduced){
     const c=this.ctx,g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,'#9cb57b');g.addColorStop(.5,'#b8cca0');g.addColorStop(1,'#d7dfb2');c.fillStyle=g;c.fillRect(0,0,W,H);
     this.forestBackground(distance,cameraY);
-    for(let i=0;i<10;i++){const xx=mod(i*93-distance*.22+(reduced?0:t*9),W+70)-35,yy=mod(i*67+(reduced?0:t*(8+i%3)),H+55)-25;c.save();c.translate(xx,yy);c.rotate(i+(reduced?0:Math.sin(t+i)*.5));oval(c,0,0,2.8+i%3,1.2,i%3?'#829e5480':'#e7d99c99');c.restore();}
   }
   nativeProfile(p,details=true){
     if(this.profileCache.has(p.templateId)&&(!details||this.profileCache.get(p.templateId).segments))return this.profileCache.get(p.templateId);
@@ -269,11 +281,13 @@ export class Renderer{
     const profile={shape,segments,template};this.profileCache.set(p.templateId,profile);return profile;
   }
   nativePlatform(p,distance,cameraY){
-    const c=this.ctx,x=p.x-distance,y=p.y-cameraY,w=p.width,async=!!this.terrainWorker,lookahead=async?384:20;if(x>W+lookahead||x+w< -20)return;
+    const c=this.ctx,x=p.x-distance,y=p.y-cameraY,w=p.width,async=!!this.terrainWorker,lookahead=async?384:20;
+    const left=this.view?.left??0,top=this.view?.top??0,viewRight=this.view?.right??W,viewBottom=this.view?.bottom??H;
+    if(x>viewRight+lookahead||x+w<left-20)return;
     const profile=this.nativeProfile(p,!async),template=profile.template,size=256,pad=2,density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W))),baseX=-2,baseY=Math.floor(template.minY)-2,right=Math.ceil(w)+2,bottom=Math.ceil(template.maxY)+2;
     if(!profile.tileCoverage)profile.tileCoverage=new Map();
-    const x0=Math.max(0,Math.floor((-x-baseX-2)/size)),x1=Math.min(Math.ceil((right-baseX)/size)-1,Math.floor((W+lookahead-x-baseX+2)/size));
-    const y0=Math.max(0,Math.floor((-y-baseY-2-(async?96:0))/size)),y1=Math.min(Math.ceil((bottom-baseY)/size)-1,Math.floor((H-y-baseY+2+(async?96:0))/size));
+    const x0=Math.max(0,Math.floor((left-x-baseX-2)/size)),x1=Math.min(Math.ceil((right-baseX)/size)-1,Math.floor((viewRight+lookahead-x-baseX+2)/size));
+    const y0=Math.max(0,Math.floor((top-y-baseY-2-(async?96:0))/size)),y1=Math.min(Math.ceil((bottom-baseY)/size)-1,Math.floor((viewBottom-y-baseY+2+(async?96:0))/size));
     for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
       const ox=baseX+tx*size,oy=baseY+ty*size,tw=Math.min(size,right-ox),th=Math.min(size,bottom-oy),coverageKey=tx+':'+ty;
       let occupied=profile.tileCoverage.get(coverageKey);
@@ -287,7 +301,7 @@ export class Renderer{
       let tile=this.terrainCache.get(key);
       if(tile){this.terrainCache.delete(key);this.terrainCache.set(key,tile);}
       else if(async){
-        const visible=x+ox<W+2&&x+ox+tw> -2&&y+oy<H+2&&y+oy+th> -2;
+        const visible=x+ox<viewRight+2&&x+ox+tw>left-2&&y+oy<viewBottom+2&&y+oy+th>top-2;
         this.queueTerrain({key,prefix:this.terrainPrefix(p,density),templateId:p.templateId,seed:p.seed??p.templateId*.17,density,ox,oy,tw,th,pad,visible});
         if(visible){
           // A cold/unsupported worker never stalls a frame for vector painting.
@@ -302,11 +316,12 @@ export class Renderer{
         const canvas=document.createElement('canvas');canvas.width=(tw+pad*2)*density;canvas.height=(th+pad*2)*density;const tc=canvas.getContext('2d');tc.setTransform(density,0,0,density,(pad-ox)*density,(pad-oy)*density);this.paintNativePlatform(p,tc);
         tile={canvas,bytes:canvas.width*canvas.height*4};this.cacheTerrain(key,tile);
       }
-      if(x+ox>W+2||x+ox+tw< -2||y+oy>H+2||y+oy+th< -2)continue;
+      if(x+ox>viewRight+2||x+ox+tw<left-2||y+oy>viewBottom+2||y+oy+th<top-2)continue;
       const bleed=1/density;c.drawImage(tile.canvas,(pad-bleed)*density,(pad-bleed)*density,(tw+bleed*2)*density,(th+bleed*2)*density,x+ox-bleed,y+oy-bleed,tw+bleed*2,th+bleed*2);
     }
   }
   paintNativePlatform(p,c){
+    if(this.materials){this.paintNativeDetails(p,c);return;}
     const key=p.templateId+'|'+p.seed;let commands=this.terrainPaintCache.get(key);
     if(!commands){
       commands=[];let current=new Path2D();
@@ -332,6 +347,7 @@ export class Renderer{
     }
   }
   paintNativeDetails(p,c){
+    if(this.materials){paintForestTerrain(p,c,this.nativeProfile(p),this.materials);return;}
     const w=p.width;
     const {shape,segments,template}=this.nativeProfile(p),seed=p.seed??p.templateId*.17,minY=template.minY,maxY=template.maxY;
     c.save();
@@ -378,7 +394,7 @@ export class Renderer{
   }
   platform(p,distance,cameraY){
     if(p.templateId){this.nativePlatform(p,distance,cameraY);return;}
-    const c=this.ctx,x=p.x-distance,w=p.width;if(x>W+120||x+w< -120)return;
+    const c=this.ctx,x=p.x-distance,w=p.width;if(x>(this.view?.right??W)+120||x+w<(this.view?.left??0)-120)return;
     const yy=local=>surface(p,local)-cameraY,topPts=[];for(let q=0;q<w;q+=10)topPts.push([x+q,yy(q)]);topPts.push([x+w,yy(w)]);
     const left=yy(0),right=yy(w),seed=p.seed??p.x*.01;
     const depth=p.x<0?138:155+rand(seed+83)*115;
@@ -443,7 +459,7 @@ export class Renderer{
     });return this.coneFragments;
   }
   breakPineCone(s,distance){
-    const x=s.x-distance;if(x< -110||x>W+110)return;const serial=this.effectSerial++;
+    const x=s.x-distance;if(x<(this.view?.left??0)-110||x>(this.view?.right??W)+110)return;const serial=this.effectSerial++;
     for(const part of this.pineConeFragments()){
       const n=serial*41+part.index*7;this.effects.push({kind:'coneChunk',part,x:x+part.x,y:s.y+part.y,age:0,life:.6+rand(n+1)*.18,vx:part.x< -10?-50+rand(n+2)*230:290+rand(n+2)*320,vy:-105-rand(n+3)*140,gravity:510,angle:0,spin:(part.index%2?-1:1)*(5+rand(n+4)*9)});
     }
@@ -458,14 +474,14 @@ export class Renderer{
     return angle*(reduced?.25:1);
   }
   crystal(s,distance,cameraY,death=null,reduced=false,cameraX=0){
-    if(s.broken||s.missed)return;const x=s.x-distance,y=s.y-cameraY;if(x+cameraX< -128||x+cameraX>W+128)return;
+    if(s.broken)return;const x=s.x-distance,y=s.y-cameraY;if(x+cameraX<(this.view?.left??0)-128||x+cameraX>(this.view?.right??W)+128)return;
     if(!this.pineConeSprite)this.pineConeSprite=this.makePineCone();if(!this.pineConeSprite)return;const angle=this.pineConeImpactAngle(s,death,reduced);
     if(angle){const c=this.ctx;c.save();c.translate(x,y+55.4);c.rotate(angle);c.drawImage(this.pineConeSprite,-64,-119.4,128,128);c.restore();}
     else this.ctx.drawImage(this.pineConeSprite,x-64,y-64,128,128);
   }
   fairy(p,distance,cameraY,t){
     if(p.collected||p.missed||this.fairyFrames.length!==3)return;
-    const x=p.x-distance,y=p.y-cameraY+(p.wingTop??-5.6)+30.6;if(x< -60||x>W+60)return;
+    const x=p.x-distance,y=p.y-cameraY+(p.wingTop??-5.6)+30.6;if(x<(this.view?.left??0)-60||x>(this.view?.right??W)+60)return;
     const frame=[0,1,2,1][Math.floor(t*12)%4],c=this.ctx;
     c.drawImage(this.fairyFrames[frame],x-40,y-39,64,64);
     for(let i=0;i<3;i++){const xx=x-28-i*11,yy=y-2+Math.sin(i*3+t*4)*7;c.globalAlpha=.65-i*.16;c.drawImage(this.leafSprites[i],xx-6,yy-4,12,8);}c.globalAlpha=1;
@@ -547,11 +563,11 @@ export class Renderer{
     const density=4,base=document.createElement('canvas');base.width=112*density;base.height=84*density;const bc=base.getContext('2d');bc.setTransform(density,0,0,density,56*density,70*density);
     const previous=this.ctx;try{this.ctx=bc;this.hero(death.pose||{});}finally{this.ctx=previous;}
     const masks=[
-      {kind:'tail',points:[[-48,-45],[-25,-45],[-20,-24],[-24,-10],[-48,-8]],vx:-175,vy:-180,spin:-8},
+      {kind:'tail',points:[[-56,-45],[-25,-45],[-20,-24],[-24,-10],[-56,-8]],vx:-175,vy:-180,spin:-8},
       {kind:'body',points:[[-25,-43],[5,-43],[14,-26],[13,-10],[-25,-10]],vx:-45,vy:-240,spin:5},
       {kind:'rearleg',points:[[-31,-14],[-7,-12],[0,6],[-31,6]],vx:-130,vy:75,spin:-10},
       {kind:'frontleg',points:[[-7,-12],[16,-15],[39,-4],[39,6],[-7,6]],vx:135,vy:40,spin:9},
-      {kind:'head',points:[[5,-58],[49,-58],[49,-4],[17,-9],[12,-21],[5,-25]],vx:0,vy:0,spin:0}
+      {kind:'head',points:[[5,-66],[49,-66],[49,-4],[17,-9],[12,-21],[5,-25]],vx:0,vy:0,spin:0}
     ];
     const parts=masks.map(mask=>{const xs=mask.points.map(p=>p[0]),ys=mask.points.map(p=>p[1]),left=Math.min(...xs),top=Math.min(...ys),w=Math.max(...xs)-left,h=Math.max(...ys)-top,canvas=document.createElement('canvas');canvas.width=Math.ceil(w*density);canvas.height=Math.ceil(h*density);const c=canvas.getContext('2d');c.setTransform(density,0,0,density,-left*density,-top*density);path(c,mask.points);c.clip();c.drawImage(base,-56,-70,112,84);return{...mask,image:canvas,x:left+w/2,y:top+h/2,w,h};});
     this.deathFragmentCache={death,parts};return parts;
@@ -601,10 +617,13 @@ export class Renderer{
   }
   render(g,time=0){
     const c=this.ctx,t=Number.isFinite(time)?time:0;g=g||{};const reduced=!!g.reducedMotion,decorTime=reduced?0:t,distance=g.distance||0,cameraY=g.cameraY||0;
+    this.view=cameraView(g);
     const density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W)));
     this.terrainPlatforms=new Set((g.platforms||[]).map(p=>this.terrainPrefix(p,density)));
     c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.clearRect(0,0,W,H);this.updateEffects(g,t);
-    this.background(distance,cameraY,decorTime,reduced);c.save();c.translate(reduced?0:(g.cameraX||0),0);
+    this.woodland.update(g,t,this.view,this.ambientParticles);
+    this.background(distance,cameraY,decorTime,reduced);this.woodland.drawMotes(c,false,this.ambientParticles,reduced);
+    c.save();c.scale(this.view.scale,this.view.scale);c.translate(-this.view.left,-this.view.top);c.translate(reduced?0:(g.cameraX||0),0);
     (g.platforms||[]).forEach(p=>this.platform(p,distance,cameraY));(g.stars||[]).forEach(s=>this.crystal(s,distance,cameraY,(g.state==='dead'||g.state==='over')?g.death:null,reduced,reduced?0:(g.cameraX||0)));(g.pixies||[]).forEach(p=>this.fairy(p,distance,cameraY,reduced?0:(g.ticks||0)/34));
     this.effects.forEach(e=>{if(e.kind==='coneChunk')this.effect(e,cameraY,reduced);});
     const p=g.player;if(p&&g.state!=='dead'&&g.state!=='over'){this.trail(p,cameraY,reduced?0:this.effectTime);c.save();c.translate(p.x,p.y-cameraY);if(p.rotation)c.rotate(p.rotation);const pitch=this.jumpPitch(p);if(pitch){c.translate(0,-20);c.rotate(pitch);c.translate(0,20);}if(p.animState?p.animState==='charge':p.dash>0){c.filter='brightness(1.12) saturate(1.08)';c.shadowColor='#c9df75';c.shadowBlur=5;}this.hero(p);c.restore();}
@@ -618,6 +637,7 @@ export class Renderer{
       else{c.fillStyle=a.color||'#fff';c.fillRect(-size*.5,-size*.5,size,size);}c.restore();
     });
     (g.popups||[]).forEach(a=>{c.save();c.globalAlpha=clamp(a.life,0,1);c.textAlign='center';c.font='italic 24px Georgia,serif';c.fillStyle='#fff';c.shadowColor='#a5ca6b';c.shadowBlur=7;c.fillText(a.text,a.x,a.y-cameraY);c.restore();});
-    c.restore();if(g.flash>0){c.fillStyle='rgba(246,255,224,'+Math.min(reduced?.12:.65,g.flash)+')';c.fillRect(0,0,W,H);}this.wishEntry(g);
+    c.restore();this.woodland.drawMotes(c,true,this.ambientParticles,reduced);this.woodland.drawDeer(c,g,this.view);
+    if(g.flash>0){c.fillStyle='rgba(246,255,224,'+Math.min(reduced?.12:.65,g.flash)+')';c.fillRect(0,0,W,H);}this.wishEntry(g);
   }
 }

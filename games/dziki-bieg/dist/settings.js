@@ -6,7 +6,7 @@ const storedVolume = key => {
  }catch{return 1;}
 };
 export class Settings{
- constructor(audio){
+ constructor(audio,{setAmbientParticles=()=>{}}={}){
   this.panel=document.getElementById('settings');this.trigger=document.getElementById('settings-open');this.done=document.getElementById('settings-done');
   this.trigger.addEventListener('click',()=>this.open());this.done.addEventListener('click',()=>this.close());
   for(const [name,setter]of [['music','setMusicVolume'],['effects','setEffectsVolume']]){
@@ -14,6 +14,12 @@ export class Settings{
    const apply=value=>{audio[setter](value);input.value=String(Math.round(value*100));output.value=input.value+'%';};
    apply(storedVolume(key));
    input.addEventListener('input',()=>{const value=Number(input.value)/100;apply(value);try{localStorage.setItem(key,String(value));}catch{}});
+  }
+  const particles=document.getElementById('ambient-particles');
+  if(particles){
+   try{particles.checked=localStorage.getItem('uniboar-ambient-particles')!=='false';}catch{particles.checked=true;}
+   setAmbientParticles(particles.checked);
+   particles.addEventListener('change',()=>{setAmbientParticles(particles.checked);try{localStorage.setItem('uniboar-ambient-particles',String(particles.checked));}catch{}});
   }
  }
  open(){this.panel.hidden=false;this.trigger.setAttribute('aria-expanded','true');this.done.focus({preventScroll:true});}

@@ -1,12 +1,15 @@
 import {Renderer} from './art.js';
 import {createPlatform} from './terrain.js';
+import {loadTerrainMaterials} from './terrain-material.js';
 
 // Reuse the exact terrain painter in a worker; no collision or physics state
 // crosses this boundary. Only bounded, transferable texture tiles come back.
 const painter=Object.create(Renderer.prototype);
 painter.profileCache=new Map();painter.terrainPaintCache=new Map();
-self.onmessage=({data:job})=>{
+const materials=loadTerrainMaterials();
+self.onmessage=async({data:job})=>{
   try{
+    painter.materials=await materials;
     const {key,templateId,seed,density,ox,oy,tw,th,pad}=job;
     // Keep complex vector rasterization off the foreground GPU's command queue.
     // Only completed tiles are uploaded when the game draws their bitmaps.

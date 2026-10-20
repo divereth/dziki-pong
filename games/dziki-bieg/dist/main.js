@@ -7,7 +7,7 @@ import {Settings} from './settings.js';
 import {TouchControls} from './touch.js';
 const $=id=>document.getElementById(id),canvas=$('game'),renderer=new Renderer(canvas),audio=new AudioSystem($('default-music'));
 const leaderboard=new Leaderboard($('leaderboard'));
-const settings=new Settings(audio);
+const settings=new Settings(audio,{setAmbientParticles:enabled=>renderer.ambientParticles=enabled});
 let best=0,mode='title',lastChange=performance.now(),introEnds=0,introAction='start',musicWanted=false,musicRequest=0;
 try{best=Number(localStorage.getItem('uniboar-best'))||0;}catch{}
 const game=new Game({event:name=>{
@@ -19,8 +19,7 @@ const game=new Game({event:name=>{
 const touch=new TouchControls(game,()=>mode);
 function requestMusic(firstWish=false){const request=++musicRequest;audio.unlock().then(ready=>{if(!ready||request!==musicRequest||!musicWanted)return;audio.startMusic();if(firstWish)audio.effect('boar');}).catch(()=>{});}
 const motion=matchMedia('(prefers-reduced-motion: reduce)');game.reducedMotion=motion.matches;motion.addEventListener('change',()=>game.reducedMotion=motion.matches);
-const lifeSVG='<svg viewBox="0 0 72 40" aria-hidden="true"><path d="M3 26 1 20 6 22 10 20C7 5 38 7 43 12L48 8 49 2 54 9 59 7 61 1 64 12 71 16 69 24 60 26 57 30 51 29 49 20 43 22 40 36 34 36 35 25 21 25 18 35 12 35 12 27 7 29Z"/><path d="M64 22q8 0 6-7" fill="none" stroke="white" stroke-width="3"/></svg>';
-$('lives').innerHTML=[0,1,2].map(()=>`<span class="life">${lifeSVG}</span>`).join('');
+$('lives').innerHTML=[0,1,2].map(()=>'<span class="life"><canvas width="152" height="96" aria-hidden="true"></canvas></span>').join('');
 function changeMode(next){settings.close();mode=next;lastChange=performance.now();presentation.reset();refresh();if(next==='over')leaderboard.show(game.total);else leaderboard.close();}
 function refresh(){
  touch.sync(mode==='playing');
@@ -75,7 +74,8 @@ function loop(now){
  if(mode==='playing'||mode==='dying')game.update(dt);else if(mode==='title'||mode==='instructions')game.time+=dt;
  if((game.state==='dead'||game.state==='over')&&mode==='playing')changeMode('dying');
  if(mode==='dying'&&game.death&&game.death.age>=game.death.duration)changeMode(game.state);
- if(mode==='playing'||mode==='dying')renderer.render(presentation.sample(),now/1000);
+ if(mode==='playing'||mode==='dying'){const view=presentation.sample();renderer.render(view,now/1000);audio.updateRunning(view.player,mode==='playing');}
+ else audio.updateRunning(game.player,false);
  const tutorialCone=game.stars.find(s=>!s.broken&&!s.missed&&game.platforms.some(p=>p.slot===s.platformId&&p.ordinal===3));
  const coneGap=tutorialCone? tutorialCone.x-game.distance-game.player.x:Infinity;
  const showDashHint=mode==='playing'&&game.player.dash<=0&&coneGap>-20&&coneGap<550;

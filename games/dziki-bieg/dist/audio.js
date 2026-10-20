@@ -1,3 +1,4 @@
+import {HoofCadence} from './gait.js';
 /* Original fallback synth: “Chrome Daydream”, a looping instrumental written for this game. */
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
 const BPM = 124;
@@ -45,6 +46,10 @@ export class AudioSystem {
     this.nextTime = 0;
     this.noiseBuffer = null;
     this.woodCrackBuffer = null;
+    this.hoofCadence = new HoofCadence();
+    this.hoofSources = new Set();
+    this.hoofBuffers = null;
+    this.hoofSerial = 0;
     this.recordingBuffers = new Map();
     this.recordingData = this.loadRecordings();
     this.recordingReady = null;
@@ -93,6 +98,7 @@ export class AudioSystem {
       this.effectsBus = ctx.createGain();
       this.effectsBus.gain.value = 0.75 * this.effectsVolume;
       this.effectsBus.connect(this.master);
+      this.prepareHooves();
 
       // A short stereo echo gives the synths space without a large impulse file.
       const echo = ctx.createDelay(1);
@@ -417,6 +423,46 @@ export class AudioSystem {
     for (let i = 0; i < data.length; i++) data[i] *= scale;
     this.woodCrackBuffer = buffer;
     return buffer;
+  }
+
+  prepareHooves() {
+    if(this.hoofBuffers||!this.context)return;
+    const rate=this.context.sampleRate;
+    this.hoofBuffers=[0,1,2].map(variant=>{
+      const buffer=this.context.createBuffer(1,Math.ceil(rate*.085),rate),data=buffer.getChannelData(0);
+      let seed=0x15e74a+variant*103,low=0;
+      for(let i=0;i<data.length;i++){
+        const t=i/rate;seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;
+        const noise=(seed>>>0)/2147483648-1;low+=(noise-low)*.12;
+        const attack=Math.min(1,t/.0015),tail=Math.min(1,(buffer.duration-t)/.006);
+        const knock=Math.sin(t*Math.PI*2*(116+variant*9))*Math.exp(-t/.012)*.17;
+        const earth=(low*.8+noise*.11)*Math.exp(-t/.019)*.6;
+        const leaf=t>.012?(noise-low)*Math.exp(-(t-.012)/.015)*.035:0;
+        data[i]=(knock+earth+leaf)*attack*tail;
+      }
+      return buffer;
+    });
+  }
+
+  stopHooves() {
+    for(const source of this.hoofSources){try{source.stop();}catch{}}
+    this.hoofSources.clear();
+  }
+
+  updateRunning(player,playing) {
+    const contact=this.hoofCadence.contact(player,playing);
+    if(!playing||!player?.grounded||player.animState!=='run'){this.stopHooves();return;}
+    if(contact&&this.context?.state==='running'&&!this.muted&&this.effectsVolume>0)this.hoofStep();
+  }
+
+  hoofStep() {
+    this.prepareHooves();
+    const source=this.context.createBufferSource(),gain=this.context.createGain();
+    source.buffer=this.hoofBuffers[this.hoofSerial++%3];
+    source.playbackRate.value=1+(this.hoofSerial%3-1)*.035;
+    gain.gain.value=.7;source.connect(gain).connect(this.effectsBus);this.hoofSources.add(source);
+    source.onended=()=>{this.hoofSources.delete(source);source.disconnect();gain.disconnect();};
+    source.start(this.context.currentTime);
   }
 
   woodCrack(time) {

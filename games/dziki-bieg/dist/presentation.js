@@ -6,7 +6,7 @@ const snapshots=items=>new Map(items.map(item=>[item,{x:item.x,y:item.y,centerX:
 function capture(g){
   const p=g.player;
   return {player:p,playerValues:{x:p.x,y:p.y,rotation:p.rotation,anim:p.anim,gravity:p.gravity,animState:p.animState},
-    distance:g.distance,cameraX:g.cameraX,cameraY:g.cameraY,ticks:g.ticks,wish:g.wish,state:g.state,
+    distance:g.distance,cameraX:g.cameraX,cameraY:g.cameraY,ticks:g.ticks,speedPerFrame:g.speedPerFrame,wish:g.wish,state:g.state,
     platforms:snapshots(g.platforms),stars:snapshots(g.stars),pixies:snapshots(g.pixies)};
 }
 
@@ -28,7 +28,7 @@ export class Presentation{
     const g=this.game,p=g.player;
     if(this.previous.player!==p||this.previous.wish!==g.wish||this.previous.state!==g.state||this.previous.ticks>g.ticks)this.reset();
     const old=this.previous,t=g.state==='playing'?Math.max(0,Math.min(1,g.accumulator*PHYSICS_HZ)):1,v=this.view;
-    for(const key of ['distance','cameraX','cameraY','ticks'])v[key]=mix(old[key],g[key],t);
+    for(const key of ['distance','cameraX','cameraY','ticks','speedPerFrame'])v[key]=mix(old[key],g[key],t);
     const pv=this.entity(p,old.playerValues,['x','y'],t);
     pv.rotation=angles(old.playerValues.rotation,p.rotation,t);
     pv.anim=angles(old.playerValues.anim,p.anim,t);
