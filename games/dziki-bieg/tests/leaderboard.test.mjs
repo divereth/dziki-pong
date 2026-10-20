@@ -1,8 +1,12 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {qualifies} from '../dist/leaderboard.js';
-test('qualifying scores use all six global places and preserve existing ties',()=>{
- const full=[600,500,400,300,200,100].map(score=>({score}));
- assert.equal(qualifies(101,full),true);assert.equal(qualifies(100,full),false);assert.equal(qualifies(99,full),false);
- assert.equal(qualifies(1,full.slice(0,5)),true);assert.equal(qualifies(1,[]),true);
- for(const score of [0,-1,1.5,NaN,Infinity])assert.equal(qualifies(score,[]),false);
+import {qualifies,displayRows} from '../dist/leaderboard.js';
+test('every nonnegative integer score is eligible regardless of other players',()=>{
+ for(const score of [0,1,100,10000001,Number.MAX_SAFE_INTEGER])assert.equal(qualifies(score),true);
+ for(const score of [-1,1.5,NaN,Infinity,'100'])assert.equal(qualifies(score),false);
+});
+test('personal ranking inserts ellipses only for gaps and preserves own row',()=>{
+ const scores=[1,2,3,420,421,422,423,424,425,426,427,428].map(rank=>({rank,mine:rank===424}));
+ assert.deepEqual(displayRows(scores).map(row=>row?.rank??'…'),[1,2,3,'…',420,421,422,423,424,425,426,427,428]);
+ assert.equal(displayRows(scores).find(row=>row?.mine).rank,424);
+ assert.deepEqual(displayRows([{rank:1},{rank:2}]),[{rank:1},{rank:2}]);
 });

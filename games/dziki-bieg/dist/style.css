@@ -123,3 +123,22 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .touch-half.needs-hint::before,.touch-half.needs-hint .touch-hint{opacity:1}
 .touch-playing,.touch-playing body{touch-action:none;overscroll-behavior:none}
 @media(prefers-reduced-motion:reduce){.touch-half::before,.touch-hint{transition:none}}
+
+/* Keep score entry and browsing controls visible while the ranking scrolls. */
+.leaderboard{display:flex;flex-direction:column;overflow:hidden;gap:.5cqw}
+.leaderboard h2{flex:none;margin:0;font-size:clamp(12px,2.15cqw,23px)}
+.leaderboard h2 small{display:block;font:normal clamp(9px,1.2cqw,13px)/1.3 Arial,sans-serif;color:#aec890}
+.leaderboard form,.leaderboard p,.leaderboard nav{flex:none;margin:0}
+.leaderboard-table{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.leaderboard th:first-child,.leaderboard td:first-child{width:23%;font-variant-numeric:tabular-nums}
+.leaderboard thead{position:sticky;top:0;background:#12352b;z-index:1}
+.leaderboard td.leaderboard-gap{text-align:center;color:#aec890;padding:0}
+.leaderboard-mine{background:#84b85144;font-weight:bold;outline:1px solid #bfdc8b;outline-offset:-1px}
+.leaderboard nav{display:flex;gap:.5cqw;justify-content:space-between;flex-wrap:wrap}
+.leaderboard nav button{flex:1;white-space:nowrap}
+.leaderboard button:disabled{cursor:default}
+.leaderboard table{font-size:clamp(9px,1.45cqw,16px);line-height:1.15}
+.leaderboard th,.leaderboard td{padding:.25cqw .35cqw}
+.leaderboard .leaderboard-top{position:sticky;z-index:1;background:#173e2e}
+.leaderboard td:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.leaderboard thead{z-index:2}

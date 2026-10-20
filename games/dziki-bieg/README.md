@@ -30,12 +30,28 @@ Submit an old request again with `/dzika zmiana` to apply it to Uniboar.
 
 ## Global leaderboard
 
-The final game-over screen loads the global best six totals across all three
-wishes from `/api/leaderboard`. A qualifying score can be saved with a nickname;
-the server checks qualification again when saving, including concurrent scores.
-Nickname entry does not trigger game controls. Only the nickname preference is
-stored locally; rankings are always read from the server. Offline play continues,
-with an explicit retry control for unavailable global scores.
+Every final total across the three wishes, including zero, can be submitted with
+a nickname. The ranking retains the best 1,000,000 entries; ties favor older
+entries. After saving, the screen shows the top three and four entries either
+side of the player's highlighted place. Top / previous / next / my score controls
+browse 25 entries at a time, using indexed cursors rather than deep offsets.
+The score form and controls stay visible while the table scrolls.
+
+`GET /api/leaderboard` returns a first page; `?near=SUBMISSION_UUID` returns the
+personal window. `?cursor=TOKEN&direction=before|after` loads adjacent pages.
+Responses include `scores`, `total`, `myRank`, `previous`, `next`, `pageSize`, and
+`limit`. POST accepts `{nickname,score,submissionId}` and returns the personal
+view plus `submitted`. UUID retries are idempotent. Nicknames render as text.
+Offline gameplay continues with an explicit network retry for global scores.
+
+The database maintains total and score-bucket counts with triggers, so reading
+the count and locating ordinary ranks do not scan the entire leaderboard.
+An indexed deletion of the lowest entry occurs only when insertion exceeds the
+retention cap. Responses contain at most 25 rows (12 for a personal view).
+The new `leaderboard_entries` table leaves legacy `scores` intact. To migrate,
+apply `backend/schema.sql`, then `backend/migrate-top-six.sql` before deployment;
+repeat the idempotent copy after both old deployments have been replaced to
+catch submissions made during rollout. Never clear either production table.
 
 `backend/worker.mjs` is a trusted Pages worker injected by the build, with
 `_routes.json` limiting it to the leaderboard endpoint. D1 binding `SCORES_DB`
