@@ -71,7 +71,7 @@ window.addEventListener('resize',resizeView);
 let previous=performance.now(),shownWishes=-1;
 function loop(now){
  const dt=Math.min((now-previous)/1000,.1);previous=now;
- if(mode==='intro'&&now>=introEnds){game[introAction]();changeMode('playing');}
+ if(mode==='intro'&&now>=introEnds){if(renderer.assetsReady){game[introAction]();changeMode('playing');}else $('intro').lastElementChild.textContent='Preparing the forest…';}
  if(mode==='playing'||mode==='dying')game.update(dt);else if(mode==='title'||mode==='instructions')game.time+=dt;
  if((game.state==='dead'||game.state==='over')&&mode==='playing')changeMode('dying');
  if(mode==='dying'&&game.death&&game.death.age>=game.death.duration)changeMode(game.state);

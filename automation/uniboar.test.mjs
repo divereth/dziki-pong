@@ -13,7 +13,7 @@ test('Bieg previews build the current Uniboar edition and its complete offline s
  assert.match(readFileSync(join(output,'engine.js'),'utf8'),/PHYSICS_HZ=34/);
  const worker=readFileSync(join(output,'sw.js'),'utf8');
  assert.match(worker,/robot-uniboar-[a-f0-9]{16}/);
- for(const name of ['main.js','terrain.js','presentation.js','forest-fairy.webp','pine-cone-round.webp','always-free.mp3']){
+ for(const name of ['main.js','terrain.js','terrain-worker.js','presentation.js','forest-fairy.webp','pine-cone-round.webp','always-free.mp3']){
   assert.ok(existsSync(join(output,name)),name);
   assert.ok(worker.includes('./'+name),'offline cache includes '+name);
  }

@@ -69,6 +69,18 @@ The schema is in `backend/schema.sql`. Apply it before publishing to a new bindi
 Discord-generated changes can edit `dist/leaderboard.js` and its UI, but cannot
 change backend code, bindings or reserved Pages routing files.
 
+## Rendering performance
+
+Terrain textures are prepared ahead of the camera in a module worker,
+dist/terrain-worker.js, using the original art.js painter. Its pending queue is
+limited to 24 tiles and its bitmap cache to 32 MiB; evicted bitmaps are closed.
+Browsers without worker canvas support use the existing synchronous painter.
+The worker is included in the PWA precache. Initial artwork decoding and texture
+preparation finish before the first wish starts. Known sprite/crop bounds and
+boar centers are measured in ARTWORK_METRICS in art.js; update those metrics when
+replacing the source artwork. Different image dimensions use the scanning fallback.
+Physics and the original 34 Hz step are unchanged.
+
 ## In-game settings
 
 Settings are available in the main menu, pause menu and result/game-over menu.

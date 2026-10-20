@@ -1,5 +1,7 @@
 import {surfaceY as nativeSurfaceY,terrainTemplate} from './terrain.js';
 import {WIDTH as W,HEIGHT as H} from './engine.js';
+// Measured once from the shipped artwork; avoid synchronous pixel readbacks at startup.
+const ARTWORK_METRICS={"boar-run-brown.png":{"width":1774,"height":887,"frames":[{"x":15,"y":163,"width":423,"height":246,"centerY":117.93124019549333},{"x":11,"y":150,"width":429,"height":214,"centerY":106.69457250936232},{"x":11,"y":168,"width":429,"height":237,"centerY":110.62624556416976},{"x":12,"y":159,"width":425,"height":233,"centerY":106.37963793732811},{"x":15,"y":122,"width":420,"height":225,"centerY":112.42377843854115},{"x":2,"y":119,"width":439,"height":236,"centerY":113.31105150376828},{"x":23,"y":111,"width":416,"height":227,"centerY":112.26855766646786},{"x":11,"y":126,"width":428,"height":235,"centerY":112.40056340701265}]},"pine-cone-round.webp":{"width":1254,"height":1254,"frames":[{"x":125,"y":98,"width":1004,"height":1061,"centerY":573.416090351029}]},"boar-head-wrecked.webp":{"width":1536,"height":1024,"frames":[{"x":153,"y":65,"width":1229,"height":896,"centerY":461.71548261684836}]}};
 const TAU=Math.PI*2;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mod=(v,n)=>((v%n)+n)%n;
@@ -54,12 +56,69 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.forestImage=new Image();this.forestImage.src='forest-panorama.webp';this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.loadBoar();this.loadWoodlandAssets();this.resize();
+    this.assetTasks=[];this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.ready=Promise.all(this.assetTasks).then(()=>{this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
-  loadBoar(){
+  loadAsset(src,prepare){
     const image=new Image();
-    image.onload=()=>{
+    this.assetTasks.push(new Promise(resolve=>{
+      image.onload=async()=>{try{if(image.decode)await image.decode();prepare(image);}catch{}finally{resolve();}};
+      image.onerror=resolve;image.src=src;
+    }));
+    return image;
+  }
+  terrainPrefix(p,density){return p.templateId+'|'+(p.seed??p.templateId*.17)+'|'+density;}
+  initTerrainWorker(){
+    if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined')return;
+    try{
+      const worker=this.terrainWorker=new Worker(new URL('./terrain-worker.js',import.meta.url),{type:'module'});
+      worker.onmessage=({data})=>{
+        const job=this.terrainJobs.get(data.key);this.terrainJobs.delete(data.key);this.terrainRunning=false;
+        if(data.error){this.disableTerrainWorker();return;}
+        if(job&&this.terrainPlatforms.has(job.prefix))this.cacheTerrain(data.key,{canvas:data.bitmap,bytes:data.bytes});else data.bitmap?.close();
+        this.runTerrainQueue();
+      };
+      worker.onerror=event=>{event.preventDefault();this.disableTerrainWorker();};
+    }catch{this.disableTerrainWorker();}
+  }
+  disableTerrainWorker(){this.terrainWorker?.terminate();this.terrainWorker=null;this.terrainJobs.clear();this.terrainQueue.length=0;this.terrainRunning=false;}
+  cacheTerrain(key,tile){
+    while(this.terrainCacheBytes+tile.bytes>32*1024*1024&&this.terrainCache.size){
+      const oldKey=this.terrainCache.keys().next().value,old=this.terrainCache.get(oldKey);this.terrainCache.delete(oldKey);this.terrainCacheBytes-=old.bytes;
+      if(old.canvas.close)old.canvas.close();else{old.canvas.width=0;old.canvas.height=0;}
+    }
+    this.terrainCache.set(key,tile);this.terrainCacheBytes+=tile.bytes;
+  }
+  queueTerrain(job){
+    const existing=this.terrainJobs.get(job.key);if(existing){existing.visible||=job.visible;return;}
+    if(this.terrainJobs.size>=24)return;
+    this.terrainJobs.set(job.key,job);this.terrainQueue.push(job);this.runTerrainQueue();
+  }
+  runTerrainQueue(){
+    if(this.terrainRunning||!this.terrainWorker)return;
+    this.terrainQueue.sort((a,b)=>Number(b.visible)-Number(a.visible));
+    while(this.terrainQueue.length){
+      const job=this.terrainQueue.shift();
+      if(!this.terrainPlatforms.has(job.prefix)){this.terrainJobs.delete(job.key);continue;}
+      this.terrainRunning=true;
+      try{this.terrainWorker.postMessage(job);}catch{this.disableTerrainWorker();}
+      return;
+    }
+  }
+  loadBoar(){
+    this.loadAsset('boar-run-brown.png',image=>{
+      const measured=ARTWORK_METRICS['boar-run-brown.png'];
+      if(image.naturalWidth===measured.width&&image.naturalHeight===measured.height){
+        const cw=image.naturalWidth/4,ch=image.naturalHeight/2;
+        this.spriteFrames=measured.frames.map((f,index)=>{
+          const cell=document.createElement('canvas');cell.width=Math.ceil(cw);cell.height=Math.ceil(ch);
+          cell.getContext('2d').drawImage(image,index%4*cw,Math.floor(index/4)*ch,cw,ch,0,0,cell.width,cell.height);
+          const crop=document.createElement('canvas');crop.width=f.width;crop.height=f.height;
+          crop.getContext('2d').drawImage(cell,f.x,f.y,f.width,f.height,0,0,f.width,f.height);
+          return {image:crop,width:f.width,height:f.height,centerY:f.centerY};
+        });
+        this.deathFragmentCache=null;return;
+      }
       const cw=image.naturalWidth/4,ch=image.naturalHeight/2,frames=[];
       for(let frame=0;frame<8;frame++){
         const cell=document.createElement('canvas');cell.width=Math.ceil(cw);cell.height=Math.ceil(ch);
@@ -76,8 +135,7 @@ export class Renderer{
         frames.push({image:crop,width:crop.width,height:crop.height,centerY:mass?cy/mass:crop.height*.55});
       }
       this.spriteFrames=frames;this.deathFragmentCache=null;
-    };
-    image.src='boar-run-brown.png';
+    });
   }
   jumpPitch(p){
     if(p.animState?p.animState!=='jump':p.grounded||p.dash>0)return 0;
@@ -97,6 +155,11 @@ export class Renderer{
     }else this.ctx.drawImage(f.image,-43,-20-f.centerY*scale,84,f.height*scale);
   }
   cropArtwork(image,sx=0,sy=0,sw=image.naturalWidth,sh=image.naturalHeight){
+    const measured=Object.values(ARTWORK_METRICS).find(item=>item.frames.length===1&&item.width===image.naturalWidth&&item.height===image.naturalHeight);
+    if(measured&&image.naturalWidth===measured.width&&image.naturalHeight===measured.height&&sx===0&&sy===0&&sw===image.naturalWidth&&sh===image.naturalHeight){
+      const f=measured.frames[0],crop=document.createElement('canvas');crop.width=f.width;crop.height=f.height;
+      crop.getContext('2d').drawImage(image,f.x,f.y,f.width,f.height,0,0,f.width,f.height);return crop;
+    }
     const cell=document.createElement('canvas');cell.width=sw;cell.height=sh;const c=cell.getContext('2d');c.drawImage(image,sx,sy,sw,sh,0,0,sw,sh);
     const data=c.getImageData(0,0,sw,sh).data;let left=sw,top=sh,right=0,bottom=0;
     for(let y=0;y<sh;y++)for(let x=0;x<sw;x++)if(data[(y*sw+x)*4+3]>40){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
@@ -105,14 +168,14 @@ export class Renderer{
   loadWoodlandAssets(){
     this.groves=[];this.treeImages=Array(6).fill(null);this.treeCells=new Map();this.fairyFrames=[];
     ['tree-oak.webp','tree-birch.webp','tree-pine.webp','tree-beech.webp','tree-spruce.webp','tree-rowan.webp'].forEach((src,i)=>{
-      const image=new Image();image.onload=()=>{
+      this.loadAsset(src,image=>{
         const tree=document.createElement('canvas');tree.width=image.naturalWidth;tree.height=image.naturalHeight;const c=tree.getContext('2d');c.drawImage(image,0,0);
         // Blend roots into their own depth's mist instead of floating over it.
         c.globalCompositeOperation='destination-in';const fade=c.createLinearGradient(0,0,0,tree.height);fade.addColorStop(0,'#000');fade.addColorStop(.76,'#000');fade.addColorStop(1,'#0000');c.fillStyle=fade;c.fillRect(0,0,tree.width,tree.height);
         this.treeImages[i]=tree;this.groves=this.treeImages.filter(Boolean);
-      };image.src=src;
+      });
     });
-    const fairies=new Image();fairies.onload=()=>{
+    this.loadAsset('forest-fairy.webp',fairies=>{
       // Three complete poses, using inspected gutters instead of blind grid cuts.
       const scale=fairies.naturalWidth/2172;
       this.fairyFrames=[[0,535,350],[540,500,320],[1042,536,320]].map(([x,w,anchor])=>{
@@ -120,9 +183,9 @@ export class Renderer{
         canvas.getContext('2d').drawImage(fairies,x*scale,0,w*scale,fairies.naturalHeight,80-anchor*.2,8,w*.2,144.8);
         return canvas;
       });
-    };fairies.src='forest-fairy.webp';
-    const cone=new Image();cone.onload=()=>{this.coneArtwork=this.cropArtwork(cone);this.pineConeSprite=null;this.coneFragments=null;};cone.src='pine-cone-round.webp';
-    const head=new Image();head.onload=()=>{this.wreckedHead=this.cropArtwork(head);const canvas=document.getElementById('result-head');if(canvas)this.drawWishHead(canvas);};head.src='boar-head-wrecked.webp';
+    });
+    this.loadAsset('pine-cone-round.webp',cone=>{this.coneArtwork=this.cropArtwork(cone);this.pineConeSprite=null;this.coneFragments=null;this.pineConeFragments();});
+    this.loadAsset('boar-head-wrecked.webp',head=>{this.wreckedHead=this.cropArtwork(head);const canvas=document.getElementById('result-head');if(canvas)this.drawWishHead(canvas);});
   }
   forestTrees(distance,cameraY,layer){
     const speeds=[.065,.15,.31],spacings=[260,340,440],spacing=spacings[layer],scroll=distance*speeds[layer],first=Math.floor(scroll/spacing)-2,result=[];
@@ -153,7 +216,7 @@ export class Renderer{
   forestBackground(distance,cameraY=0){
     const image=this.forestImage,c=this.ctx;
     // The distant light source stays fixed: it is never tiled or mirrored.
-    if(image.complete&&image.naturalWidth)c.drawImage(image,0,0,W,H);
+    if(this.forestReady)c.drawImage(image,0,0,W,H);
     this.drawForestTrees(distance,cameraY,0);
     const mist=c.createLinearGradient(0,130,0,H);mist.addColorStop(0,'#d9e4bd00');mist.addColorStop(1,'#d5e0b74a');c.fillStyle=mist;c.fillRect(0,130,W,H-130);
     this.drawForestTrees(distance,cameraY,1);this.drawForestTrees(distance,cameraY,2);
@@ -163,9 +226,10 @@ export class Renderer{
     this.forestBackground(distance,cameraY);
     for(let i=0;i<10;i++){const xx=mod(i*93-distance*.22+(reduced?0:t*9),W+70)-35,yy=mod(i*67+(reduced?0:t*(8+i%3)),H+55)-25;c.save();c.translate(xx,yy);c.rotate(i+(reduced?0:Math.sin(t+i)*.5));oval(c,0,0,2.8+i%3,1.2,i%3?'#829e5480':'#e7d99c99');c.restore();}
   }
-  nativeProfile(p){
-    if(this.profileCache.has(p.templateId))return this.profileCache.get(p.templateId);
+  nativeProfile(p,details=true){
+    if(this.profileCache.has(p.templateId)&&(!details||this.profileCache.get(p.templateId).segments))return this.profileCache.get(p.templateId);
     const template=p.template||terrainTemplate(p.templateId),shape=new Path2D(),slices=template.slices;
+    if(!details){const profile={shape:null,template};this.profileCache.set(p.templateId,profile);return profile;}
     for(let i=0;i<slices.length-1;i++){
       const a=slices[i],b=slices[i+1],dx=b[0]-a[0];
       let corresponding=a.length===b.length;
@@ -187,11 +251,11 @@ export class Renderer{
     const profile={shape,segments,template};this.profileCache.set(p.templateId,profile);return profile;
   }
   nativePlatform(p,distance,cameraY){
-    const c=this.ctx,x=p.x-distance,y=p.y-cameraY,w=p.width;if(x>W+20||x+w< -20)return;
-    const profile=this.nativeProfile(p),template=profile.template,size=256,pad=2,density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W))),baseX=-2,baseY=Math.floor(template.minY)-2,right=Math.ceil(w)+2,bottom=Math.ceil(template.maxY)+2;
+    const c=this.ctx,x=p.x-distance,y=p.y-cameraY,w=p.width,async=!!this.terrainWorker,lookahead=async?384:20;if(x>W+lookahead||x+w< -20)return;
+    const profile=this.nativeProfile(p,!async),template=profile.template,size=256,pad=2,density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W))),baseX=-2,baseY=Math.floor(template.minY)-2,right=Math.ceil(w)+2,bottom=Math.ceil(template.maxY)+2;
     if(!profile.tileCoverage)profile.tileCoverage=new Map();
-    const x0=Math.max(0,Math.floor((-x-baseX-2)/size)),x1=Math.min(Math.ceil((right-baseX)/size)-1,Math.floor((W-x-baseX+2)/size));
-    const y0=Math.max(0,Math.floor((-y-baseY-2)/size)),y1=Math.min(Math.ceil((bottom-baseY)/size)-1,Math.floor((H-y-baseY+2)/size));
+    const x0=Math.max(0,Math.floor((-x-baseX-2)/size)),x1=Math.min(Math.ceil((right-baseX)/size)-1,Math.floor((W+lookahead-x-baseX+2)/size));
+    const y0=Math.max(0,Math.floor((-y-baseY-2-(async?96:0))/size)),y1=Math.min(Math.ceil((bottom-baseY)/size)-1,Math.floor((H-y-baseY+2+(async?96:0))/size));
     for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
       const ox=baseX+tx*size,oy=baseY+ty*size,tw=Math.min(size,right-ox),th=Math.min(size,bottom-oy),coverageKey=tx+':'+ty;
       let occupied=profile.tileCoverage.get(coverageKey);
@@ -204,12 +268,23 @@ export class Renderer{
       const key=p.templateId+'|'+(p.seed??p.templateId*.17)+'|'+density+'|'+coverageKey;
       let tile=this.terrainCache.get(key);
       if(tile){this.terrainCache.delete(key);this.terrainCache.set(key,tile);}
-      else{
+      else if(async){
+        const visible=x+ox<W+2&&x+ox+tw> -2&&y+oy<H+2&&y+oy+th> -2;
+        this.queueTerrain({key,prefix:this.terrainPrefix(p,density),templateId:p.templateId,seed:p.seed??p.templateId*.17,density,ox,oy,tw,th,pad,visible});
+        if(visible){
+          // A cold/unsupported worker never stalls a frame for vector painting.
+          // This small silhouette is replaced by the identical detailed bitmap.
+          c.save();c.beginPath();c.rect(x+ox,y+oy,tw,th);c.clip();c.fillStyle='#654a32';
+          const slices=template.slices,n=slices.length-1,start=Math.max(0,Math.floor(ox/w*n)-1),end=Math.min(n,Math.ceil((ox+tw)/w*n)+1);
+          for(let i=start;i<end;i+=3){const a=slices[i],next=slices[Math.min(n,i+3)];for(let j=1;j+1<a.length;j+=2)c.fillRect(x+a[0],y+a[j],next[0]-a[0]+.1,a[j+1]-a[j]);}
+          c.restore();
+        }
+        continue;
+      }else{
         const canvas=document.createElement('canvas');canvas.width=(tw+pad*2)*density;canvas.height=(th+pad*2)*density;const tc=canvas.getContext('2d');tc.setTransform(density,0,0,density,(pad-ox)*density,(pad-oy)*density);this.paintNativePlatform(p,tc);
-        tile={canvas,bytes:canvas.width*canvas.height*4};
-        while(this.terrainCacheBytes+tile.bytes>16*1024*1024&&this.terrainCache.size){const oldKey=this.terrainCache.keys().next().value,old=this.terrainCache.get(oldKey);this.terrainCache.delete(oldKey);this.terrainCacheBytes-=old.bytes;old.canvas.width=0;old.canvas.height=0;}
-        this.terrainCache.set(key,tile);this.terrainCacheBytes+=tile.bytes;
+        tile={canvas,bytes:canvas.width*canvas.height*4};this.cacheTerrain(key,tile);
       }
+      if(x+ox>W+2||x+ox+tw< -2||y+oy>H+2||y+oy+th< -2)continue;
       const bleed=1/density;c.drawImage(tile.canvas,(pad-bleed)*density,(pad-bleed)*density,(tw+bleed*2)*density,(th+bleed*2)*density,x+ox-bleed,y+oy-bleed,tw+bleed*2,th+bleed*2);
     }
   }
@@ -508,6 +583,8 @@ export class Renderer{
   }
   render(g,time=0){
     const c=this.ctx,t=Number.isFinite(time)?time:0;g=g||{};const reduced=!!g.reducedMotion,decorTime=reduced?0:t,distance=g.distance||0,cameraY=g.cameraY||0;
+    const density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W)));
+    this.terrainPlatforms=new Set((g.platforms||[]).map(p=>this.terrainPrefix(p,density)));
     c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.clearRect(0,0,W,H);this.updateEffects(g,t);
     this.background(distance,cameraY,decorTime,reduced);c.save();c.translate(reduced?0:(g.cameraX||0),0);
     (g.platforms||[]).forEach(p=>this.platform(p,distance,cameraY));(g.stars||[]).forEach(s=>this.crystal(s,distance,cameraY,(g.state==='dead'||g.state==='over')?g.death:null,reduced,reduced?0:(g.cameraX||0)));(g.pixies||[]).forEach(p=>this.fairy(p,distance,cameraY,reduced?0:(g.ticks||0)/34));
