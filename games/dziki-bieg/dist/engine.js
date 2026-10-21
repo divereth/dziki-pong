@@ -1,6 +1,7 @@
 import {createPlatform,solidAt,surfaceY} from './terrain.js';
 export {surfaceY} from './terrain.js';
 export const WIDTH=2560/3,HEIGHT=480,PHYSICS_HZ=34,FOOT_OFFSET=26.15,CONE_SPAWN_CHANCE=2/3;
+export const MAX_SPEED_PER_FRAME=60;
 const STEP=1/PHYSICS_HZ,TAU=Math.PI*2;
 const CONE_HURT_INSET_X=10,CONE_HURT_INSET_Y=8,CONE_HURT_EPSILON=1e-9;
 const FAIRY_PICKUP_PADDING=16,CONE_OFFSCREEN_MARGIN=128;
@@ -229,7 +230,7 @@ export class Game{
       }else p.upPress=false;
     }
     this.jumpQueued=false;
-    const sf=this.speedPerFrame;this.speed=sf*PHYSICS_HZ;this.moveWorld(sf);this.speedPerFrame=Math.min(50,sf+.01);
+    const sf=this.speedPerFrame;this.speed=sf*PHYSICS_HZ;this.moveWorld(sf);this.speedPerFrame=Math.min(MAX_SPEED_PER_FRAME,sf+.01);
     p.nativeX=twip((sf-14)/2-260+p.offset);p.x=p.nativeX+320;p.offset=p.offset>0?p.offset-5:0;
     if(p.applyGravity&&p.animState!=='charge'){
       const upward=Math.min(10,p.thrust-p.gravity);this.moveY(-upward);p.vy=-upward*PHYSICS_HZ;p.gravity+=1.2;

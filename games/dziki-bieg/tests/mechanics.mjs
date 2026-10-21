@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {Game,WIDTH,HEIGHT,PHYSICS_HZ,FOOT_OFFSET,CONE_SPAWN_CHANCE} from '../dist/engine.js';
+import {Game,WIDTH,HEIGHT,PHYSICS_HZ,FOOT_OFFSET,CONE_SPAWN_CHANCE,MAX_SPEED_PER_FRAME} from '../dist/engine.js';
 import {createPlatform,solidAt,solidIntervals,surfaceY,TERRAIN_TEMPLATES} from '../dist/terrain.js';
 const tests=[],test=(name,fn)=>tests.push([name,fn]),tick=g=>g.update(1/34);
 const near=(a,b,label,tolerance=1e-7)=>assert.ok(Math.abs(a-b)<=tolerance,label+': '+a+' != '+b);
@@ -38,6 +38,13 @@ function alignRecycledTerrain(g,row){
       collected:row[prefix+'fairyFrame']!==1,missed:false});
   }
 }
+test('speed accelerates normally and settles at the raised 60-pixel cap',()=>{
+  const g=flatGame();tick(g);near(g.speedPerFrame,14.01,'initial acceleration');
+  g.speedPerFrame=59.995;tick(g);assert.equal(g.speedPerFrame,MAX_SPEED_PER_FRAME);
+  for(let i=0;i<100;i++)tick(g);
+  assert.equal(MAX_SPEED_PER_FRAME,60);assert.equal(g.speedPerFrame,60);assert.equal(g.speed,2040);assert.equal(g.state,'playing');
+});
+
 test('actual original runtime: 169 input frames match position, camera, energy, score and movement state',()=>{
   const g=new Game({random:random(42)});g.start();
   // Legacy environment adapter: the original fixture begins without obstacles;
@@ -97,7 +104,7 @@ test('the tutorial cone begins at 100 points and the next shatter adds 200',()=>
 });
 
 test('post-tutorial recycled platforms use the two-thirds threshold at every speed',()=>{
-  for(const speed of [14,20,35,50])for(const roll of [0,2/3-Number.EPSILON,2/3,.99]){
+  for(const speed of [14,20,35,50,60])for(const roll of [0,2/3-Number.EPSILON,2/3,.99]){
     const g=new Game({random:()=>.99});g.start();g.platformSerial=3;let calls=0;
     g.random=()=>{calls++;return calls===5?roll:.5;};
     g.platforms[0].nativeCenterX=-1495;g.moveWorld(speed);

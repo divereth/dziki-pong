@@ -2,7 +2,6 @@ import {surfaceY as nativeSurfaceY,terrainTemplate} from './terrain.js';
 import {WIDTH as W,HEIGHT as H} from './engine.js';
 import {cameraView} from './camera.js';
 import {createTerrainMaterials,paintForestTerrain} from './terrain-material.js';
-import {UniboarRig} from './uniboar.js';
 import {WoodlandEffects} from './woodland.js';
 // Measured once from the shipped artwork; avoid synchronous pixel readbacks at startup.
 const ARTWORK_METRICS={"boar-run-brown.png":{"width":1774,"height":887,"frames":[{"x":15,"y":163,"width":423,"height":246,"centerY":117.93124019549333},{"x":11,"y":150,"width":429,"height":214,"centerY":106.69457250936232},{"x":11,"y":168,"width":429,"height":237,"centerY":110.62624556416976},{"x":12,"y":159,"width":425,"height":233,"centerY":106.37963793732811},{"x":15,"y":122,"width":420,"height":225,"centerY":112.42377843854115},{"x":2,"y":119,"width":439,"height":236,"centerY":113.31105150376828},{"x":23,"y":111,"width":416,"height":227,"centerY":112.26855766646786},{"x":11,"y":126,"width":428,"height":235,"centerY":112.40056340701265}]},"pine-cone-round.webp":{"width":1254,"height":1254,"frames":[{"x":125,"y":98,"width":1004,"height":1061,"centerY":573.416090351029}]},"boar-head-wrecked.webp":{"width":1536,"height":1024,"frames":[{"x":153,"y":65,"width":1229,"height":896,"centerY":461.71548261684836}]}};
@@ -60,7 +59,7 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.assetTasks=[];this.rig=null;this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('uniboar-rig.webp',image=>{this.rig=new UniboarRig(image);this.drawWishIcons();});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
+    this.assetTasks=[];this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
   terrainDensity(){return Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W*2)));}
@@ -165,7 +164,6 @@ export class Renderer{
     const gravity=clamp(p.gravity||0,0,40);return gravity<16?-Math.sin(gravity/16*Math.PI)*.56:clamp((gravity-16)/20,0,1)*.19;
   }
   hero(p){
-    if(this.rig){if(p.animState==='charge')this.rig.drawCharged(this.ctx,p,this.effectTime||0);else this.rig.draw(this.ctx,p,this.effectTime||0);return;}
     if(this.spriteFrames.length!==8){drawBoar(this.ctx,0,0,1,p.anim||0,p.dash>0,!p.grounded);return;}
     const charging=p.animState?p.animState==='charge':p.dash>0,running=p.animState?p.animState==='run':p.grounded;
     const index=charging?5:!running?Math.floor(clamp((p.gravity||0)*8.75/301,0,.999)*8):Math.floor(mod(p.anim||0,TAU)/TAU*8),f=this.spriteFrames[index],scale=84/f.width;
@@ -180,8 +178,9 @@ export class Renderer{
   }
   drawWishIcons(){
     const draw=canvas=>{
-      if(this.rig){this.rig.drawIcon(canvas);return;}
-      const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);drawBoar(c,0,0,1,.35);c.restore();
+      const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);
+      const previous=this.ctx;
+      try{this.ctx=c;this.hero({animState:'run',grounded:true,anim:.35});}finally{this.ctx=previous;c.restore();}
     };
     for(const canvas of document.querySelectorAll('.life canvas'))draw(canvas);
     for(const id of ['title-uniboar','wish-uniboar']){const canvas=document.getElementById(id);if(canvas)draw(canvas);}

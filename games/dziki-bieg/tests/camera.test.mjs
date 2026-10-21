@@ -5,12 +5,12 @@ import {Game,WIDTH,HEIGHT} from '../dist/engine.js';
 import {HoofCadence} from '../dist/gait.js';
 import {AudioSystem} from '../dist/audio.js';
 
-test('camera reveals 50%, then 75%, then 125% of the world with continuous monotonic easing',()=>{
- assert.equal(cameraExtent(0,14),.5);assert.equal(cameraExtent(4,15.36),.75);assert.equal(cameraExtent(50,31),1.25);
- assert.equal(cameraExtent(120,50),1.25);
- let previous=.5;
+test('camera reveals 75%, then 90%, then 125% of the world with continuous monotonic easing',()=>{
+ assert.equal(cameraExtent(0,14),.75);assert.equal(cameraExtent(4,15.36),.9);assert.equal(cameraExtent(50,31),1.25);
+ assert.equal(cameraExtent(120,60),1.25);
+ let previous=.75;
  for(let frame=0;frame<=60*70;frame++){
-  const seconds=frame/60,current=cameraExtent(seconds,Math.min(50,14+seconds*.34));
+  const seconds=frame/60,current=cameraExtent(seconds,Math.min(60,14+seconds*.34));
   assert.ok(current>=previous-1e-10);assert.ok(current-previous<.003);previous=current;
  }
 });
@@ -18,7 +18,7 @@ test('opening camera keeps the entire boar in view and sampling never changes si
  const game=new Game({random:()=>.5});game.start();const before=JSON.stringify(game);
  const view=cameraView(game),foot=(game.player.y-game.cameraY-view.top)/view.extent;
  assert.ok(foot>150&&foot<HEIGHT-50);assert.ok(foot-72/view.extent>0);
- assert.equal(view.width,WIDTH*.5);assert.equal(view.height,HEIGHT*.5);
+ assert.equal(view.width,WIDTH*.75);assert.equal(view.height,HEIGHT*.75);
  assert.equal(JSON.stringify(game),before);
  game.ticks=1700;game.speedPerFrame=31;assert.equal(cameraView(game).extent,1.25);
 });

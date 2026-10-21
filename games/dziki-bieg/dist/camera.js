@@ -2,10 +2,10 @@ import {WIDTH,HEIGHT} from './engine.js';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 export function cameraExtent(seconds=0,speed=14){
- if(seconds<4)return .5+.25*smooth(seconds/4);
+ if(seconds<4)return .75+.15*smooth(seconds/4);
  // The native speed reaches 31 px/frame after 50 seconds. Using speed here
  // keeps the reveal tied to acceleration while simulation is paused or resumed.
- return .75+.5*smooth((speed-15.36)/(31-15.36));
+ return .90+.35*smooth((speed-15.36)/(31-15.36));
 }
 export function cameraView(game){
  const seconds=Math.max(0,(game.ticks??0)/34),extent=cameraExtent(seconds,game.speedPerFrame??14);

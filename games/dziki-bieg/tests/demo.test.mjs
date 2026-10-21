@@ -16,7 +16,7 @@ test('forecasting uses unchanged physical rules and does not touch the live worl
  }
 });
 
-test('recorded AI inputs replay to 105,948 points in one wish without changing terrain, resources or scoring',()=>{
+test('recorded AI inputs replay to 120,002 points in one wish without changing terrain, resources or scoring',()=>{
  const reference=JSON.parse(fs.readFileSync(new URL('./demo-reference.json',import.meta.url))),game=new Game({random:demoRandom(reference.seed)});game.start();
  for(const [action,length]of reference.runs)for(let frame=0;frame<length;frame++){
   assert.equal(game.state,'playing');applyDemoAction(game,action);game.update(1/34);

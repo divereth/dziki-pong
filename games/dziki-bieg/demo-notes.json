@@ -9,35 +9,34 @@
   "review_fixes": [
     "Opening terrain density accounts for the close-up on high-density phones, with the existing resolution and memory caps.",
     "All deer poses are uploaded during artwork warmup.",
-    "Short leg atlas parts connect through bronze hip linkages, including raised-hoof poses.",
     "Demo touch controls and tutorial hints are suppressed; menu controls remain separate from scores and settings.",
     "Worker startup failure returns to a playable human menu. Stale results are discarded by session and physics tick.",
-    "The charging character is composited before applying glow/filter once, avoiding per-part filtered GPU surfaces."
+    "The original eight-frame brown Uniboar sprite and animation are restored in gameplay, the menus and wish icons."
   ],
-  "regression_reference": "tests/demo-reference.json replays 4,862 legal AI control steps to 105,948 points in one wish using the ordinary engine and generator.",
+  "regression_reference": "tests/demo-reference.json replays 4,532 legal AI control steps to 120,002 points in one wish with the raised 60-pixel speed cap, using the ordinary engine and generator.",
   "validation": {
     "live_browser": {
-      "score": 100014,
+      "score": 100012,
       "wish": 1,
-      "physics_steps": 3959,
-      "run_seconds": 116.44117647058823,
+      "physics_steps": 3960,
+      "run_seconds": 116.47058823529412,
       "state": "still playing",
       "planner_late_results": 0,
       "prediction_mismatches": 0,
       "human_best_unchanged": true,
       "score_posts": 0,
-      "render_p99_ms": 1.1,
-      "render_max_ms": 2.2,
-      "display_interval_max_ms": 28.2,
+      "render_p99_ms": 1.199999988079071,
+      "render_max_ms": 2.699999988079071,
+      "display_interval_max_ms": 30.400000005960464,
       "display_intervals_over_50ms": 0,
       "long_main_thread_tasks": 0,
       "environment": "Chrome on Windows, RTX 3070, 1280x800 viewport at DPR 2"
     },
     "accelerated_browser": {
       "seed": 4,
-      "score": 120064,
+      "score": 120002,
       "wish": 1,
-      "physics_steps": 4126,
+      "physics_steps": 4532,
       "state": "still playing"
     },
     "original_physics_reference_frames": 262,
