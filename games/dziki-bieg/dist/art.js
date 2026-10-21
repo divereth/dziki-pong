@@ -247,7 +247,7 @@ export class Renderer{
   forestBackground(distance,cameraY=0){
     const image=this.forestImage,c=this.ctx;
     // The distant light source stays fixed: it is never tiled or mirrored.
-    if(this.forestReady){const scale=1+.12*clamp((1.25-(this.view?.extent||1))/.75,0,1);c.drawImage(image,-W*(scale-1)*.5,-H*(scale-1)*.45,W*scale,H*scale);}
+    if(this.forestReady)c.drawImage(image,0,0,W,H);
     this.drawForestTrees(distance,cameraY,0);
     const mist=c.createLinearGradient(0,130,0,H);mist.addColorStop(0,'#d9e4bd00');mist.addColorStop(1,'#d5e0b74a');c.fillStyle=mist;c.fillRect(0,130,W,H-130);
     this.drawForestTrees(distance,cameraY,1);this.drawForestTrees(distance,cameraY,2);

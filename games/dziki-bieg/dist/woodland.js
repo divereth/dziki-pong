@@ -41,7 +41,7 @@ export class WoodlandEffects{
     if(mote.y< -24)mote.y=H+12;if(mote.y>H+24)mote.y=-12;
    }
   }
-  if(g.state==='playing'&&!g.reducedMotion&&view.extent>=1.249&&run>=this.nextDeer&&this.frames.length===4){
+  if(g.state==='playing'&&!g.reducedMotion&&g.speedPerFrame>=31&&run>=this.nextDeer&&this.frames.length===4){
    this.deer.push({born:run,duration:2.45,size:140+this.random()*24,start:W*.22,travel:W*.88});
    this.deer.push({born:run+.48,duration:2.25,size:116+this.random()*22,start:W*.13,travel:W*.88});
    this.nextDeer=run+10+this.random()*6;
@@ -57,7 +57,7 @@ export class WoodlandEffects{
   }
  }
  drawDeer(c,g,view){
-  if(view.extent<1.249||g.reducedMotion)return;
+  if(g.reducedMotion)return;
   const run=(g.ticks||0)/34;
   for(const deer of this.deer){
    const f=(run-deer.born)/deer.duration;if(f<0||f>1)continue;
