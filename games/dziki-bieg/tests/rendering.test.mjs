@@ -1,6 +1,12 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {Renderer} from '../dist/art.js';
 function renderer(){return Object.assign(Object.create(Renderer.prototype),{terrainJobs:new Map(),terrainQueue:[],terrainPlatforms:new Set(['current']),terrainCache:new Map(),terrainCacheBytes:0});}
+test('terrain resolution covers the opening zoom on high-density phones without exceeding its cap',()=>{
+ const r=renderer();r.canvas={width:780};assert.equal(r.terrainDensity(),2);
+ r.canvas.width=390;assert.equal(r.terrainDensity(),1);
+ r.canvas.width=1920;assert.equal(r.terrainDensity(),2);
+ r.view={scale:.8};assert.equal(r.terrainDensity(),2,'zooming out must not invalidate a warmed tile set');
+});
 test('terrain cache releases evicted bitmaps and stays within its memory budget',()=>{
  const r=renderer();let closed=0;
  for(let i=0;i<40;i++)r.cacheTerrain('tile'+i,{bytes:1024*1024,canvas:{close(){closed++;}}});

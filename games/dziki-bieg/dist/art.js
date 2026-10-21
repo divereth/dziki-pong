@@ -63,6 +63,7 @@ export class Renderer{
     this.assetTasks=[];this.rig=null;this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('uniboar-rig.webp',image=>{this.rig=new UniboarRig(image);this.drawWishIcons();});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
+  terrainDensity(){return Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W*2)));}
   loadAsset(src,prepare){
     const image=new Image();
     this.assetTasks.push(new Promise(resolve=>{
@@ -79,7 +80,7 @@ export class Renderer{
     try{
       this.ctx=c;c.setTransform(2,0,0,2,128,128);
       for(const f of this.spriteFrames)c.drawImage(f.image,-43,-40,84,60);
-      for(const image of [...this.treeImages,...this.fairyFrames,...this.leafSprites,...(this.coneFragments||[]).map(part=>part.image),this.pineConeSprite,this.forestImage])if(image?.width)c.drawImage(image,-60,-60,120,120);
+      for(const image of [...this.treeImages,...this.fairyFrames,...this.leafSprites,...this.woodland.frames.map(frame=>frame.image),...this.woodland.sprites,...(this.coneFragments||[]).map(part=>part.image),this.pineConeSprite,this.forestImage])if(image?.width)c.drawImage(image,-60,-60,120,120);
       c.filter='brightness(1.12) saturate(1.08)';c.shadowColor='#c9df75';c.shadowBlur=5;
       this.hero({animState:'charge',grounded:false,gravity:0});
       c.filter='none';c.shadowBlur=0;this.fireball(0,0,31,5,1);
@@ -284,7 +285,7 @@ export class Renderer{
     const c=this.ctx,x=p.x-distance,y=p.y-cameraY,w=p.width,async=!!this.terrainWorker,lookahead=async?384:20;
     const left=this.view?.left??0,top=this.view?.top??0,viewRight=this.view?.right??W,viewBottom=this.view?.bottom??H;
     if(x>viewRight+lookahead||x+w<left-20)return;
-    const profile=this.nativeProfile(p,!async),template=profile.template,size=256,pad=2,density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W))),baseX=-2,baseY=Math.floor(template.minY)-2,right=Math.ceil(w)+2,bottom=Math.ceil(template.maxY)+2;
+    const profile=this.nativeProfile(p,!async),template=profile.template,size=256,pad=2,density=this.terrainDensity(),baseX=-2,baseY=Math.floor(template.minY)-2,right=Math.ceil(w)+2,bottom=Math.ceil(template.maxY)+2;
     if(!profile.tileCoverage)profile.tileCoverage=new Map();
     const x0=Math.max(0,Math.floor((left-x-baseX-2)/size)),x1=Math.min(Math.ceil((right-baseX)/size)-1,Math.floor((viewRight+lookahead-x-baseX+2)/size));
     const y0=Math.max(0,Math.floor((top-y-baseY-2-(async?96:0))/size)),y1=Math.min(Math.ceil((bottom-baseY)/size)-1,Math.floor((viewBottom-y-baseY+2+(async?96:0))/size));
@@ -618,7 +619,7 @@ export class Renderer{
   render(g,time=0){
     const c=this.ctx,t=Number.isFinite(time)?time:0;g=g||{};const reduced=!!g.reducedMotion,decorTime=reduced?0:t,distance=g.distance||0,cameraY=g.cameraY||0;
     this.view=cameraView(g);
-    const density=Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W)));
+    const density=this.terrainDensity();
     this.terrainPlatforms=new Set((g.platforms||[]).map(p=>this.terrainPrefix(p,density)));
     c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.clearRect(0,0,W,H);this.updateEffects(g,t);
     this.woodland.update(g,t,this.view,this.ambientParticles);
