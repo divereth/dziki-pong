@@ -67,7 +67,7 @@ export function checkGame(game) {
   }
   const tests = {
     'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js'],
-    'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs', 'tests/rendering.test.mjs', 'tests/camera.test.mjs', 'tests/leaderboard.test.mjs', 'backend/worker.test.mjs'],
+    'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs', 'tests/rendering.test.mjs', 'tests/camera.test.mjs', 'tests/demo.test.mjs', 'tests/leaderboard.test.mjs', 'backend/worker.test.mjs'],
     'dziki-karabin': ['tests/core.test.mjs', 'tests/runtime.test.mjs', 'tests/touch.test.mjs'],
   }[game.id];
   if (tests) execFileSync(process.execPath, ['--test', ...tests], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });

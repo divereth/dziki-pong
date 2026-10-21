@@ -30,6 +30,10 @@ export class UniboarRig{
    const swing=running?Math.sin(a)*.52:charging?-.45:-.45+fall*.6+Math.sin(time*6+offset)*.08;
    const lift=running?Math.max(0,Math.sin(a))*3.4:4.5-fall*1.3;
    c.save();c.translate(x,-13);c.rotate(swing);c.globalAlpha=back?.62:1;
+   // The short lower legs connect inside the curved belly, including when a
+   // raised hoof swings away from its hip. Keep the linkage under the atlas.
+   c.beginPath();c.moveTo(0,-10);c.lineTo(1,4);c.strokeStyle='#50331f';c.lineWidth=4.8;c.stroke();
+   c.strokeStyle=back?'#a2703b':'#c79249';c.lineWidth=2.6;c.stroke();
    const image=rear?this.parts.rear:this.parts.front,height=(13-bob-Math.sin(swing)*7)/Math.cos(swing)+1-lift;
    c.drawImage(image,-6,-1,15,height);c.restore();
   };
@@ -48,5 +52,12 @@ export class UniboarRig{
  }
  drawIcon(canvas){
   const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);this.draw(c,{animState:'run',grounded:true,anim:.35},.6);c.restore();
+ }
+ drawCharged(c,p,time){
+  if(!this.chargeCanvas){this.chargeCanvas=document.createElement('canvas');this.chargeCanvas.width=448;this.chargeCanvas.height=352;}
+  const frame=this.chargeCanvas,paint=frame.getContext('2d');paint.setTransform(1,0,0,1,0,0);paint.clearRect(0,0,448,352);paint.setTransform(4,0,0,4,224,288);this.draw(paint,p,time);
+  // Apply the dash filter/glow once to the completed character, rather than
+  // allocating filtered GPU surfaces for every leg and rainbow strand.
+  c.drawImage(frame,-56,-72,112,88);
  }
 }

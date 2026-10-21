@@ -165,7 +165,7 @@ export class Renderer{
     const gravity=clamp(p.gravity||0,0,40);return gravity<16?-Math.sin(gravity/16*Math.PI)*.56:clamp((gravity-16)/20,0,1)*.19;
   }
   hero(p){
-    if(this.rig){this.rig.draw(this.ctx,p,this.effectTime||0);return;}
+    if(this.rig){if(p.animState==='charge')this.rig.drawCharged(this.ctx,p,this.effectTime||0);else this.rig.draw(this.ctx,p,this.effectTime||0);return;}
     if(this.spriteFrames.length!==8){drawBoar(this.ctx,0,0,1,p.anim||0,p.dash>0,!p.grounded);return;}
     const charging=p.animState?p.animState==='charge':p.dash>0,running=p.animState?p.animState==='run':p.grounded;
     const index=charging?5:!running?Math.floor(clamp((p.gravity||0)*8.75/301,0,.999)*8):Math.floor(mod(p.anim||0,TAU)/TAU*8),f=this.spriteFrames[index],scale=84/f.width;
