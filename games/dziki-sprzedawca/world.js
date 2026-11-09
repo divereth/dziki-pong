@@ -7,6 +7,12 @@ function disposeGroup(group){group.removeFromParent();group.traverse(o=>{if(o.is
 function textureCanvas(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.anisotropy=4;return map}
 const canopyMaterials=new Map();
 function canopyMaterial(color,map){if(!canopyMaterials.has(color))canopyMaterials.set(color,new T.MeshStandardMaterial({color,map,side:T.DoubleSide,roughness:1}));return canopyMaterials.get(color)}
+function scallopedHem(width){
+  const half=width/2,scallop=width/2,shape=new T.Shape();
+  shape.moveTo(-half,.13);shape.lineTo(half,.13);shape.lineTo(half,0);
+  for(let i=0;i<2;i++){const right=half-i*scallop,left=right-scallop;shape.bezierCurveTo(right-scallop*.18,-.09,right-scallop*.82,-.09,left,0)}
+  shape.lineTo(-half,.13);shape.closePath();return new T.ExtrudeGeometry(shape,{depth:.035,bevelEnabled:false});
+}
 // Bake static geometry into material batches to keep the larger market smooth.
 function batchMeshes(root,excluded=new Set()){
   root.updateWorldMatrix(true,true);const inverse=root.matrixWorld.clone().invert(),batches=new Map();
@@ -47,7 +53,13 @@ export class MarketWorld{
     for(const xx of [-2.02,2.02])for(const zz of [-1.04,1.04]){cylinder(g,xx,1.47,zz,.048,.06,2.94,palette.wood,10);box(g,xx,.1,zz,.2,.2,.2,palette.darkWood)}
     box(g,0,.99,.25,4.18,.14,1.5,'#a58059');box(g,0,1.07,.32,4.24,.035,1.56,'#d5c39e');
     const skirt=box(g,0,.64,1.08,4.2,.79,.035,color);skirt.material=material(color).clone();skirt.material.map=this.clothMap;box(g,0,.92,1.11,4.2,.055,.02,'#f0dcb2');
-    for(let j=0;j<10;j++){const x1=-2.35+j*.47,x2=x1+.47;for(const side of [-1,1]){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute([x1,3.29,0,x2,3.29,0,x1,2.93,side*1.48,x2,3.29,0,x2,2.93,side*1.48,x1,2.93,side*1.48],3));geo.setAttribute('uv',new T.Float32BufferAttribute([0,0,1,0,0,1,1,0,1,1,0,1],2));geo.computeVertexNormals();mesh(geo,canopyMaterial(j%2?'#f3dfb5':color,this.clothMap),g);box(g,(x1+x2)/2,2.82,side*1.48,.465,.21,.03,j%2?'#f3dfb5':color)}}
+    for(let j=0;j<10;j++){
+      const x1=-2.35+j*.47,x2=x1+.47,trimColor=j%2?'#f3dfb5':color;
+      for(const side of [-1,1]){
+        const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute([x1,3.29,0,x2,3.29,0,x1,2.93,side*1.48,x2,3.29,0,x2,2.93,side*1.48,x1,2.93,side*1.48],3));geo.setAttribute('uv',new T.Float32BufferAttribute([0,0,1,0,0,1,1,0,1,1,0,1],2));geo.computeVertexNormals();mesh(geo,canopyMaterial(trimColor,this.clothMap),g);
+        const trim=mesh(scallopedHem(x2-x1),trimColor,g,(x1+x2)/2,2.82,side*1.48);if(side<0)trim.rotation.y=Math.PI;
+      }
+    }
     const sign=label(STAND_NAMES[i],2.9,.4,'#f6e7c7','#3c4d3d',54);sign.position.set(0,2.48,1.13);g.add(sign);for(const xx of [-1.2,1.2])lineBetween(g,[xx,2.67,1.12],[xx,2.96,1.12],palette.darkWood,.009);
     const num=label(String(i+1).padStart(2,'0'),.29,.19,color,'#fff6df',90);num.position.set(-1.8,.65,1.12);g.add(num);
     for(const xx of [-1.7,1.65]){box(g,xx,.25,-.15,.53,.5,.62,'#946b46');for(let k=0;k<3;k++)box(g,xx,.09+k*.16,.17,.48,.025,.015,'#b18a5e')}
