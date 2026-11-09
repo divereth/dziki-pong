@@ -59,7 +59,7 @@ function onCustomerSale(result){
   updateUI();save();testWin();
 }
 function testWin(){if(checkWin(state)){save();pause();for(const d of document.querySelectorAll('dialog[open]'))d.close();$('win-detail').textContent=`Masz ${money(state.cash)} zł. Dzień ${state.day}, ${state.playerSales} sprzedaży. Twój dziki interes może rosnąć dalej.`;$('win-dialog').showModal()}}
-function advanceDay(){const result=nextDay(state);activeSeconds=0;targetId=null;world.setOffers(state.offers,CATALOG);syncStock();updateUI();save();toast(result.recovery?'Pomogłeś rozstawić stragany. Masz 25 zł na powrót do handlu.':`Dzień ${state.day}. Nowe oferty i notowania. Twoje ceny pozostają aktywne.`)}
+function advanceDay(){const result=nextDay(state);market?.resetBudgets();activeSeconds=0;targetId=null;world.setOffers(state.offers,CATALOG);syncStock();updateUI();save();toast(result.recovery?'Pomogłeś rozstawić stragany. Masz 25 zł na powrót do handlu.':`Dzień ${state.day}. Nowe oferty i notowania. Twoje ceny pozostają aktywne.`)}
 function interaction(){
   const candidate=world.pickCustomer(),c=market.customers.find(c=>c.id===candidate),talk=c?.stage==='waiting';targetCustomer=talk?candidate:null;targetId=world.target();
   const kiosk=world.nearKiosk();$('crosshair').classList.toggle('target',targetId!==null||talk||kiosk);$('interaction').hidden=!(targetId!==null||talk||kiosk);$('aim-hint').hidden=!$('interaction').hidden;
