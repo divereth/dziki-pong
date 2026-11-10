@@ -110,6 +110,7 @@ button:focus-visible,label:focus-visible{outline-color:#d8e8a4}
 .settings-card button{min-height:28px;padding:.55em .9em;border:1px solid #b9d193;border-radius:6px;background:#4d733d;color:#f1f8df;font:inherit;touch-action:manipulation}
 #settings-done{display:block;width:100%;margin-top:1.3cqw}
 #install{display:block;margin:1cqw auto}
+#update-game{display:block;margin:1cqw auto}
 
 /* Two invisible touch zones replace the small Z/X buttons during mobile play. */
 .touch-controls{display:none!important;position:absolute;inset:0;z-index:20;pointer-events:none}
@@ -159,6 +160,7 @@ canvas.wish-spirit{left:32%;top:24%;width:36%;height:auto;aspect-ratio:16/10;bac
  .settings-card .settings-toggle{margin:4px 0;padding:4px 0}
  .settings-notice:empty{display:none}
  .settings-card #install{grid-column:1;margin-bottom:0}
+ .settings-card #update-game{grid-column:1/-1}
  .settings-card:has(#install:not([hidden])) #settings-done{grid-column:2}
 }
 #title-actions{position:absolute;left:0;right:0;bottom:5%;display:flex;align-items:center;justify-content:center;gap:2.5cqw}

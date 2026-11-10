@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {cameraExtent,cameraView} from '../dist/camera.js';
 import {Game,WIDTH,HEIGHT} from '../dist/engine.js';
+import {surfaceY} from '../dist/terrain.js';
 import {HoofCadence} from '../dist/gait.js';
 import {AudioSystem} from '../dist/audio.js';
 
@@ -14,6 +15,20 @@ test('the original camera framing stays fixed across run time, speed and player 
   assert.equal(cameraExtent(seconds,speed),1);assert.deepEqual(cameraView(game),original);
   assert.equal(JSON.stringify(game),before,'render framing must not change terrain tracking or physics');
  }
+});
+
+test('at 140 points the original framing keeps the boar high and the second platform visible',()=>{
+ const game=new Game({random:()=>.5});game.start();
+ for(let tick=0;tick<65;tick++)game.update(1/34);
+ assert.equal(game.score,140);
+ const view=cameraView(game),footY=(game.player.y-game.cameraY-view.top)*view.scale;
+ assert.ok(footY>220&&footY<235,'grounded feet belong around 47% of screen height, not 68%');
+ const next=game.platforms[1];let landingVisible=false;
+ for(let x=Math.max(next.x,game.distance+view.left);x<Math.min(next.x+next.width,game.distance+view.right);x+=2){
+  const floor=surfaceY(next,x);
+  if(floor!==null){const y=(floor-game.cameraY-view.top)*view.scale;if(y>=0&&y<HEIGHT)landingVisible=true;}
+ }
+ assert.equal(landingVisible,true,'the upcoming landing must appear at the bottom right in this opening scene');
 });
 
 test('gait contacts follow half-cycle landings and never occur airborne, charging or paused',()=>{

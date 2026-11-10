@@ -19,13 +19,37 @@
   window.addEventListener('appinstalled', () => { prompt = null; if (button) button.hidden = true; });
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
   window.addEventListener('load', async () => {
-    const hadController = Boolean(navigator.serviceWorker.controller);
+    let controller = navigator.serviceWorker.controller, updatePending = false, reloading = false;
+    const updateButton = document.createElement('button');
+    updateButton.id = 'update-game'; updateButton.type = 'button'; updateButton.hidden = true;
+    updateButton.textContent = 'Update game';
+    button?.insertAdjacentElement('afterend', updateButton);
+    updateButton.addEventListener('click', () => location.reload());
+    const reloadAtTitle = () => {
+      if (!updatePending || reloading || document.getElementById('title-screen')?.hidden !== false) return;
+      reloading = true; location.reload();
+    };
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // Update an open title screen, while leaving an active run uninterrupted.
-      if (hadController && !document.getElementById('title-screen')?.hidden) location.reload();
-    }, {once: true});
+      // A running page keeps its already-imported modules even after its worker
+      // updates. Remember that update until a safe reload, rather than losing it.
+      if (controller) {
+        updatePending = true; updateButton.hidden = false;
+        if (notice) notice.textContent = 'Update ready. Use Update game to reload, or finish your run first.';
+        reloadAtTitle();
+      }
+      controller = navigator.serviceWorker.controller;
+    });
+    const title = document.getElementById('title-screen');
+    if (title) new MutationObserver(reloadAtTitle).observe(title, {attributes: true, attributeFilter: ['hidden']});
     try {
       const registration = await navigator.serviceWorker.register('./sw.js', {updateViaCache: 'none'});
+      let lastCheck = Date.now();
+      const checkForUpdate = () => {
+        if (document.visibilityState === 'hidden' || Date.now() - lastCheck < 60000) return;
+        lastCheck = Date.now(); registration.update().catch(() => {});
+      };
+      window.addEventListener('focus', checkForUpdate);
+      document.addEventListener('visibilitychange', checkForUpdate);
       const installing = registration.installing || registration.waiting;
       if (installing && installing.state !== 'activated') await new Promise((resolve, reject) => {
         installing.addEventListener('statechange', () => {
@@ -34,7 +58,7 @@
         });
       });
       await navigator.serviceWorker.ready;
-      if (notice && !notice.textContent) notice.textContent = 'Ready for offline play.';
+      if (notice && !notice.textContent && !updatePending) notice.textContent = 'Ready for offline play.';
     } catch {
       // The browser game remains playable if installation or storage is unavailable.
     }
