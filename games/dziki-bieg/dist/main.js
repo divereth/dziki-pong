@@ -24,7 +24,7 @@ const motion=matchMedia('(prefers-reduced-motion: reduce)');game.reducedMotion=m
 $('lives').innerHTML=[0,1,2].map(()=>'<span class="life"><canvas width="152" height="96" aria-hidden="true"></canvas></span>').join('');
 function changeMode(next){settings.close();mode=next;lastChange=performance.now();presentation.reset();refresh();if(next==='over'&&!demoRun)leaderboard.show(game.total);else leaderboard.close();if(demoRun&&['dead','over'].includes(next))demoAdvanceAt=performance.now()+2300;}
 function refresh(){
- touch.sync(mode==='playing'&&!demoRun);$('title-actions').hidden=mode!=='title';$('demo-controls').hidden=!demoRun;$('demo-controls').classList.toggle('demo-menu',['intro','dead','over'].includes(mode));
+ touch.sync(mode==='playing'&&!demoRun);$('title-actions').hidden=mode!=='title';$('demo-start').hidden=mode!=='title';$('demo-controls').hidden=!demoRun;$('demo-controls').classList.toggle('demo-menu',['intro','dead','over'].includes(mode));
  $('menu-actions').hidden=!['title','instructions','dead','over','paused'].includes(mode);$('pause').hidden=mode!=='playing';
  $('result').classList.toggle('has-leaderboard',mode==='over'&&!demoRun);
  $('title-screen').hidden=!['title','instructions'].includes(mode);$('play').hidden=mode!=='title';$('instructions').hidden=mode!=='instructions';$('intro').hidden=mode!=='intro';$('result').hidden=!['dead','over'].includes(mode);$('paused').hidden=mode!=='paused';$('hud').hidden=!['playing','dying','paused'].includes(mode);$('touch-controls').hidden=mode!=='playing'||demoRun;
