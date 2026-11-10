@@ -255,6 +255,23 @@ test('active and recovering dashes retain the full original outer pinecone shatt
     assert.equal(g.bonus,100,'outer shatter keeps its original score');
   }
 });
+test('active and recovering leaf dashes clear cones slightly below the hooves, within a bounded reach',()=>{
+  for(const recovery of [false,true]){
+    const attack=g=>{if(recovery)g.player.chargeEndTime=1;else g.player.animState='charge';};
+    for(const y of [-60,-66.04]){
+      const g=coneCollisionFixture(0,y);attack(g);g.collect();
+      assert.equal(g.stars[0].broken,true,'cone below the boar at '+y);assert.equal(g.bonus,100);
+      g.collect();assert.equal(g.bonus,100,'one cone awards its bonus once');
+    }
+    for(const [x,y]of [[0,-66.06],[-65,-60],[65,-60],[0,112]]){
+      const g=coneCollisionFixture(x,y);attack(g);g.collect();
+      assert.equal(g.stars[0].broken,false,'outside dash reach '+[x,y]);assert.equal(g.bonus,0);
+    }
+  }
+  const running=coneCollisionFixture(0,-60);running.collect();
+  assert.equal(running.state,'playing');assert.equal(running.stars[0].broken,false);
+});
+
 test('a last-moment X saves the next real simulation tick after visible overlap begins',()=>{
   const approach=()=>{
     const g=flatGame();g.starChain=0;g.stars=[{x:133.6,y:193,r:54,broken:false,missed:false}];

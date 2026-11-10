@@ -4,6 +4,7 @@ export const WIDTH=2560/3,HEIGHT=480,PHYSICS_HZ=34,FOOT_OFFSET=26.15,CONE_SPAWN_
 export const MAX_SPEED_PER_FRAME=60;
 const STEP=1/PHYSICS_HZ,TAU=Math.PI*2;
 const CONE_HURT_INSET_X=10,CONE_HURT_INSET_Y=8,CONE_HURT_EPSILON=1e-9;
+const CONE_DASH_REACH_DOWN=20;
 const FAIRY_PICKUP_PADDING=16,CONE_OFFSCREEN_MARGIN=128;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const twip=n=>Math.trunc(n*20)/20;
@@ -272,7 +273,7 @@ export class Game{
       const insetX=attacking?0:CONE_HURT_INSET_X,insetY=attacking?0:CONE_HURT_INSET_Y;
       const epsilon=attacking?0:CONE_HURT_EPSILON;
       if(wx-32.55<star.x+32.05-insetX-epsilon&&wx+26.55>star.x-38.05+insetX+epsilon
-        &&p.y-55.95<star.y+55.4-insetY-epsilon&&p.y-6.35>star.y-52.4+insetY+epsilon){
+        &&p.y-55.95<star.y+55.4-insetY-epsilon&&p.y-6.35+(attacking?CONE_DASH_REACH_DOWN:0)>star.y-52.4+insetY+epsilon){
         if(attacking){
           star.broken=true;this.starChain++;const points=this.starChain*100;this.bonus+=points;
           this.popup(star.x-this.distance,star.y,'+'+points);this.burst(star.x-this.distance,star.y,24,'#ad733f',1.5,'shard');
