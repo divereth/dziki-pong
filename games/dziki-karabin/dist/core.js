@@ -2,7 +2,13 @@ export const WEAPONS = [
   { id:'k24', name:'KARABINEK K-24', type:'LEKKI KARABIN', price:0, damage:24, mag:24, reserve:72, interval:.18, reload:1.65, spread:.009, range:65, auto:true },
   { id:'viper', name:'VIPER SMG', type:'PISTOLET MASZYNOWY', price:15, damage:20, mag:32, reserve:96, interval:.095, reload:1.35, spread:.016, range:48, auto:true },
   { id:'ak47', name:'AK-47 BLOCK', type:'KARABIN SZTURMOWY', price:25, damage:35, mag:30, reserve:90, interval:.17, reload:1.9, spread:.01, range:75, auto:true },
-  { id:'scout', name:'SCOUT DMR', type:'KARABIN WYBOROWY', price:35, damage:59, mag:10, reserve:30, interval:.5, reload:2.1, spread:.002, range:100, auto:false }
+  { id:'scout', name:'SCOUT DMR', type:'KARABIN WYBOROWY', price:35, damage:59, mag:10, reserve:30, interval:.5, reload:2.1, spread:.002, range:100, auto:false },
+  { id:'p226', name:'P226', type:'PISTOLET', price:18, damage:32, mag:15, reserve:60, interval:.24, reload:1.3, spread:.012, range:52, auto:false },
+  { id:'m1014', name:'M1014', type:'STRZELBA', price:32, damage:68, mag:6, reserve:30, interval:.72, reload:2.2, spread:.04, range:24, auto:false },
+  { id:'fal', name:'FAL 7.62', type:'KARABIN BOJOWY', price:43, damage:41, mag:20, reserve:60, interval:.23, reload:1.8, spread:.008, range:82, auto:false },
+  { id:'m4a1', name:'M4A1', type:'KARABIN SZTURMOWY', price:55, damage:27, mag:30, reserve:90, interval:.12, reload:1.65, spread:.011, range:72, auto:true },
+  { id:'rpk', name:'RPK', type:'LEKKI KARABIN MASZYNOWY', price:68, damage:25, mag:60, reserve:180, interval:.105, reload:2.6, spread:.018, range:68, auto:true },
+  { id:'awp', name:'AWP', type:'KARABIN SNAJPERSKI', price:85, damage:88, mag:5, reserve:20, interval:.8, reload:2.4, spread:.001, range:120, auto:false }
 ];
 export const KNIFE = {id:'knife',name:'NÓŻ TAKTYCZNY',damage:55,interval:.48,range:2.75};
 export const MAP = { width:80, depth:64 };
@@ -13,6 +19,7 @@ export const OBSTACLES = [
   {x:-17,z:15,w:11,d:6,h:4.4,kind:'building'}, {x:17,z:-15,w:11,d:6,h:4.4,kind:'building'},
   {x:-30,z:-22,w:6,d:4.5,h:4.8,kind:'building'}, {x:30,z:22,w:6,d:4.5,h:4.8,kind:'building'},
   {x:-30,z:22,w:6,d:4.5,h:4.8,kind:'building'}, {x:30,z:-22,w:6,d:4.5,h:4.8,kind:'building'},
+  {x:-34,z:12,w:4,d:3,h:2.8,kind:'kiosk'},
   {x:0,z:-15,w:8,d:4,h:3.5,kind:'wall'}, {x:0,z:15,w:8,d:4,h:3.5,kind:'wall'},
   {x:0,z:0,w:5,d:6,h:6.4,kind:'tower'},
   {x:-10,z:-3.8,w:3.5,d:2.5,h:2,kind:'cover'}, {x:10,z:3.8,w:3.5,d:2.5,h:2,kind:'cover'},
