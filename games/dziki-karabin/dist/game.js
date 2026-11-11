@@ -400,7 +400,9 @@ function hitActor(from,dir,max,team){
   return {target,distance:closest,headshot};
 }
 function tracer(from,to,team=0){
-  const geo=new THREE.BufferGeometry().setFromPoints([from.clone(),to.clone()]);const m=new THREE.Line(geo,new THREE.LineBasicMaterial({color:team===0?'#f2e8a0':'#ffc08a',transparent:true,opacity:.65}));scene.add(m);tracers.push({mesh:m,life:.065});
+  const delta=to.clone().sub(from),length=delta.length();if(length===0)return;
+  const geo=new THREE.CylinderGeometry(.045,.045,length,8);const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:team===0?'#f2e8a0':'#ffc08a',transparent:true,opacity:.65}));
+  m.position.copy(from).add(to).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());scene.add(m);tracers.push({mesh:m,life:.065});
 }
 function sparks(point,color='#d8c48f',count=5){
   for(let i=0;i<count;i++){const m=box(.055,.055,.055,point.x,point.y,point.z,color,scene,false);particles.push({mesh:m,velocity:new THREE.Vector3(rand(-2,2),rand(.4,2.8),rand(-2,2)),life:rand(.15,.35)});}
