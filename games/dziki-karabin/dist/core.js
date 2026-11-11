@@ -11,6 +11,8 @@ export const OBSTACLES = [
   {x:-MAP.width/2,z:0,w:1.2,d:MAP.depth,h:5,kind:'boundary'}, {x:MAP.width/2,z:0,w:1.2,d:MAP.depth,h:5,kind:'boundary'},
   {x:-18,z:-14,w:13,d:7,h:5.4,kind:'building'}, {x:18,z:14,w:13,d:7,h:5.4,kind:'building'},
   {x:-17,z:15,w:11,d:6,h:4.4,kind:'building'}, {x:17,z:-15,w:11,d:6,h:4.4,kind:'building'},
+  {x:-30,z:-22,w:6,d:4.5,h:4.8,kind:'building'}, {x:30,z:22,w:6,d:4.5,h:4.8,kind:'building'},
+  {x:-30,z:22,w:6,d:4.5,h:4.8,kind:'building'}, {x:30,z:-22,w:6,d:4.5,h:4.8,kind:'building'},
   {x:0,z:-15,w:8,d:4,h:3.5,kind:'wall'}, {x:0,z:15,w:8,d:4,h:3.5,kind:'wall'},
   {x:0,z:0,w:5,d:6,h:6.4,kind:'tower'},
   {x:-10,z:-3.8,w:3.5,d:2.5,h:2,kind:'cover'}, {x:10,z:3.8,w:3.5,d:2.5,h:2,kind:'cover'},
