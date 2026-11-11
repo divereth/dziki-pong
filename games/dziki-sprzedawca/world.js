@@ -45,6 +45,8 @@ export class MarketWorld{
   buildStand([x,z,rotation],i){
     const g=new T.Group();g.position.set(x,0,z);g.rotation.y=rotation;this.scene.add(g);this.stallGroups.push(g);const color=colors[i%colors.length];
     for(const xx of [-2.02,2.02])for(const zz of [-1.04,1.04]){cylinder(g,xx,1.47,zz,.048,.06,2.94,palette.wood,10);box(g,xx,.1,zz,.2,.2,.2,palette.darkWood)}
+    lineBetween(g,[-2.02,3.25,0],[2.02,3.25,0],palette.darkWood,.035);
+    for(const side of [-1,1]){lineBetween(g,[-2.02,2.92,side*1.04],[2.02,2.92,side*1.04],palette.darkWood,.035);lineBetween(g,[-2.02,2.88,side*1.48],[2.02,2.88,side*1.48],palette.wood,.035);for(const xx of [-2.02,0,2.02])lineBetween(g,[xx,3.25,0],[xx,2.88,side*1.48],palette.wood,.026)}
     box(g,0,.99,.25,4.18,.14,1.5,'#a58059');box(g,0,1.07,.32,4.24,.035,1.56,'#d5c39e');
     const skirt=box(g,0,.64,1.08,4.2,.79,.035,color);skirt.material=material(color).clone();skirt.material.map=this.clothMap;box(g,0,.92,1.11,4.2,.055,.02,'#f0dcb2');
     for(let j=0;j<10;j++){const x1=-2.35+j*.47,x2=x1+.47;for(const side of [-1,1]){const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute([x1,3.29,0,x2,3.29,0,x1,2.93,side*1.48,x2,3.29,0,x2,2.93,side*1.48,x1,2.93,side*1.48],3));geo.setAttribute('uv',new T.Float32BufferAttribute([0,0,1,0,0,1,1,0,1,1,0,1],2));geo.computeVertexNormals();mesh(geo,canopyMaterial(j%2?'#f3dfb5':color,this.clothMap),g);box(g,(x1+x2)/2,2.82,side*1.48,.465,.21,.03,j%2?'#f3dfb5':color)}}
