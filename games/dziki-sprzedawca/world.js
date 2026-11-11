@@ -76,7 +76,24 @@ export class MarketWorld{
     const sign=label('DZIKI TARG · STARE MIASTO',8.6,.75,'#345b49','#f2dfb6',63);sign.position.set(0,4.6,-72);this.scene.add(sign);for(const x of [-4.6,4.6]){cylinder(this.scene,x,2.4,-72,.12,.12,4.8,'#54644d');sphere(this.scene,x,4.9,-72,.18,'#bf9b5e')}
   }
   tree(x,z,size=1){const g=new T.Group();g.position.set(x,0,z);g.scale.setScalar(size);this.scene.add(g);box(g,0,.17,0,1.8,.34,1.8,'#8f9277');box(g,0,.35,0,1.65,.1,1.65,'#5a694a');cylinder(g,0,1.65,0,.12,.21,3.1,'#80613e',9);for(const [xx,yy,zz,r] of [[0,3.9,0,1.4],[-.8,3.3,.1,1.1],[.8,3.4,.2,1.1],[.1,4.5,-.3,1]]){const crown=mesh(new T.IcosahedronGeometry(r,2),['#60864f','#759b58','#517b47'][Math.floor(rand()*3)],g,xx,yy,zz);crown.scale.y=.85}this.obstacles.push({x0:x-.9*size,x1:x+.9*size,z0:z-.9*size,z1:z+.9*size})}
+  buildFountain(){
+    const g=new T.Group();g.position.set(-7.2,0,8.2);this.scene.add(g);
+    box(g,0,.045,0,4.4,.09,4.4,'#b7aa91');
+    cylinder(g,0,.18,0,1.42,1.58,.27,'#a89b80',32);
+    cylinder(g,0,.34,0,1.42,1.42,.09,'#d3c5a5',32);
+    cylinder(g,0,.4,0,1.26,1.26,.035,'#659397',32);
+    ring(g,0,.39,0,1.34,.1,'#d9cba9').rotation.x=Math.PI/2;
+    cylinder(g,0,.59,0,.43,.56,.35,'#b9aa8b',24);
+    cylinder(g,0,1.04,0,.21,.3,.58,'#c8b998',20);
+    cylinder(g,0,1.45,0,.57,.68,.19,'#b8a98a',28);
+    cylinder(g,0,1.51,0,.49,.49,.035,'#719fa0',28);
+    ring(g,0,1.47,0,.55,.08,'#ded0ae').rotation.x=Math.PI/2;
+    cylinder(g,0,1.72,0,.13,.2,.32,'#c8b998',16);
+    sphere(g,0,1.98,0,.18,'#b9965f',16);
+    this.obstacles.push({x0:-9.4,x1:-5,z0:6,z1:10.4});
+  }
   buildDecor(){
+    this.buildFountain();
     for(const x of [-11,11])for(const z of [7,-10,-28,-46,-64])this.tree(x,z,.85+rand()*.15);
     for(const z of [-3,-15,-27,-39,-51,-63])for(let i=0;i<19;i++){const xx=-8.2+i*.91,yy=4.45-Math.sin(i/18*Math.PI)*.7;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute([-.23,0,0,.23,0,0,0,-.43,0],3));geo.computeVertexNormals();const flag=mesh(geo,new T.MeshStandardMaterial({color:['#c97851','#e6c273','#5c9278','#7c94a2'][i%4],side:T.DoubleSide}),this.scene,xx,yy,z);this.flags.push({mesh:flag,phase:i*.6});if(i<18)lineBetween(this.scene,[xx,yy,z],[xx+.91,4.45-Math.sin((i+1)/18*Math.PI)*.7,z],'#746a50',.01)}
     const kiosk=new T.Group();kiosk.position.set(PLAYER_SHOP.x,0,PLAYER_SHOP.z);kiosk.rotation.y=-.55;this.scene.add(kiosk);this.playerKiosk=kiosk;
@@ -120,5 +137,5 @@ export class MarketWorld{
     }
   }
   render(time=0){this.flags.forEach(f=>f.mesh.rotation.y=Math.sin(time*1.5+f.phase)*.13);this.renderer.render(this.scene,this.camera)}
-  map(ctx,customers=[]){const scale=1.55,ox=72,oz=119;ctx.clearRect(0,0,144,144);ctx.fillStyle='#f0eadb';ctx.fillRect(0,0,144,144);ctx.fillStyle='#e0d8c3';ctx.fillRect(45,8,54,131);ctx.save();ctx.translate(ox,oz);ctx.scale(scale,scale);for(const [i,[x,z,r]] of STANDS.entries()){ctx.save();ctx.translate(x,z);ctx.rotate(-r);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(-2.2,-1.1,4.4,2.2);ctx.restore()}ctx.fillStyle='#bd9650';ctx.fillRect(PLAYER_SHOP.x-1.5,PLAYER_SHOP.z-1,3,2);ctx.fillStyle='#9d8e73';for(const c of customers){ctx.beginPath();ctx.arc(c.x,c.z,.55,0,Math.PI*2);ctx.fill()}ctx.translate(this.camera.position.x,this.camera.position.z);ctx.rotate(-this.yaw);ctx.beginPath();ctx.moveTo(0,-1.9);ctx.lineTo(-1.1,1.1);ctx.lineTo(0,.65);ctx.lineTo(1.1,1.1);ctx.closePath();ctx.fillStyle='#315b48';ctx.fill();ctx.restore();ctx.font='8px Consolas';ctx.fillStyle='#7a826b';ctx.fillText('N',69,10)}
+  map(ctx,customers=[]){const scale=1.55,ox=72,oz=119;ctx.clearRect(0,0,144,144);ctx.fillStyle='#f0eadb';ctx.fillRect(0,0,144,144);ctx.fillStyle='#e0d8c3';ctx.fillRect(45,8,54,131);ctx.save();ctx.translate(ox,oz);ctx.scale(scale,scale);for(const [i,[x,z,r]] of STANDS.entries()){ctx.save();ctx.translate(x,z);ctx.rotate(-r);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(-2.2,-1.1,4.4,2.2);ctx.restore()}ctx.fillStyle='#bd9650';ctx.fillRect(PLAYER_SHOP.x-1.5,PLAYER_SHOP.z-1,3,2);ctx.fillStyle='#659397';ctx.beginPath();ctx.arc(-7.2,8.2,1.05,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#d9cba9';ctx.lineWidth=.24;ctx.beginPath();ctx.arc(-7.2,8.2,1.25,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#9d8e73';for(const c of customers){ctx.beginPath();ctx.arc(c.x,c.z,.55,0,Math.PI*2);ctx.fill()}ctx.translate(this.camera.position.x,this.camera.position.z);ctx.rotate(-this.yaw);ctx.beginPath();ctx.moveTo(0,-1.9);ctx.lineTo(-1.1,1.1);ctx.lineTo(0,.65);ctx.lineTo(1.1,1.1);ctx.closePath();ctx.fillStyle='#315b48';ctx.fill();ctx.restore();ctx.font='8px Consolas';ctx.fillStyle='#7a826b';ctx.fillText('N',69,10)}
 }

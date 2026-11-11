@@ -121,7 +121,7 @@ function loop(time){
       if(state.elapsed-lastSave>=8){save();lastSave=state.elapsed}if(activeSeconds>=240&&!negotiation.open)advanceDay();
     }
     if(running&&time-lastUI>100){interaction();lastUI=time}
-    if(time-lastHUD>500){const minutes=9*60+Math.floor(Math.min(240,activeSeconds)/240*9*60);$('clock-label').textContent=`${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;$('area-name').textContent=world.nearKiosk()?'TWÓJ STRAGAN':world.camera.position.z<-40?'NOWY PASAŻ HANDLOWY':world.camera.position.z<-15?'ALEJA SMAKÓW I STYLU':'ALEJA OKAZJI';lastHUD=time}
+    if(time-lastHUD>500){const minutes=9*60+Math.floor(Math.min(240,activeSeconds)/240*9*60);$('clock-label').textContent=`${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;$('area-name').textContent=world.nearKiosk()?'TWÓJ STRAGAN':world.camera.position.z<-40?'NOWY PASAŻ HANDLOWY':world.camera.position.z<-15?'ALEJA SMAKÓW I STYLU':world.camera.position.z>0?'RYNEK Z FONTANNĄ':'ALEJA OKAZJI';lastHUD=time}
     world.render(simTime);world.map($('minimap').getContext('2d'),market?.customers||[]);
   }
   requestAnimationFrame(loop);
