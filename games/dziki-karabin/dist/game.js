@@ -21,7 +21,7 @@ try{
   renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
   $('world').appendChild(renderer.domElement);
 }catch(error){show('loading',false);show('unsupported');throw error;}
-const scene=new THREE.Scene();scene.background=new THREE.Color('#becfd0');scene.fog=new THREE.Fog('#becfd0',44,115);
+const scene=new THREE.Scene();scene.background=new THREE.Color('#becfd0');scene.fog=new THREE.Fog('#becfd0',65,145);
 const camera=new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.04,160);camera.rotation.order='YXZ';scene.add(camera);
 scene.add(new THREE.HemisphereLight('#e5f4f3','#777457',2.6));
 const sun=new THREE.DirectionalLight('#fff0d4',3.2);sun.position.set(-18,38,14);sun.castShadow=true;
@@ -34,10 +34,10 @@ function label(text,bg='#c5f576',fg='#25382b',w=256,h=128){const c=document.crea
 
 function makeMap(){
   box(180,.5,180,0,-.36,0,'#a6a18a',scene,false);
-  const floor=box(60,.15,48,0,-.08,0,'#b5b49a',scene,false);floor.receiveShadow=true;
+  const floor=box(MAP.width,.15,MAP.depth,0,-.08,0,'#b5b49a',scene,false);floor.receiveShadow=true;
   // Fine paving joints make movement and distances readable without texture downloads.
-  const grid=new THREE.GridHelper(60,40,'#989f89','#a6aa91');grid.position.y=.008;grid.scale.z=.8;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
-  box(56,.018,8,0,.013,0,'#c1bda4',scene,false);box(9,.019,42,0,.014,0,'#c0bda4',scene,false);
+  const grid=new THREE.GridHelper(MAP.width,40,'#989f89','#a6aa91');grid.position.y=.008;grid.scale.z=MAP.depth/MAP.width;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
+  box(MAP.width-4,.018,8,0,.013,0,'#c1bda4',scene,false);box(9,.019,MAP.depth-6,0,.014,0,'#c0bda4',scene,false);
   for(const o of OBSTACLES){
     const color=o.kind==='boundary'?'#a7a78a':o.kind==='building'?(o.x<0?'#c4b39a':'#acb9ac'):o.kind==='tower'?'#bbc1ac':o.kind==='crate'?'#8e8669':'#acb1a0';
     const base=box(o.w,o.h,o.d,o.x,o.h/2,o.z,color);raycastWalls.push(base);
@@ -70,19 +70,19 @@ function makeMap(){
     }
   }
   // Perimeter towers and palms frame the arena, leaving the playable lanes clear.
-  for(const x of [-29,29])for(const z of [-23,23]){box(3,7,3,x,3.5,z,'#b4b69c');box(3.5,.5,3.5,x,7.2,z,'#d1cdb0');box(2.6,.8,2.6,x,7.7,z,'#708f78');}
+  for(const x of [-MAP.width/2+1,MAP.width/2-1])for(const z of [-MAP.depth/2+1,MAP.depth/2-1]){box(3,7,3,x,3.5,z,'#b4b69c');box(3.5,.5,3.5,x,7.2,z,'#d1cdb0');box(2.6,.8,2.6,x,7.7,z,'#708f78');}
   const palm=(x,z,s=1)=>{
     const p=new THREE.Group();p.position.set(x,0,z);p.scale.setScalar(s);scene.add(p);
     box(.6,6.2,.6,0,3.1,0,'#9c9770',p);for(let i=0;i<5;i++)box(.68,.13,.68,0,1+i,0,'#777e57',p);
     box(1.5,1.3,1.5,0,6.2,0,'#799264',p);
     for(let a=0;a<6;a++){const leaf=box(4,.32,1.2,Math.cos(a*Math.PI/3)*1.8,6.4,Math.sin(a*Math.PI/3)*1.8,a%2?'#719361':'#8aab6d',p);leaf.rotation.y=-a*Math.PI/3;leaf.rotation.z=(a%2?.12:-.12);}
   };
-  [[-25,-19],[-25,20],[26,-20],[25,21],[-33,7],[34,-7]].forEach(([x,z])=>palm(x,z,rand(.9,1.1)));
+  [[-34,-26],[-34,27],[35,-27],[35,27],[-37,7],[37,-7]].forEach(([x,z])=>palm(x,z,rand(.9,1.1)));
   for(let i=0;i<15;i++){
     const x=-75+i*11,z=i%2?-55:55;
     box(rand(5,12),rand(7,17),rand(5,12),x,4,z,i%2?'#b3b9ac':'#a0b3a7',scene,false);
   }
-  for(const x of [-27,27]){
+  for(const x of [-37,37]){
     const team=x<0?'#71b9a9':'#d59c71';
     box(3.5,.025,9,x,.03,0,team,scene,false);
     for(let z=-3;z<=3;z+=1.5)box(.7,.03,.1,x,.05,z,'#e6e6c9',scene,false);
@@ -92,7 +92,7 @@ function makeMap(){
     box(1.1,1.25,1.1,x,.625,z,'#638a78');box(1.17,.1,1.17,x,1.2,z,'#496a5a');
   }
   for(let i=0;i<45;i++){
-    const x=rand(-28,28),z=rand(-22,22);if(blocked(x,z,1)||Math.abs(x)<4||Math.abs(z)<5)continue;
+    const x=rand(-38,38),z=rand(-30,30);if(blocked(x,z,1)||Math.abs(x)<4||Math.abs(z)<5)continue;
     box(rand(.1,.25),.08,rand(.12,.3),x,.04,z,'#a0a58b',scene,false);
   }
 }
@@ -147,14 +147,24 @@ function makeViewWeapon(){
   const bodyColor=weapon.id==='ak47'?'#737354':weapon.id==='scout'?'#6a8571':'#455b51';
   const compact=weapon.id==='viper';
   box(.17,.18,compact?.44:.62,0,0,-.16,bodyColor,gun,false);
+  const stockColor=weapon.id==='ak47'?'#98714a':'#465449';
+  box(.16,.14,compact?.2:.34,0,-.02,compact?.16:.27,stockColor,gun,false);
   box(.13,.12,.45,0,-.005,.23,'#607367',gun,false);
   box(.09,.08,weapon.id==='scout'?.65:.37,0,.012,-.62,'#33483e',gun,false);
   box(.1,.12,.09,0,.06,-.42,'#293e34',gun,false);
+  const magazine=box(.12,weapon.id==='viper'?.34:.25,.15,0,-.19,-.12,weapon.id==='ak47'?'#625b42':'#384d41',gun,false);magazine.rotation.x=-.16;
+  if(weapon.id==='ak47')for(let i=0;i<3;i++)box(.12,.11,.14,0,-.34-i*.08,-.1-i*.035,'#625b42',gun,false);
   box(.13,.28,.15,0,-.2,-.2,'#384d41',gun,false).rotation.x=-.2;
   box(.1,.25,.12,0,-.19,.15,'#30483b',gun,false).rotation.x=-.28;
-  box(.11,.075,.14,0,.12,.08,'#263b30',gun,false);box(.025,.1,.04,-.05,.18,.1,'#263b30',gun,false);box(.025,.1,.04,.05,.18,.1,'#263b30',gun,false);
+  box(.11,.075,.48,0,.12,-.2,'#263b30',gun,false);
+  box(.025,.1,.04,-.05,.18,.1,'#263b30',gun,false);box(.025,.1,.04,.05,.18,.1,'#263b30',gun,false);
   box(.028,.03,.025,0,.16,-.63,'#c5f576',gun,false);
-  if(weapon.id==='scout'){box(.1,.14,.37,0,.2,-.15,'#2c4336',gun,false);box(.07,.07,.025,0,.22,.045,'#8fc59b',gun,false);}
+  if(weapon.id==='scout'){
+    box(.12,.12,.39,0,.24,-.22,'#2c4336',gun,false);box(.15,.17,.06,0,.24,-.43,'#243c31',gun,false);box(.15,.17,.06,0,.24,-.01,'#243c31',gun,false);
+    box(.075,.075,.025,0,.24,-.43,'#8fc59b',gun,false);
+  }else{
+    box(.035,.13,.045,0,.19,-.4,'#293e34',gun,false);box(.07,.045,.05,0,.17,.08,'#293e34',gun,false);
+  }
   for(let i=0;i<5;i++)box(.18,.035,.025,0,.11,-.06-i*.065,'#314a3a',gun,false);
   // The block hands are intentionally visible in first person.
   box(.15,.18,.17,.015,-.15,.17,'#bd9972',gun,false);
@@ -227,7 +237,7 @@ function spawnRound(){
   $('touch-scores').setAttribute('aria-pressed','false');$('touch-interact').disabled=true;
   for(let i=0;i<actors.length;i++){
     const a=actors[i],index=i%5;
-    a.x=a.team===0?-27.5:27.5;a.z=(index-2)*3.6;
+    a.x=a.team===0?-37.5:37.5;a.z=(index-2)*3.6;
     a.health=100;a.alive=true;a.path=[];a.pathTimer=.3+index*.12;a.fireTimer=rand(.7,1.4);a.reload=0;a.ammo=24;a.reserve=72;a.targetId=-1;
     if(a.mesh){a.mesh.visible=true;a.mesh.scale.setScalar(1);a.mesh.position.set(a.x,0,a.z);a.mesh.rotation.set(0,a.team===0?Math.PI/2:-Math.PI/2,0);a.mesh.userData.body.rotation.set(0,0,0);}
   }
@@ -509,7 +519,7 @@ function updateBots(dt){
 
 const minimap=$('minimap'),mapCtx=minimap.getContext('2d');
 function drawMinimap(){
-  const ctx=mapCtx,w=180,h=150,s=2.65;ctx.clearRect(0,0,w,h);ctx.fillStyle='#152c25';ctx.fillRect(0,0,w,h);
+  const ctx=mapCtx,w=180,h=150,s=Math.min((w-8)/MAP.width,(h-8)/MAP.depth);ctx.clearRect(0,0,w,h);ctx.fillStyle='#152c25';ctx.fillRect(0,0,w,h);
   ctx.save();ctx.translate(w/2,h/2);ctx.fillStyle='#50654e';
   for(const o of OBSTACLES)ctx.fillRect((o.x-o.w/2)*s,(o.z-o.d/2)*s,o.w*s,o.d*s);
   for(const c of chests)if(!c.opened){ctx.fillStyle='#c9b975';ctx.fillRect(c.x*s-2,c.z*s-2,4,4);}
