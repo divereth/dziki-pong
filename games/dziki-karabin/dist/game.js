@@ -435,7 +435,7 @@ function updatePlayer(dt){
   const dx=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)/length*speed*dt;
   const dz=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)/length*speed*dt;
   moveBody(player,dx,dz,.37);
-  if((keySet.has('Space')||touchInput.jump)&&eyeHeight<=1.721)verticalSpeed=5.1;
+  if((keySet.has('Space')||touchInput.jump)&&eyeHeight<=1.721)verticalSpeed=6;
   verticalSpeed-=15*dt;eyeHeight=Math.max(1.72,eyeHeight+verticalSpeed*dt);if(eyeHeight===1.72)verticalSpeed=0;
   walkTime+=dt*(moving?(sprint?13:9):2);
   const bob=moving?Math.sin(walkTime)*.035:Math.sin(walkTime)*.007;
