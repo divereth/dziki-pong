@@ -2,7 +2,8 @@ export const WEAPONS = [
   { id:'k24', name:'KARABINEK K-24', type:'LEKKI KARABIN', price:0, damage:24, mag:24, reserve:72, interval:.18, reload:1.65, spread:.009, range:65, auto:true },
   { id:'viper', name:'VIPER SMG', type:'PISTOLET MASZYNOWY', price:15, damage:20, mag:32, reserve:96, interval:.095, reload:1.35, spread:.016, range:48, auto:true },
   { id:'ak47', name:'AK-47 BLOCK', type:'KARABIN SZTURMOWY', price:25, damage:35, mag:30, reserve:90, interval:.17, reload:1.9, spread:.01, range:75, auto:true },
-  { id:'scout', name:'SCOUT DMR', type:'KARABIN WYBOROWY', price:35, damage:59, mag:10, reserve:30, interval:.5, reload:2.1, spread:.002, range:100, auto:false }
+  { id:'scout', name:'SCOUT DMR', type:'KARABIN WYBOROWY', price:35, damage:59, mag:10, reserve:30, interval:.5, reload:2.1, spread:.002, range:100, auto:false },
+  { id:'bazooka', name:'BAZUKA', type:'WYRZUTNIA RAKIET', price:20, damage:100, mag:1, reserve:4, interval:1.05, reload:2.4, spread:.001, range:85, auto:false, blastRadius:4.5, splashDamage:65 }
 ];
 export const KNIFE = {id:'knife',name:'NÓŻ TAKTYCZNY',damage:55,interval:.48,range:2.75};
 export const MAP = { width:80, depth:64 };
