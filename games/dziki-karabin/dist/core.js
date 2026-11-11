@@ -5,10 +5,10 @@ export const WEAPONS = [
   { id:'scout', name:'SCOUT DMR', type:'KARABIN WYBOROWY', price:35, damage:59, mag:10, reserve:30, interval:.5, reload:2.1, spread:.002, range:100, auto:false }
 ];
 export const KNIFE = {id:'knife',name:'NÓŻ TAKTYCZNY',damage:55,interval:.48,range:2.75};
-export const MAP = { width:60, depth:48 };
+export const MAP = { width:68, depth:56 };
 export const OBSTACLES = [
-  {x:0,z:-24,w:62,d:1.2,h:5,kind:'boundary'}, {x:0,z:24,w:62,d:1.2,h:5,kind:'boundary'},
-  {x:-30,z:0,w:1.2,d:48,h:5,kind:'boundary'}, {x:30,z:0,w:1.2,d:48,h:5,kind:'boundary'},
+  {x:0,z:-MAP.depth/2,w:MAP.width+2,d:1.2,h:5,kind:'boundary'}, {x:0,z:MAP.depth/2,w:MAP.width+2,d:1.2,h:5,kind:'boundary'},
+  {x:-MAP.width/2,z:0,w:1.2,d:MAP.depth,h:5,kind:'boundary'}, {x:MAP.width/2,z:0,w:1.2,d:MAP.depth,h:5,kind:'boundary'},
   {x:-18,z:-14,w:13,d:7,h:5.4,kind:'building'}, {x:18,z:14,w:13,d:7,h:5.4,kind:'building'},
   {x:-17,z:15,w:11,d:6,h:4.4,kind:'building'}, {x:17,z:-15,w:11,d:6,h:4.4,kind:'building'},
   {x:0,z:-15,w:8,d:4,h:3.5,kind:'wall'}, {x:0,z:15,w:8,d:4,h:3.5,kind:'wall'},
@@ -49,7 +49,7 @@ export function purchaseWeapon(id,wallet,owned){
   owned.add(id);return {ok:true,wallet:wallet-weapon.price,weapon};
 }
 // A reusable navigation grid keeps the nine bots out of solid cover.
-const step=1.5,cols=39,rows=31,originX=-28.5,originZ=-22.5;
+const step=1.5,cols=Math.ceil((MAP.width-3)/step)+1,rows=Math.ceil((MAP.depth-3)/step)+1,originX=-(cols-1)*step/2,originZ=-(rows-1)*step/2;
 const grid=Array.from({length:cols*rows},(_,i)=>!blocked(originX+(i%cols)*step,originZ+Math.floor(i/cols)*step,.57));
 function nearest(x,z){let cx=Math.max(0,Math.min(cols-1,Math.round((x-originX)/step))),cz=Math.max(0,Math.min(rows-1,Math.round((z-originZ)/step)));if(grid[cz*cols+cx])return cz*cols+cx;for(let r=1;r<6;r++)for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){const nx=cx+dx,nz=cz+dz;if(nx>=0&&nz>=0&&nx<cols&&nz<rows&&grid[nz*cols+nx])return nz*cols+nx;}return -1;}
 export function findPath(x,z,tx,tz){
