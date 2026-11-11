@@ -144,16 +144,23 @@ const gunRig=new THREE.Group();gunRig.scale.setScalar(.72);camera.add(gunRig);
 function makeViewWeapon(){
   gunRig.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});gunRig.clear();const gun=new THREE.Group();gunRig.add(gun);viewGun=gun;
   const weapon=selectedWeapon;
-  const bodyColor=weapon.id==='ak47'?'#737354':weapon.id==='scout'?'#6a8571':'#455b51';
+  const heavy=weapon.id==='minigun';
+  const bodyColor=weapon.id==='ak47'?'#737354':weapon.id==='scout'?'#6a8571':heavy?'#52604c':'#455b51';
   const compact=weapon.id==='viper';
-  box(.17,.18,compact?.44:.62,0,0,-.16,bodyColor,gun,false);
+  box(heavy?.27:.17,heavy?.24:.18,heavy?.78:compact?.44:.62,0,0,-.16,bodyColor,gun,false);
   const stockColor=weapon.id==='ak47'?'#98714a':'#465449';
   box(.16,.14,compact?.2:.34,0,-.02,compact?.16:.27,stockColor,gun,false);
   box(.13,.12,.45,0,-.005,.23,'#607367',gun,false);
   box(.09,.08,weapon.id==='scout'?.65:.37,0,.012,-.62,'#33483e',gun,false);
   box(.1,.12,.09,0,.06,-.42,'#293e34',gun,false);
-  const magazine=box(.12,weapon.id==='viper'?.34:.25,.15,0,-.19,-.12,weapon.id==='ak47'?'#625b42':'#384d41',gun,false);magazine.rotation.x=-.16;
+  const magazine=box(heavy?.29:.12,heavy?.34:weapon.id==='viper'?.34:.25,heavy?.3:.15,0,-.19,-.12,heavy?'#68734f':weapon.id==='ak47'?'#625b42':'#384d41',gun,false);magazine.rotation.x=-.16;
   if(weapon.id==='ak47')for(let i=0;i<3;i++)box(.12,.11,.14,0,-.34-i*.08,-.1-i*.035,'#625b42',gun,false);
+  if(heavy){
+    const barrel=new THREE.CylinderGeometry(.045,.045,.58,8),barrelMaterial=material('#263b30');
+    for(const [x,y]of [[0,.09],[.078,.045],[.078,-.045],[0,-.09],[-.078,-.045],[-.078,.045]]){
+      const tube=new THREE.Mesh(barrel,barrelMaterial);tube.position.set(x,y,-.58);tube.rotation.x=Math.PI/2;gun.add(tube);
+    }
+  }
   box(.13,.28,.15,0,-.2,-.2,'#384d41',gun,false).rotation.x=-.2;
   box(.1,.25,.12,0,-.19,.15,'#30483b',gun,false).rotation.x=-.28;
   box(.11,.075,.48,0,.12,-.2,'#263b30',gun,false);
@@ -258,6 +265,7 @@ function openShop(first=false){
   renderShop();
 }
 function weaponSvg(id){
+  if(id==='minigun')return `<svg viewBox="0 0 200 86" aria-hidden="true"><g fill="currentColor"><path d="M36 28h92v33H36zM23 36h18v17H23zM54 60h20l-6 18H51zM93 59h20l8 19H99zM64 20h69v8H64zM128 34h49v7h-49zM128 42h49v7h-49zM128 50h49v7h-49z"/><path d="M53 59h38v15H53z" opacity=".65"/><path d="M42 22h91v7H42zM132 31h49v3h-49zM132 40h49v3h-49zM132 49h49v3h-49zM132 58h49v3h-49z" opacity=".55"/></g></svg>`;
   const long=id==='scout',wood=id==='ak47',compact=id==='viper';
   return `<svg viewBox="0 0 200 86" aria-hidden="true"><g fill="currentColor"><path d="M17 38h${compact?28:36}v15H18l-9 6V36z" opacity=".5"/><path d="M45 30h${compact?68:90}v25H45z"/><path d="M${compact?110:130} 34h${long?51:35}v7h15v6h-15v-4h-${long?51:35}z"/><path d="M72 53h15l-6 23H68z" opacity=".7"/><path d="M99 51h18l7 24h-18z" opacity=".7"/><path d="M56 25h48v5H56zM64 20h7v9h-7zM125 23h7v10h-7z"/>${long?'<path d="M74 14h42v9H74zM80 12h6v13h-6zM106 12h6v13h-6z"/>':''}${wood?'<path d="M25 39h24v11H25zM118 31h20v18h-20z" fill="#c29260"/>':''}</g></svg>`;
 }
