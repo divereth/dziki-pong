@@ -112,15 +112,23 @@ for(const p of CHEST_POSITIONS){
 function soldier(team){
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
   const uniform=team===0?'#5a9c8c':'#b58360',dark=team===0?'#355c53':'#6d5142';
-  box(.73,.72,.4,0,1.02,0,uniform,body);box(.64,.25,.45,0,.78,0,dark,body);
-  box(.7,.42,.08,0,1.04,.24,dark,body);
-  box(.15,.19,.11,-.19,1.05,.3,'#9db29a',body);box(.15,.19,.11,.01,1.05,.3,'#9db29a',body);
-  box(.64,.57,.61,0,1.67,0,'#cca67f',body);
-  box(.69,.22,.67,0,1.94,0,uniform,body);box(.73,.12,.7,0,1.79,0,dark,body);
-  box(.12,.1,.03,-.16,1.7,.32,'#263d32',body);box(.12,.1,.03,.16,1.7,.32,'#263d32',body);
-  box(.14,.07,.04,0,1.48,.32,'#775743',body);
-  const legs=[];for(const x of [-.21,.21]){const leg=new THREE.Group();leg.position.set(x,.72,0);body.add(leg);box(.28,.64,.31,0,-.32,0,dark,leg);box(.3,.18,.42,0,-.65,.04,'#36493d',leg);legs.push(leg);}
-  const arms=[];for(const x of [-.49,.49]){const arm=new THREE.Group();arm.position.set(x,1.3,0);body.add(arm);box(.25,.5,.28,0,-.23,0,uniform,arm);box(.24,.24,.25,0,-.52,.01,'#c4a17c',arm);arms.push(arm);}
+  const rounded=(w,h,d,x,y,z,color,parent)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),material(color));m.scale.set(w/2,h/2,d/2);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
+  const limb=(top,bottom,length,x,y,z,color,parent)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(top,bottom,length,8),material(color));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
+  // Soft low-poly shapes give the uniform and limbs a more human silhouette.
+  rounded(.65,.78,.43,0,1.08,0,uniform,body);
+  rounded(.59,.55,.47,0,1.1,.055,dark,body);
+  box(.08,.43,.035,-.17,1.13,.29,uniform,body);box(.08,.43,.035,.17,1.13,.29,uniform,body);
+  box(.45,.12,.07,0,.84,.27,dark,body);
+  for(const x of [-.17,0,.17])box(.12,.14,.07,x,1.02,.3,team===0?'#718b67':'#9a7756',body);
+  limb(.11,.12,.19,0,1.49,0,'#b98e6d',body);
+  rounded(.46,.54,.43,0,1.75,0,'#c7a17d',body);
+  // Helmet, ears, eyes and nose make the face readable at game scale.
+  rounded(.52,.3,.49,0,1.99,0,dark,body);box(.58,.07,.5,0,1.89,.015,uniform,body);
+  rounded(.1,.15,.1,-.24,1.75,0,'#b98e6d',body);rounded(.1,.15,.1,.24,1.75,0,'#b98e6d',body);
+  for(const x of [-.1,.1]){rounded(.07,.07,.035,x,1.79,.213,'#eee0c9',body);rounded(.035,.045,.02,x,1.79,.237,'#263d32',body);}
+  rounded(.07,.1,.09,0,1.68,.235,'#b98e6d',body);box(.14,.035,.025,0,1.57,.213,'#704e40',body);
+  const legs=[];for(const x of [-.2,.2]){const leg=new THREE.Group();leg.position.set(x,.72,0);body.add(leg);rounded(.31,.3,.3,0,-.07,0,dark,leg);limb(.15,.125,.34,0,-.3,0,uniform,leg);rounded(.29,.22,.28,0,-.48,.01,dark,leg);limb(.125,.105,.29,0,-.61,0,dark,leg);box(.3,.17,.4,0,-.72,.07,'#36493d',leg);legs.push(leg);}
+  const arms=[];for(const x of [-.48,.48]){const arm=new THREE.Group();arm.position.set(x,1.34,0);body.add(arm);rounded(.27,.28,.29,0,-.07,0,uniform,arm);limb(.15,.13,.31,0,-.25,0,uniform,arm);rounded(.25,.2,.27,0,-.43,.025,dark,arm);limb(.13,.11,.28,0,-.57,.11,uniform,arm);rounded(.17,.15,.19,0,-.74,.19,'#36493d',arm);arms.push(arm);}
   arms[0].rotation.x=-.9;arms[1].rotation.x=-1.15;
   const gun=new THREE.Group();gun.position.set(.27,1.12,.42);body.add(gun);
   box(.2,.2,.72,0,0,0,'#35463d',gun);box(.08,.08,.48,0,.02,.55,'#34473d',gun);box(.14,.25,.16,0,-.18,.05,'#546254',gun);
@@ -329,13 +337,15 @@ function shatterActor(victim,killer){
   const push=new THREE.Vector3(victim.x-(killer?.x??victim.x),0,victim.z-(killer?.z??victim.z)).normalize().multiplyScalar(1.8);
   model.traverse(part=>{
     if(!part.isMesh||!part.visible||part===model.userData.flash)return;
-    const {width:w,height:h,depth:d}=part.geometry.parameters;
-    if(w*h*d<.004)return;
-    const nx=Math.ceil(w/.28),ny=Math.ceil(h/.28),nz=Math.ceil(d/.28);
+    part.geometry.computeBoundingBox();
+    const bounds=part.geometry.boundingBox,w=bounds.max.x-bounds.min.x,h=bounds.max.y-bounds.min.y,d=bounds.max.z-bounds.min.z;
+    const pw=w*Math.abs(part.scale.x),ph=h*Math.abs(part.scale.y),pd=d*Math.abs(part.scale.z);
+    if(pw*ph*pd<.004)return;
+    const nx=Math.ceil(pw/.28),ny=Math.ceil(ph/.28),nz=Math.ceil(pd/.28);
     for(let ix=0;ix<nx;ix++)for(let iy=0;iy<ny;iy++)for(let iz=0;iz<nz;iz++){
-      const position=new THREE.Vector3((ix+.5)*w/nx-w/2,(iy+.5)*h/ny-h/2,(iz+.5)*d/nz-d/2).applyMatrix4(part.matrixWorld);
+      const position=new THREE.Vector3(bounds.min.x+(ix+.5)*w/nx,bounds.min.y+(iy+.5)*h/ny,bounds.min.z+(iz+.5)*d/nz).applyMatrix4(part.matrixWorld);
       const radial=new THREE.Vector3(position.x-victim.x,0,position.z-victim.z).normalize().multiplyScalar(rand(1.4,3.5));
-      cubes.push({position,velocity:radial.add(push).add(new THREE.Vector3(rand(-.7,.7),rand(2.5,5.7),rand(-.7,.7))),rotation:new THREE.Euler(rand(0,.3),rand(0,.3),rand(0,.3)),spin:new THREE.Vector3(rand(-7,7),rand(-7,7),rand(-7,7)),size:Math.max(.09,Math.min(w/nx,h/ny,d/nz)*.91),color:part.material.color.clone()});
+      cubes.push({position,velocity:radial.add(push).add(new THREE.Vector3(rand(-.7,.7),rand(2.5,5.7),rand(-.7,.7))),rotation:new THREE.Euler(rand(0,.3),rand(0,.3),rand(0,.3)),spin:new THREE.Vector3(rand(-7,7),rand(-7,7),rand(-7,7)),size:Math.max(.09,Math.min(pw/nx,ph/ny,pd/nz)*.91),color:part.material.color.clone()});
     }
   });
   model.visible=false;model.userData.flash.visible=false;
