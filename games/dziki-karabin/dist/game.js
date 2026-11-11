@@ -34,9 +34,9 @@ function label(text,bg='#c5f576',fg='#25382b',w=256,h=128){const c=document.crea
 
 function makeMap(){
   box(180,.5,180,0,-.36,0,'#a6a18a',scene,false);
-  const floor=box(60,.15,48,0,-.08,0,'#b5b49a',scene,false);floor.receiveShadow=true;
+  const floor=box(MAP.width,.15,MAP.depth,0,-.08,0,'#b5b49a',scene,false);floor.receiveShadow=true;
   // Fine paving joints make movement and distances readable without texture downloads.
-  const grid=new THREE.GridHelper(60,40,'#989f89','#a6aa91');grid.position.y=.008;grid.scale.z=.8;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
+  const grid=new THREE.GridHelper(MAP.width,Math.round(MAP.width/1.5),'#989f89','#a6aa91');grid.position.y=.008;grid.scale.z=MAP.depth/MAP.width;grid.material.transparent=true;grid.material.opacity=.25;scene.add(grid);
   box(56,.018,8,0,.013,0,'#c1bda4',scene,false);box(9,.019,42,0,.014,0,'#c0bda4',scene,false);
   for(const o of OBSTACLES){
     const color=o.kind==='boundary'?'#a7a78a':o.kind==='building'?(o.x<0?'#c4b39a':'#acb9ac'):o.kind==='tower'?'#bbc1ac':o.kind==='crate'?'#8e8669':'#acb1a0';
@@ -70,14 +70,14 @@ function makeMap(){
     }
   }
   // Perimeter towers and palms frame the arena, leaving the playable lanes clear.
-  for(const x of [-29,29])for(const z of [-23,23]){box(3,7,3,x,3.5,z,'#b4b69c');box(3.5,.5,3.5,x,7.2,z,'#d1cdb0');box(2.6,.8,2.6,x,7.7,z,'#708f78');}
+  for(const x of [-MAP.width/2+1,MAP.width/2-1])for(const z of [-MAP.depth/2+1,MAP.depth/2-1]){box(3,7,3,x,3.5,z,'#b4b69c');box(3.5,.5,3.5,x,7.2,z,'#d1cdb0');box(2.6,.8,2.6,x,7.7,z,'#708f78');}
   const palm=(x,z,s=1)=>{
     const p=new THREE.Group();p.position.set(x,0,z);p.scale.setScalar(s);scene.add(p);
     box(.6,6.2,.6,0,3.1,0,'#9c9770',p);for(let i=0;i<5;i++)box(.68,.13,.68,0,1+i,0,'#777e57',p);
     box(1.5,1.3,1.5,0,6.2,0,'#799264',p);
     for(let a=0;a<6;a++){const leaf=box(4,.32,1.2,Math.cos(a*Math.PI/3)*1.8,6.4,Math.sin(a*Math.PI/3)*1.8,a%2?'#719361':'#8aab6d',p);leaf.rotation.y=-a*Math.PI/3;leaf.rotation.z=(a%2?.12:-.12);}
   };
-  [[-25,-19],[-25,20],[26,-20],[25,21],[-33,7],[34,-7]].forEach(([x,z])=>palm(x,z,rand(.9,1.1)));
+  [[-25,-19],[-25,20],[26,-20],[25,21],[-MAP.width/2+2,7],[MAP.width/2-2,-7]].forEach(([x,z])=>palm(x,z,rand(.9,1.1)));
   for(let i=0;i<15;i++){
     const x=-75+i*11,z=i%2?-55:55;
     box(rand(5,12),rand(7,17),rand(5,12),x,4,z,i%2?'#b3b9ac':'#a0b3a7',scene,false);
@@ -92,7 +92,7 @@ function makeMap(){
     box(1.1,1.25,1.1,x,.625,z,'#638a78');box(1.17,.1,1.17,x,1.2,z,'#496a5a');
   }
   for(let i=0;i<45;i++){
-    const x=rand(-28,28),z=rand(-22,22);if(blocked(x,z,1)||Math.abs(x)<4||Math.abs(z)<5)continue;
+    const x=rand(-MAP.width/2+2,MAP.width/2-2),z=rand(-MAP.depth/2+2,MAP.depth/2-2);if(blocked(x,z,1)||Math.abs(x)<4||Math.abs(z)<5)continue;
     box(rand(.1,.25),.08,rand(.12,.3),x,.04,z,'#a0a58b',scene,false);
   }
 }
@@ -227,7 +227,7 @@ function spawnRound(){
   $('touch-scores').setAttribute('aria-pressed','false');$('touch-interact').disabled=true;
   for(let i=0;i<actors.length;i++){
     const a=actors[i],index=i%5;
-    a.x=a.team===0?-27.5:27.5;a.z=(index-2)*3.6;
+    a.x=a.team===0?-31.5:31.5;a.z=(index-2)*3.6;
     a.health=100;a.alive=true;a.path=[];a.pathTimer=.3+index*.12;a.fireTimer=rand(.7,1.4);a.reload=0;a.ammo=24;a.reserve=72;a.targetId=-1;
     if(a.mesh){a.mesh.visible=true;a.mesh.scale.setScalar(1);a.mesh.position.set(a.x,0,a.z);a.mesh.rotation.set(0,a.team===0?Math.PI/2:-Math.PI/2,0);a.mesh.userData.body.rotation.set(0,0,0);}
   }
@@ -509,7 +509,7 @@ function updateBots(dt){
 
 const minimap=$('minimap'),mapCtx=minimap.getContext('2d');
 function drawMinimap(){
-  const ctx=mapCtx,w=180,h=150,s=2.65;ctx.clearRect(0,0,w,h);ctx.fillStyle='#152c25';ctx.fillRect(0,0,w,h);
+  const ctx=mapCtx,w=180,h=150,s=Math.min((w-16)/(MAP.width+2),(h-16)/(MAP.depth+2));ctx.clearRect(0,0,w,h);ctx.fillStyle='#152c25';ctx.fillRect(0,0,w,h);
   ctx.save();ctx.translate(w/2,h/2);ctx.fillStyle='#50654e';
   for(const o of OBSTACLES)ctx.fillRect((o.x-o.w/2)*s,(o.z-o.d/2)*s,o.w*s,o.d*s);
   for(const c of chests)if(!c.opened){ctx.fillStyle='#c9b975';ctx.fillRect(c.x*s-2,c.z*s-2,4,4);}
