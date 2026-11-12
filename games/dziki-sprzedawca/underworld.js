@@ -6,12 +6,12 @@ export class Underworld{
  constructor(world,state){
   this.world=world;this.state=state;this.inside=false;this.targets=[];this.goods=[];this.patrol=new PolicePatrol();const b=ensureBlackMarket(state);
   this.mainLights=world.scene.children.filter(o=>o.isLight).map(o=>[o,o.intensity]);this.dayBackground=world.scene.background;this.dayFog=world.scene.fog;this.environmentIntensity=world.scene.environmentIntensity;
-  this.guard=world.person(world.scene,11,-12,'#25232b',2);this.guard.scale.set(1.65,1.23,1.55);this.guard.rotation.y=-Math.PI/2;
+  this.guard=world.person(world.scene,11,-12,'#25232b',2,'guard');this.guard.rotation.y=-Math.PI/2;
   const door=box(world.scene,13.43,1.2,-12,.08,2.4,1.5,'#1b2424');this.targets.push({object:door,action:'door',title:'Ochroniarz · wejście do Czarnego Rynku'});
   const plaque=label('TEREN PRYWATNY',1.2,.24,'#27292c','#9a8d74');plaque.position.set(12.95,2.7,-12);plaque.rotation.y=-Math.PI/2;world.scene.add(plaque);
   const windows=world.secretWindows||[],spot=windows[b.window%windows.length];
   if(spot){const button=box(world.scene,spot.x,spot.y-.27,spot.z,.12,.12,.12,'#702f28');this.targets.push({object:button,action:'button',title:'Mały przycisk pod ramą okna'});}
-  this.police=world.person(world.scene,this.patrol.x,this.patrol.z,'#183359',0);cylinder(this.police,0,1.74,0,.19,.19,.08,'#16345a',16);box(this.police,.1,1.04,.22,.055,.09,.015,'#c8b36b');const badge=label('POLICJA',.42,.1,'#16345a','#e5e9dc');badge.position.set(0,1.15,.22);this.police.add(badge);
+  this.police=world.person(world.scene,this.patrol.x,this.patrol.z,'#183359',0,'police');
   this.area=new T.Group();world.scene.add(this.area);box(this.area,100,-.13,-15,36,.25,48,'#24272c');
   for(const x of [82,118])box(this.area,x,2,-15,.4,4,48,'#272830');for(const z of [-39,9])box(this.area,100,2,z,36,4,.4,'#272830');
   // Lamps are local to this courtyard; their light never reaches the ordinary market.
@@ -34,6 +34,6 @@ export class Underworld{
   this.mainLights.forEach(([light,intensity])=>light.intensity=inside?(light.isHemisphereLight?.08:0):intensity);w.scene.background=inside?new T.Color('#070a12'):this.dayBackground;w.scene.fog=inside?new T.Fog('#090d16',12,52):this.dayFog;w.scene.environmentIntensity=inside?.06:this.environmentIntensity;w.renderer.shadowMap.needsUpdate=true;
  }
  walkable(x,z){return x>82.6&&x<117.4&&z>-38.5&&z<8.2&&!this.goods.some(g=>g.model.visible&&Math.abs(x-g.model.position.x)<(g.item.shape==='tank'?4:2.2)&&Math.abs(z-g.model.position.z)<1.7);}
- update(dt,time){const result=this.patrol.update(dt,this.state);this.police.position.set(this.patrol.x,0,this.patrol.z);this.police.rotation.y=this.patrol.heading;this.police.userData.limbs.forEach((limb,i)=>limb.rotation.x=Math.sin(time*7+(i%2?Math.PI:0))*.3);return result;}
+ update(dt,time){const lastX=this.patrol.x,lastZ=this.patrol.z,result=this.patrol.update(dt,this.state);this.police.position.set(this.patrol.x,0,this.patrol.z);this.police.rotation.y=this.patrol.heading;this.police.userData.walking=Math.hypot(this.patrol.x-lastX,this.patrol.z-lastZ)>.0001;return result;}
 }
 

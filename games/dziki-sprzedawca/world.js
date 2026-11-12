@@ -5,6 +5,7 @@ import {RoomEnvironment} from './vendor/RoomEnvironment.js';
 import {contrabandModel} from './contraband.js';
 import {Underworld} from './underworld.js';
 import {MarketStalls} from './market-stalls.js';
+import {MarketCharacters} from './characters.js';
 import {STANDS,STAND_NAMES,STAND_THEMES,PLAYER_SHOP,BOUNDS} from './layout.js';
 export {STANDS} from './layout.js';
 
@@ -32,6 +33,7 @@ export class MarketWorld{
     const environment=new RoomEnvironment(),pmrem=new T.PMREMGenerator(this.renderer);this.environmentTarget=pmrem.fromScene(environment,.04);this.scene.environment=this.environmentTarget.texture;environment.dispose();pmrem.dispose();this.scene.environmentIntensity=.65;
     this.products=new PolyhavenProducts({mobile,onStatus:onAssetStatus,onChange:()=>{this.renderer.shadowMap.needsUpdate=true;}});const createProduct=this.products.create.bind(this.products);this.products.create=(item,scale=1)=>item.illegal?contrabandModel(item,scale):createProduct(item,scale);
     const sun=new T.DirectionalLight('#ffe8c0',2.5);sun.position.set(-18,30,6);sun.target.position.set(0,0,-29);sun.castShadow=true;sun.shadow.mapSize.set(mobile?1024:2048,mobile?1024:2048);Object.assign(sun.shadow.camera,{left:-28,right:28,top:54,bottom:-55,near:1,far:150});sun.shadow.bias=-.0004;sun.shadow.normalBias=.035;this.scene.add(sun,sun.target);
+    this.characters=new MarketCharacters({mobile});
     this.secretWindows=[];this.stallGroups=[];this.stallPlacements=[];this.stalls=new MarketStalls(this.scene,{anisotropy:Math.min(8,this.renderer.capabilities.getMaxAnisotropy())});this.obstacles=[];this.offerGroups=[];this.playerGoods=[];this.hitTargets=[];this.customerMeshes=new Map();this.customerHitTargets=[];this.vendorMeshes=[];this.flags=[];this.ray=new T.Raycaster();this.pointer=new T.Vector2();this.offerRoots=new Map();
     this.highlight=new T.BoxHelper(new T.Mesh(new T.BoxGeometry()),'#f9db7c');this.highlight.material.transparent=true;this.highlight.material.opacity=.8;this.highlight.material.depthTest=false;this.highlight.visible=false;this.scene.add(this.highlight);
     this.buildTextures();this.buildGround();this.buildBuildings();STANDS.forEach((p,i)=>this.buildStand(p,i));this.buildDecor();batchMeshes(this.scene,new Set(this.flags.map(f=>f.mesh)));this.camera.rotation.set(this.pitch,this.yaw,0);this.resize();new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);this.renderer.shadowMap.autoUpdate=false;this.renderer.shadowMap.needsUpdate=true;this.render();
@@ -60,15 +62,10 @@ export class MarketWorld{
     const b=new T.Box3().setFromCenterAndSize(new T.Vector3(x,0,z),new T.Vector3(rotation?2.35:4.65,1,rotation?4.65:2.35));this.obstacles.push({x0:b.min.x-.12,x1:b.max.x+.12,z0:b.min.z-.12,z1:b.max.z+.12});
   }
   loadStalls(){return this.stalls.load(this.stallPlacements).then(()=>{this.renderer.shadowMap.needsUpdate=true;return this.stalls;});}
-  person(parent,x,z,color,index=0){
-    const g=new T.Group();g.position.set(x,0,z);parent.add(g);const skin=['#d1a47d','#b18462','#dfb890','#a97756'][index%4],hair=['#514032','#86664a','#493b32','#bc9a6f'][index%4],limbs=[];
-    for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*.105,.65,0);g.add(leg);box(leg,0,-.29,0,.15,.57,.18,index%2?'#3e4d58':'#62674e');box(leg,0,-.61,.045,.17,.09,.27,'#493f35');limbs.push(leg)}
-    cylinder(g,0,.94,0,.225,.185,.58,color,12);box(g,0,.87,.19,.035,.43,.015,'#f4e3bd');
-    cylinder(g,0,1.29,0,.065,.075,.15,skin,10);const head=sphere(g,0,1.47,0,.18,skin,16);head.scale.set(.86,1.1,.85);const hairMesh=sphere(g,0,1.57,-.02,.171,hair,14);hairMesh.scale.set(.98,.65,.9);
-    for(const side of [-1,1]){sphere(g,side*.16,1.46,0,.035,skin);sphere(g,side*.06,1.49,.145,.013,'#302f2b',8);const arm=new T.Group();arm.position.set(side*.245,1.13,0);g.add(arm);box(arm,0,-.17,0,.115,.34,.15,color);cylinder(arm,0,-.39,0,.043,.04,.16,skin,8);sphere(arm,0,-.5,0,.052,skin);limbs.push(arm)}
-    if(index%4===1){cylinder(g,0,1.66,0,.23,.23,.035,'#d0ac6e',20);cylinder(g,0,1.72,0,.145,.16,.13,'#d0ac6e',16)}
-    if(index%5===2){for(const xx of [-.06,.06]){const eye=ring(g,xx,1.49,.15,.04,.007,'#594f42');eye.scale.y=.8}lineBetween(g,[-.02,1.49,.15],[.02,1.49,.15],'#594f42',.005)}
-    const bag=new T.Group();bag.position.set(.28,.48,.04);g.add(bag);box(bag,0,0,0,.23,.28,.15,index%2?'#c7a167':'#a29a70');ring(bag,0,.17,0,.06,.012,'#705f43');bag.visible=false;g.userData.limbs=limbs;g.userData.bag=bag;return g;
+  loadCharacters(){return this.characters.load();}
+  person(parent,x,z,color,index=0,role='vendor'){
+    this.characters||=new MarketCharacters();
+    const actor=this.characters.create(role,index);actor.position.set(x,0,z);parent.add(actor);return actor;
   }
   buildBuildings(){
     const building=(x,z,w,h,d,color,rot=0)=>{const g=new T.Group();g.position.set(x,0,z);g.rotation.y=rot;this.scene.add(g);box(g,0,h/2,0,w,h,d,color);box(g,0,.3,d/2+.02,w,.6,.13,'#a4967f');box(g,0,h-.12,0,w+.25,.25,d+.15,'#e1d0ae');
@@ -120,11 +117,17 @@ export class MarketWorld{
     if(keys.has('Space')&&this.jump===undefined)this.jump=4.1;if(this.jump!==undefined){this.jump-=dt*11;this.jumpHeight=Math.max(0,(this.jumpHeight||0)+this.jump*dt);if(this.jumpHeight===0&&this.jump<0)this.jump=undefined}pos.y=1.76+(this.jumpHeight||0)+((f||r)?Math.sin(time*(speed>4?13:9))*.022:0);this.camera.rotation.set(this.pitch,this.yaw,0);
   }
   syncCustomers(customers,time){
-    for(const c of customers){let g=this.customerMeshes.get(c.id);if(!g){g=this.person(this.scene,c.x,c.z,colors[(c.id+3)%16],c.id);g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.userData.customer=c.id;this.customerHitTargets.push(o)}});const shadow=mesh(new T.CircleGeometry(.35,16),new T.MeshBasicMaterial({color:'#384c35',transparent:true,opacity:.16,depthWrite:false}),g,0,.015,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;this.customerMeshes.set(c.id,g)}g.position.set(c.x,c.walking?Math.abs(Math.sin(time*7+c.phase))*.025:0,c.z);g.rotation.y=c.heading||0;g.userData.limbs.forEach((limb,i)=>limb.rotation.x=c.walking?Math.sin(time*7+c.phase+(i%2?Math.PI:0))*(i<2?.48:.28):0);g.userData.bag.visible=c.bag;
+    for(const c of customers){let g=this.customerMeshes.get(c.id);
+      if(!g){
+        g=this.person(this.scene,c.x,c.z,colors[(c.id+3)%16],c.id,'customer');
+        this.customerHitTargets.push(g.userData.hitTarget);
+        const shadow=mesh(new T.CircleGeometry(.35,16),new T.MeshBasicMaterial({color:'#384c35',transparent:true,opacity:.16,depthWrite:false}),g,0,.015,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;this.customerMeshes.set(c.id,g);
+      }
+      g.position.set(c.x,0,c.z);g.rotation.y=c.heading||0;g.userData.walking=!!c.walking;g.userData.bag.visible=c.bag;
       if(c.bubbleTime>0){if(g.userData.bubbleText!==c.bubble){if(g.userData.bubble)disposeGroup(g.userData.bubble);const b=label(c.bubble,c.stage==='waiting'?2.15:1.2,.33,'#faf0d3',c.stage==='waiting'?'#a46e31':'#40543c',68);b.position.set(0,2.03,0);g.add(b);g.userData.bubble=b;g.userData.bubbleText=c.bubble}g.userData.bubble.visible=true;g.userData.bubble.quaternion.copy(this.camera.quaternion).premultiply(g.quaternion.clone().invert())}else if(g.userData.bubble)g.userData.bubble.visible=false;
     }
   }
-  render(time=0){this.products.update(this.camera,time);this.products.updatePreviews(this.renderer,this.scene.environment);this.flags.forEach(f=>f.mesh.rotation.y=Math.sin(time*1.5+f.phase)*.13);this.renderer.render(this.scene,this.camera)}
+  render(time=0){this.characters.update(time,this.camera);this.products.update(this.camera,time);this.products.updatePreviews(this.renderer,this.scene.environment);this.flags.forEach(f=>f.mesh.rotation.y=Math.sin(time*1.5+f.phase)*.13);this.renderer.render(this.scene,this.camera)}
   map(ctx,customers=[]){if(this.underworld?.inside){ctx.fillStyle='#101722';ctx.fillRect(0,0,144,144);ctx.fillStyle='#d4b27a';ctx.font='11px sans-serif';ctx.fillText('CZARNY RYNEK',23,25);ctx.fillText('Wyjście: południe',18,130);return;}const scale=1.55,ox=72,oz=119;ctx.clearRect(0,0,144,144);ctx.fillStyle='#f0eadb';ctx.fillRect(0,0,144,144);ctx.fillStyle='#e0d8c3';ctx.fillRect(45,8,54,131);ctx.save();ctx.translate(ox,oz);ctx.scale(scale,scale);for(const [i,[x,z,r]] of STANDS.entries()){ctx.save();ctx.translate(x,z);ctx.rotate(-r);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(-2.2,-1.1,4.4,2.2);ctx.restore()}ctx.fillStyle='#bd9650';ctx.fillRect(PLAYER_SHOP.x-1.5,PLAYER_SHOP.z-1,3,2);ctx.fillStyle='#9d8e73';for(const c of customers){ctx.beginPath();ctx.arc(c.x,c.z,.55,0,Math.PI*2);ctx.fill()}ctx.translate(this.camera.position.x,this.camera.position.z);ctx.rotate(-this.yaw);ctx.beginPath();ctx.moveTo(0,-1.9);ctx.lineTo(-1.1,1.1);ctx.lineTo(0,.65);ctx.lineTo(1.1,1.1);ctx.closePath();ctx.fillStyle='#315b48';ctx.fill();ctx.restore();ctx.font='8px Consolas';ctx.fillStyle='#7a826b';ctx.fillText('N',69,10)}
 }
 

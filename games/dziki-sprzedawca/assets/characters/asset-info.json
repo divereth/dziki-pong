@@ -1,0 +1,206 @@
+{
+  "creator": "Quaternius",
+  "pack": "Ultimate Animated Character Pack (November 2019)",
+  "source": "https://quaternius.com/packs/ultimatedanimatedcharacter",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "modifications": "Varied skin tones, vertex colours and mesh compression. Police: navy uniform, skinned cap, badge and POLICJA lettering. Guard: broader upper body and dark clothing.",
+  "models": [
+    {
+      "id": "casual-man",
+      "file": "casual-man.glb",
+      "sourceFile": "Casual_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1Mig1cMlBWgQ_H8FxlWkfNeXFkNeclyCl/view",
+      "bytes": 177292,
+      "sha256": "0d2f4a8c26139075ed01517e4d4ba5b92dc7ecf2258d955926254027359527ea",
+      "triangles": 6492,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "casual-woman",
+      "file": "casual-woman.glb",
+      "sourceFile": "Casual_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/17O7eSD7xunnN10MQiQcFOQ_EPvRR9_M3/view",
+      "bytes": 179344,
+      "sha256": "0c71860bdffd4e616fb9a9f574af3d54cb9fb17474caa7ac4678aeb16edf9d76",
+      "triangles": 6624,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "jacket-man",
+      "file": "jacket-man.glb",
+      "sourceFile": "Casual2_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1_OO6qmytJWveAC8W_1Lh-iS2z6TiDypL/view",
+      "bytes": 118492,
+      "sha256": "dc8cdd5e9981aa4a06850bb14b192a9cbb4277ad6ecbc26c9270263913c6d84d",
+      "triangles": 3216,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "jacket-woman",
+      "file": "jacket-woman.glb",
+      "sourceFile": "Casual2_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1JtivXqsJB_b_z845aLQ5xtnm1gXrKBUN/view",
+      "bytes": 180876,
+      "sha256": "372f27cfd7245c5d280ac678f813f5e23c24849491f7077da38cbde268144de5",
+      "triangles": 6752,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "sport-man",
+      "file": "sport-man.glb",
+      "sourceFile": "Casual3_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/19CxFdXe0CZcrMUuAI3QvqigDXvJ0HQBk/view",
+      "bytes": 147828,
+      "sha256": "0dab2cf250d852f5875248657d946e2f2130c830c0c4e36910e2a47c9ef8168f",
+      "triangles": 4920,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "sport-woman",
+      "file": "sport-woman.glb",
+      "sourceFile": "Casual3_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1ObsqixEyOt8iwldpzblyzq8NISVE2AsA/view",
+      "bytes": 210028,
+      "sha256": "9b1fdabf6d3fbd61f0d92872f2587979ba388b0cbde0e342ba7c973a38bf35b5",
+      "triangles": 8444,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "worker-man",
+      "file": "worker-man.glb",
+      "sourceFile": "Worker_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1KJXkN-cwM60dwwf-07_CekGLgJc7Uc_P/view",
+      "bytes": 107528,
+      "sha256": "444e9db131268da73971581acd4e540f6a912057548acbcf06084468fcfcc01b",
+      "triangles": 2524,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "worker-woman",
+      "file": "worker-woman.glb",
+      "sourceFile": "Worker_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1rvIrtsYHwZc9u_aXJ747olqdG_Lgrxd_/view",
+      "bytes": 165712,
+      "sha256": "2556a42b50b7601682c3bd1e4bd0604c666dbf3162c549ea01af481a4d8c0994",
+      "triangles": 5856,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "chef-man",
+      "file": "chef-man.glb",
+      "sourceFile": "Chef_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/14GybIuPP3ez-H6QMAcqhFt9uExxUAsAx/view",
+      "bytes": 158396,
+      "sha256": "294ac52a811bd24147a1f9437594a1c9aa6654cd8b2dc301e4c1a5ca6debcefb",
+      "triangles": 5452,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "chef-woman",
+      "file": "chef-woman.glb",
+      "sourceFile": "Chef_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1bPx3cKrPUG84KErf4OmdIhbm1xy5t1Zl/view",
+      "bytes": 217252,
+      "sha256": "7fbf3cf19b673b2440728ff8dac4d0b95b8b57d643aed4c32e8864765d6934d4",
+      "triangles": 8768,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "older-man",
+      "file": "older-man.glb",
+      "sourceFile": "OldClassy_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1mVA52Pu9XRqNq3To9w3uio0p1sgO_Psj/view",
+      "bytes": 157696,
+      "sha256": "995f0d13de75ec4920bf9b64180b4f6b9d46cae366eda07e471b3b803024e124",
+      "triangles": 5432,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "older-woman",
+      "file": "older-woman.glb",
+      "sourceFile": "OldClassy_Female.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1eXoQHAc4fO-DPHIWgiFsKQ-9ypyHE1Ws/view",
+      "bytes": 185060,
+      "sha256": "9c3ea8016bf85cd08e778531a87df0f4f2dcfe29c84fe8e004783050e6a88d1d",
+      "triangles": 7008,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "police",
+      "file": "police.glb",
+      "sourceFile": "Casual_Male.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1Mig1cMlBWgQ_H8FxlWkfNeXFkNeclyCl/view",
+      "bytes": 181080,
+      "sha256": "3ea14b8fe2cc0fa6bb709f817a96388ef154a9d56a011c7006a7607e1d77c7c3",
+      "triangles": 6948,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    },
+    {
+      "id": "guard",
+      "file": "guard.glb",
+      "sourceFile": "Casual_Bald.blend",
+      "sourceUrl": "https://drive.google.com/file/d/1qaeGOACqotJbzHFMpiiekR2G3qAbLf2l/view",
+      "bytes": 104164,
+      "sha256": "8be6e19220a360943c1c44b2c2cf1cd60edfd9c9869e3d825e67c8143f8a1574",
+      "triangles": 2312,
+      "drawCalls": 1,
+      "animations": [
+        "idle",
+        "walk"
+      ]
+    }
+  ]
+}
