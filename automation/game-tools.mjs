@@ -5,13 +5,15 @@ import { execFileSync } from 'node:child_process';
 import { getGame } from './games.mjs';
 
 export const repositoryRoot = process.env.DZIKI_REPOSITORY_ROOT || fileURLToPath(new URL('../', import.meta.url));
-const publicExtension = /\.(?:html|css|js|json|webmanifest|png|jpe?g|gif|webp|svg|ico|avif|bmp|apng|mp3|wav|ogg|oga|opus|m4a|aac|flac|mid|midi|woff2?|ttf)$/i;
+const publicExtension = /\.(?:html|css|js|json|webmanifest|png|jpe?g|gif|webp|svg|ico|avif|bmp|apng|glb|mp3|wav|ogg|oga|opus|m4a|aac|flac|mid|midi|woff2?|ttf)$/i;
 
 export function publicFile(game, path) {
   if (path.includes('\\') || path.split('/').some(p => p.startsWith('.') || p === 'node_modules')) return false;
+  if(path.startsWith('tools/'))return false;
+  if(game.id==='dziki-sprzedawca'&&path.startsWith('assets/market-stall/')&&!['assets/market-stall/stragan.glb','assets/market-stall/asset-info.json'].includes(path))return false;
   if (/(?:^|\/)(?:package(?:-lock)?\.json|.*\.test\.[cm]?js|README\.md)$/i.test(path)) return false;
   if (game.id === 'dziki-pong' && path.includes('/') && !/^(?:assets|icons)\//.test(path)) return false;
-  return publicExtension.test(path) || path === '_headers' || path === 'vendor/THREE-LICENSE.txt';
+  return publicExtension.test(path) || path === '_headers' || path === 'vendor/THREE-LICENSE.txt' || path === 'vendor/MESHOPT-LICENSE.txt';
 }
 
 export function allowedChange(game, path) {
@@ -66,7 +68,7 @@ export function checkGame(game) {
     execFileSync(process.execPath, ['--check', join(site, path)], { stdio: 'inherit' });
   }
   const tests = {
-    'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js'],
+    'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js', 'polyhaven.test.js', 'market-stalls.test.js'],
     'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs', 'tests/rendering.test.mjs', 'tests/camera.test.mjs', 'tests/demo.test.mjs', 'tests/leaderboard.test.mjs', 'backend/worker.test.mjs'],
     'dziki-karabin': ['tests/core.test.mjs', 'tests/runtime.test.mjs', 'tests/touch.test.mjs'],
   }[game.id];
