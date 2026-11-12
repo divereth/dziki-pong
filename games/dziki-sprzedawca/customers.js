@@ -5,13 +5,14 @@ export class CustomerMarket{
   constructor(state,onEvent=()=>{},rng=Math.random){
     this.state=state;this.onEvent=onEvent;this.rng=rng;this.reservations=new Map();
     this.customers=NAMES.map((name,i)=>({id:i,name,x:(i%3-1)*1.4,z:i<4?9+i*.45:1-(i-4)*4.4,budget:0,preferred:CATEGORIES[i%CATEGORIES.length].id,tolerance:.25+rng()*.75,speed:1.35+rng()*.45,route:[],stage:'walking',wait:0,destination:null,bag:false,bubble:'',bubbleTime:0,phase:i*1.8,wantedUid:null,negotiation:null}));
+    this.resetBudgets();
     this.customers.forEach(c=>this.chooseDestination(c));
   }
+  resetBudgets(){for(const c of this.customers)c.budget=Math.max(220,this.state.peak*1.5)*(.45+this.rng()*.8)}
   routeTo(c,destination){
     const lane=(c.id%2?1:-1)*(1.15+(c.id%3)*.38);
     const point=destination==='player'?{x:PLAYER_SHOP.approach.x-.45+(c.id%6)*.8,z:PLAYER_SHOP.approach.z-.3+Math.floor(c.id/6)*.85}:(()=>{const [x,z,r]=STANDS[destination];return {x:x+Math.sin(r)*2.35,z:z+Math.cos(r)*2.35}})();
     c.destination=destination;c.stage='walking';c.wait=0;c.wantedUid=null;c.route=[{x:lane,z:c.z},{x:lane,z:point.z},{x:point.x,z:point.z}];
-    c.budget=Math.max(220,this.state.peak*1.5)*(.45+this.rng()*.8);
   }
   chooseDestination(c){
     const available=[...new Set(this.state.offers.filter(o=>!o.sold).map(o=>o.stand))];
