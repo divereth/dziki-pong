@@ -1,14 +1,21 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,existsSync} from 'node:fs';
+import {readFileSync,existsSync,mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
+import {tmpdir} from 'node:os';
 import {getGame} from './games.mjs';
 import {buildGame,repositoryRoot,allowedChange} from './game-tools.mjs';
 import {metadataFor,validatePromotion} from './request.mjs';
 import '../games/dziki-bieg/hosting/uniboar-alias/worker.test.mjs';
 
-test('Bieg previews build the current Uniboar edition and its complete offline soundtrack',()=>{
- const output=buildGame(getGame('dziki-bieg'));
+test('Bieg previews build the current Uniboar edition and its complete offline soundtrack',t=>{
+ const outputBase=mkdtempSync(join(tmpdir(),'dziki-uniboar-build-'));
+ t.after(()=>rmSync(outputBase,{recursive:true,force:true}));
+ const stale=join(outputBase,'dziki-bieg');
+ mkdirSync(stale);
+ writeFileSync(join(stale,'game.js'),'retired entry point');
+ writeFileSync(join(stale,'viewport.js'),'retired viewport');
+ const output=buildGame(getGame('dziki-bieg'),{outputBase});
  assert.match(readFileSync(join(output,'index.html'),'utf8'),/<title>Robot Uniboar Attack<\/title>/);
  assert.match(readFileSync(join(output,'index.html'),'utf8'),/src="always-free.mp3"/);
  assert.match(readFileSync(join(output,'engine.js'),'utf8'),/PHYSICS_HZ=34/);

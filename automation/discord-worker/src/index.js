@@ -1,6 +1,6 @@
 import { GAMES, gameForInteraction } from '../../games.mjs';
-import { recentChanges, historyMessage } from '../../history.mjs';
-import { notifyDeveloper } from '../../notify.mjs';
+import { recentChanges, historyMessage, findRequest } from '../../history.mjs';
+import { notifyDeveloper, requestDescription } from '../../notify.mjs';
 
 const DISCORD_API = 'https://discord.com/api/v10';
 const blockedPatterns = [
@@ -112,12 +112,12 @@ async function processRequest(interaction, env, requestText, game) {
       is_admin: isAdmin(interaction, env),
       received_at: new Date().toISOString(),
     });
-    await notifyDeveloper(`🟡 **${game.name} · zlecenie ${interaction.id}**\nPrzyjęto zmianę. Oczekiwanie na rozpoczęcie zadania.`, { game, channelId: interaction.channel_id, env });
+    await notifyDeveloper(`🟡 **${game.name} · zlecenie ${interaction.id}**\nZlecona zmiana: ${requestDescription(requestText)}\nPrzyjęto zmianę. Oczekiwanie na rozpoczęcie zadania.`, { game, channelId: interaction.channel_id, env });
   } catch (error) {
     console.error(error);
     await Promise.allSettled([
-      followup(interaction, '⚠️ Nie udało się przyjąć prośby. Opiekun sprawdzi, co się stało.'),
-      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${interaction.id}**\nNie udało się przekazać zmiany do GitHuba. Zadanie nie zostało uruchomione.`, { game, channelId: interaction.channel_id, env }),
+      followup(interaction, `⚠️ **${game.name} · zlecenie ${interaction.id}**\nZlecona zmiana: ${requestDescription(requestText)}\nNie udało się przekazać zmiany do GitHuba. Powód: ${requestDescription(error.message)}`),
+      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${interaction.id}**\nZlecona zmiana: ${requestDescription(requestText)}\nNie udało się przekazać zmiany do GitHuba. Zadanie nie zostało uruchomione. Powód: ${requestDescription(error.message)}`, { game, channelId: interaction.channel_id, env }),
     ]);
   }
 }
@@ -133,8 +133,13 @@ async function processHistory(interaction, env, game) {
 }
 
 async function processPromotion(interaction, env, requestId, game) {
+  let description = 'Opis niedostępny — nie udało się pobrać zlecenia.';
   try {
+    const metadata = await findRequest(game, requestId, env);
+    description = requestDescription(metadata.request_text);
+    if (metadata.channel_id && metadata.channel_id !== interaction.channel_id) throw new Error('Zlecenie pochodzi z innego kanału.');
     await githubDispatch(env, 'dziki_promote', {
+      request_text: metadata.request_text,
       request_id: requestId,
       game_id: game.id,
       discord_channel_id: interaction.channel_id,
@@ -143,12 +148,13 @@ async function processPromotion(interaction, env, requestId, game) {
       discord_user_name: userName(interaction),
       received_at: new Date().toISOString(),
     });
-    await notifyDeveloper(`🟣 **${game.name} · zlecenie ${requestId}**\nPrzyjęto prośbę o publikację głównej wersji gry.`, { game, channelId: interaction.channel_id, env });
+    await followup(interaction, `🟣 **${game.name} · zlecenie ${requestId}**\nZlecona zmiana: ${description}\nPublikowanie uruchomione.`);
+    await notifyDeveloper(`🟣 **${game.name} · zlecenie ${requestId}**\nZlecona zmiana: ${description}\nPrzyjęto prośbę o publikację głównej wersji gry.`, { game, channelId: interaction.channel_id, env });
   } catch (error) {
     console.error(error);
     await Promise.allSettled([
-      followup(interaction, '⚠️ Nie udało się uruchomić publikowania. Opiekun sprawdzi, co się stało.'),
-      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${requestId}**\nNie udało się przekazać prośby o publikację do GitHuba.`, { game, channelId: interaction.channel_id, env }),
+      followup(interaction, `⚠️ Zlecenie ${requestId}\nZlecona zmiana: ${description}\nNie udało się uruchomić publikowania: ${requestDescription(error.message)}`),
+      notifyDeveloper(`⚠️ **${game.name} · zlecenie ${requestId}**\nZlecona zmiana: ${description}\nNie udało się przekazać prośby o publikację do GitHuba. Powód: ${requestDescription(error.message)}`, { game, channelId: interaction.channel_id, env }),
     ]);
   }
 }
@@ -193,7 +199,7 @@ export default {
       const requestId = String(option(subcommand.options, 'request_id') || '');
       if (!/^[A-Za-z0-9_-]{3,40}$/.test(requestId)) return ephemeral('Nieprawidłowe oznaczenie prośby.');
       ctx.waitUntil(processPromotion(interaction, env, requestId, game));
-      return publicMessage(`🟣 **${game.name}: publikowanie uruchomione.**\nZlecenie: \`${requestId}\`.`);
+      return json({ type: 5, data: { allowed_mentions: { parse: [] } } });
     }
 
     return ephemeral('Nie znam tej komendy.');

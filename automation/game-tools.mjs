@@ -1,16 +1,15 @@
-import { readdirSync, lstatSync, mkdirSync, copyFileSync, appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, lstatSync, mkdirSync, copyFileSync, appendFileSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { getGame } from './games.mjs';
 
 export const repositoryRoot = process.env.DZIKI_REPOSITORY_ROOT || fileURLToPath(new URL('../', import.meta.url));
-const publicExtension = /\.(?:html|css|js|json|webmanifest|png|jpe?g|gif|webp|svg|ico|avif|bmp|apng|glb|mp3|wav|ogg|oga|opus|m4a|aac|flac|mid|midi|woff2?|ttf)$/i;
+const publicExtension = /\.(?:html|css|js|json|webmanifest|png|jpe?g|gif|webp|svg|ico|avif|bmp|apng|glb|gltf|bin|ktx2|hdr|exr|mp3|wav|ogg|oga|opus|m4a|aac|flac|mid|midi|woff2?|ttf)$/i;
 
 export function publicFile(game, path) {
   if (path.includes('\\') || path.split('/').some(p => p.startsWith('.') || p === 'node_modules')) return false;
   if(path.startsWith('tools/'))return false;
-  if(game.id==='dziki-sprzedawca'&&path.startsWith('assets/market-stall/')&&!['assets/market-stall/stragan.glb','assets/market-stall/asset-info.json'].includes(path))return false;
   if (/(?:^|\/)(?:package(?:-lock)?\.json|.*\.test\.[cm]?js|README\.md)$/i.test(path)) return false;
   if (game.id === 'dziki-pong' && path.includes('/') && !/^(?:assets|icons)\//.test(path)) return false;
   return publicExtension.test(path) || path === '_headers' || path === 'vendor/THREE-LICENSE.txt' || path === 'vendor/MESHOPT-LICENSE.txt';
@@ -75,11 +74,16 @@ export function checkGame(game) {
   if (tests) execFileSync(process.execPath, ['--test', ...tests], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });
 }
 
-export function buildGame(game) {
+export function buildGame(game, { outputBase = resolve(repositoryRoot, '.artifacts') } = {}) {
   const site = resolve(repositoryRoot, game.site);
   // Rebuild Uniboar's content-hashed offline cache for every preview and release.
   if (game.id === 'dziki-bieg') execFileSync(process.execPath, ['build-pwa.mjs'], { cwd: resolve(repositoryRoot, game.root), stdio: 'inherit' });
-  const output = resolve(repositoryRoot, '.artifacts', game.id);
+  // Clean only this game's generated package, so removed assets cannot survive a rebuild.
+  const base = resolve(outputBase);
+  const output = resolve(base, getGame(game.id).id);
+  if (relative(base, output) !== game.id) throw new Error('Invalid build output directory');
+  if (existsSync(output) && lstatSync(output).isSymbolicLink()) throw new Error('Symlink not allowed in build output');
+  rmSync(output, { recursive: true, force: true });
   mkdirSync(output, { recursive: true });
   const candidates = game.id === 'dziki-pong'
     ? ['index.html', 'style.css', 'game.js', 'manifest.webmanifest', 'service-worker.js', ...filesUnder(join(site, 'assets')).map(p => `assets/${p}`), ...filesUnder(join(site, 'icons')).map(p => `icons/${p}`)]
@@ -113,4 +117,3 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else if (command === 'build') console.log(buildGame(game));
   else throw new Error('Unknown game command');
 }
-

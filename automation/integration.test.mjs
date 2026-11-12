@@ -24,7 +24,9 @@ async function call(data, customEnv = {}, respond = () => new Response(null, { s
   const request = new Request('https://discord.example/', { method: 'POST', body, headers: { 'x-signature-ed25519': signature, 'x-signature-timestamp': timestamp } });
   const pending = [], calls = [];
   const previousFetch = globalThis.fetch;
-  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return respond(url, options); };
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes('/pulls?')) return Response.json([{body:'<!-- dziki-pong-request:start -->\n' + JSON.stringify({request_id:data.id,game_id:data.channel.name,channel_id:data.channel_id,request_text:'Dodaj fioletowy kolor nieba'}) + '\n<!-- dziki-pong-request:end -->'}]);
+    calls.push({ url, options }); return respond(url, options); };
   try {
     const result = await worker.fetch(request, { ...env, ...customEnv }, { waitUntil(promise) { pending.push(promise); } });
     const response = await result.json();
@@ -194,6 +196,21 @@ test('game file boundaries reject other games, CI, vendor, tests, and traversal'
   assert.ok(allowedChange(getGame(), 'service-worker.js'));
 });
 
+test('3D models, buffers and textures can change within each selected game', () => {
+  for (const game of Object.values(GAMES)) {
+    const prefix = game.site === '.' ? '' : `${game.site}/`;
+    for (const asset of ['boar.glb', 'boar.gltf', 'boar.bin', 'skin.ktx2', 'light.hdr', 'light.exr', 'skin.png']) {
+      assert.equal(allowedChange(game, `${prefix}assets/models/${asset}`), true, `${game.id}: ${asset}`);
+    }
+    for (const source of ['boar.blend', 'generate.py', 'download.sh']) {
+      assert.equal(allowedChange(game, `${prefix}assets/models/${source}`), false);
+    }
+  }
+  const seller = getGame('dziki-sprzedawca');
+  assert.equal(allowedChange(seller, `${seller.site}/assets/market-stall/canvas_albedo.png`), true);
+  assert.equal(allowedChange(seller, `${seller.site}/assets/market-stall/create_stall.py`), false);
+});
+
 test('the real Git boundary check catches staged infrastructure edits and deleted game files', () => {
   const directory = mkdtempSync(join(tmpdir(), 'dziki-boundary-'));
   const git = (...args) => execFileSync('git', args, { cwd: directory, stdio: 'pipe' });
@@ -242,9 +259,11 @@ test('production deploy selects only games whose public files changed', () => {
   assert.deepEqual(gamesForPaths(['style.css', 'games/dziki-karabin/dist/core.js']), ['dziki-pong', 'dziki-karabin']);
 });
 
-test('all deploy packages contain an entry point and no tests, infrastructure, or other games', () => {
+test('all deploy packages contain an entry point and no tests, infrastructure, or other games', t => {
+  const outputBase = mkdtempSync(join(tmpdir(), 'dziki-package-build-'));
+  t.after(() => rmSync(outputBase, { recursive: true, force: true }));
   for (const id of Object.keys(GAMES)) {
-    const output = buildGame(getGame(id));
+    const output = buildGame(getGame(id), { outputBase });
     assert.ok(existsSync(join(output, 'index.html')));
     const paths = filesUnder(output);
     assert.ok(paths.length >= 5);

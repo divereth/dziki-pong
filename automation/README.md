@@ -52,3 +52,9 @@ Also protect `main` in GitHub and require the workflow checks before merging. Ne
 ## Cloudflare-native option
 
 For hosting without an always-on Node process, use [`discord-worker/README.md`](discord-worker/README.md). It exposes `/dziki request` and `/dziki promote` as Discord interactions and runs on Cloudflare Workers.
+
+### Złożone zmiany i powiadomienia
+
+Zlecenia Discord mogą obejmować wieloplikowe zmiany mechaniki oraz modele 3D, animacje i tekstury. Publiczne zasoby obsługują GLB, glTF, BIN, KTX2, HDR i EXR. Nadal obowiązuje granica wybranej gry i zakaz zmian infrastruktury oraz bibliotek vendor. Źródła Blender i skrypty robocze nie trafiają do publicznego katalogu. Generator ma do 60 minut (całe zadanie 75 minut).
+
+Powiadomienia zawierają opis zlecenia. Wynik generatora jest zachowywany również przy udanej zmianie, zapisany w metadanych PR i przekazywany do publikacji produkcyjnej. Niepowodzenie podaje etap awarii; dokładny błąd znajduje się w przebiegu GitHub Actions. Publikacja odczytuje opis z PR przed uruchomieniem zadania.

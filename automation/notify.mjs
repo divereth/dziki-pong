@@ -56,7 +56,7 @@ export async function notify(content, { game = getGame(runtimeEnv.GAME_ID || 'dz
   return { ...result, developer };
 }
 
-export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki-pong')) {
+function stageMessage(stage, env, game = getGame(env.GAME_ID || 'dziki-pong')) {
   const heading = `**${game.name} · zlecenie ${env.REQUEST_ID}**`;
   if (stage === 'result' && env.JOB_STATUS === 'success' && env.REQUEST_CHANGED === 'false') {
     const reason = Buffer.from(env.REQUEST_SUMMARY_B64 || '', 'base64').toString('utf8').slice(0, 1000);
@@ -80,6 +80,31 @@ export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki
   return messages[stage];
 }
 
+export function requestDescription(text) {
+  return String(text || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[\\`*_{}[\]()~>|]/g, char => '\\' + char).slice(0, 500);
+}
+export function progressMessage(stage, env, game = getGame(env.GAME_ID || 'dziki-pong')) {
+  const decode = value => Buffer.from(value || '', 'base64').toString('utf8');
+  const lines = stageMessage(stage, env, game).split('\n');
+  lines.splice(1, 0, 'Zlecona zmiana: ' + (requestDescription(env.REQUEST_TEXT || decode(env.REQUEST_TEXT_B64)) || 'Opis niedostępny — sprawdź pierwotne zlecenie.'));
+  if (env.JOB_STATUS === 'success' && ['result','production'].includes(stage) && env.REQUEST_CHANGED !== 'false') lines.push('Wprowadzono: ' + (requestDescription(decode(env.REQUEST_SUMMARY_B64)) || 'Brak podsumowania wykonawcy; szczegóły w PR.'));
+  if (env.JOB_STATUS && env.JOB_STATUS !== 'success') lines.push('Powód: ' + (requestDescription(env.FAILURE_REASON) || (env.JOB_STATUS === 'cancelled' ? 'Zadanie anulowano lub przekroczyło limit czasu.' : 'Błąd wykonania; szczegóły w GitHub Actions.')));
+  return lines.join('\n').slice(0,1900);
+}
+
 if (typeof process !== 'undefined' && process.argv?.[1]?.replaceAll('\\', '/').endsWith('/automation/notify.mjs')) {
-  await notify(progressMessage(process.argv[2], process.env));
+  const env = { ...process.env };
+  if (!env.REQUEST_TEXT && !env.REQUEST_TEXT_B64 && env.REQUEST_ID && env.GH_TOKEN) {
+    try {
+      const { execFileSync } = await import('node:child_process');
+      const { requestMetadata } = await import('./history.mjs');
+      const prs = JSON.parse(execFileSync('gh', ['pr','list','--repo',env.GITHUB_REPOSITORY,'--state','all','--head','discord/' + env.REQUEST_ID,'--json','body'], {encoding:'utf8'}));
+      const metadata = requestMetadata(prs[0]?.body);
+      if (metadata?.request_id === env.REQUEST_ID && (metadata.game_id || 'dziki-pong') === env.GAME_ID) {
+        env.REQUEST_TEXT = metadata.request_text;
+        env.REQUEST_SUMMARY_B64 ||= Buffer.from(metadata.change_summary || '').toString('base64');
+      }
+    } catch { console.error('Request metadata unavailable'); }
+  }
+  await notify(progressMessage(process.argv[2], env));
 }

@@ -47,6 +47,8 @@ jobs:
     env:
       GAME_ID: ${{ matrix.game_id }}
       REQUEST_ID: ${{ github.event.client_payload.request_id }}
+      REQUEST_TEXT_B64: ${{ github.event.client_payload.request_text_b64 }}
+      REQUEST_SUMMARY_B64: ${{ github.event.client_payload.summary_b64 }}
       DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
       DISCORD_DEV_CHANNEL_ID: '1398036719101542601'
     steps:
@@ -76,4 +78,5 @@ jobs:
           DISCORD_KARABIN_WEBHOOK_URL: ${{ secrets.DISCORD_KARABIN_WEBHOOK_URL }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           JOB_STATUS: ${{ job.status }}
+          FAILURE_REASON: Testy, budowanie lub publikacja Cloudflare nie zostały ukończone. Sprawdź przebieg wdrożenia.
         run: node automation/notify.mjs production
