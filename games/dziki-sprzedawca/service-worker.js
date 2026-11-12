@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1-black-market-v1';
+const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1-black-market-v1-reward-code-v1';
 const MODEL_CACHE = 'dziki-sprzedawca-models-v1';
 const APP_FILES = [
   './index.html',
