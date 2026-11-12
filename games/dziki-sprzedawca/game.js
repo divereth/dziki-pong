@@ -1,5 +1,7 @@
 import {ensureBlackMarket,unlockBlackMarket,buyContraband} from './black-market.js';
 import {MarketWorld} from './world.js';
+import {RacingGame} from './race-ui.js';
+import {ensureRacing} from './racing.js';
 import {CustomerMarket} from './customers.js';
 import {TouchJoystick} from './joystick.js';
 import {parsePrice,formatPrice,priceStep} from './prices.js';
@@ -12,7 +14,8 @@ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const canvas=$('scene'),frame=$('world'),inventory=$('inventory-dialog'),help=$('help-dialog'),negotiation=$('negotiation-dialog');
 let state,loaded=false,saveAvailable=true;
 try{const raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(PREVIOUS_SAVE_KEY)||localStorage.getItem(LEGACY_SAVE_KEY);if(raw){state=restoreSave(JSON.parse(raw));loaded=!!state}}catch{saveAvailable=false}
-state||=newState();ensureBlackMarket(state);
+state||=newState();ensureBlackMarket(state);ensureRacing(state);
+let racing;
 let world,market,worldReady=false,startupFailed=false,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
 let targetId=null,targetCustomer=null,negotiationId=null,activeSeconds=0,lastTime=performance.now(),lastUI=0,lastHUD=0,lastRefill=0,lastSave=0,simTime=0,gesture=null,soundEnabled=false,audioContext,toastTimer,deliveryTimer,inventorySignature='';
 const keys=new Set(),drafts=new Map();
@@ -26,6 +29,7 @@ function updateUI(){
   $('goal-fill').style.width=`${Math.min(100,wealth(state)/GOAL*100)}%`;
   $('goal-caption').textContent=state.won?'Milion osiągnięty. Grasz dalej!':'Cel: 1 000 000 zł';
   if(!started){$('start-btn').innerHTML=`${loaded||state.trades?'Kontynuuj grę':'Otwieram interes'} ${icon('next')}`;$('intro-copy').innerHTML=loaded||state.trades?`Dzień ${state.day}. W portfelu ${money(state.cash)} zł.<br>Twoje oferty i klienci czekają.`:'Masz 100 zł i własny stragan.<br>Znajdź okazję. Ustal cenę. Dogadaj się z klientem.'}
+  if(!started&&ensureRacing(state).active){$('start-btn').textContent='Kontynuuj wyścig';$('intro-copy').textContent='Twój wyścig czeka. Kontynuacja bez kolejnej opłaty.';}
   if(inventory.open)renderInventory();
   document.body.dataset.cash=String(state.cash);document.body.dataset.inventory=String(state.inventory.length);document.body.dataset.listings=String(listedItems(state).length);document.body.dataset.sales=String(state.playerSales);document.body.dataset.day=String(state.day);
 }
@@ -61,14 +65,20 @@ function onCustomerSale(result){
 }
 function testWin(){if(checkWin(state)){save();pause();for(const d of document.querySelectorAll('dialog[open]'))d.close();$('win-detail').textContent=`Masz ${money(state.cash)} zł. Dzień ${state.day}, ${state.playerSales} sprzedaży. Twój dziki interes może rosnąć dalej.`;$('win-dialog').showModal()}}
 function advanceDay(){const result=nextDay(state);ensureBlackMarket(state);world.underworld.refresh();activeSeconds=0;targetId=null;world.setOffers(state.offers,CATALOG);syncStock();updateUI();save();toast(result.recovery?'Pomogłeś rozstawić stragany. Masz 25 zł na powrót do handlu.':`Dzień ${state.day}. Nowe oferty i notowania. Twoje ceny pozostają aktywne.`)}
+function setupRacing(){return new RacingGame({world,getState:()=>state,onSave:save,isTouch:()=>touchMode,toast,
+ onEnter:()=>{started=true;running=false;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=true;$('interaction').hidden=true;$('aim-hint').hidden=true;$('touch-controls').hidden=true;if(document.pointerLockElement)document.exitPointerLock();lastTime=performance.now();},
+ onCancel:()=>start(),
+ onLeave:result=>{world.underworld.enter(true);world.camera.position.set(100,1.76,-34.2);world.yaw=0;world.pitch=0;world.camera.rotation.set(0,0,0);state.peak=Math.max(state.peak,wealth(state));updateUI();save();toast(result.prize?'Miejsce '+result.position+' · +'+money(result.prize)+' zł. Wracasz na Czarny Rynek.':'Wyścig ukończony. Wracasz na Czarny Rynek.');start();testWin();}
+});}
 function underworldAction(){const target=world.underworld.target();if(!target)return false;
- if(target.action==='exit'){world.underworld.enter(false);toast('Wracasz na zwykły targ.');}
+ if(target.action==='race'){pause();$('pause-card').hidden=true;racing.openEntry();return true;}
+ else if(target.action==='exit'){world.underworld.enter(false);toast('Wracasz na zwykły targ.');}
  else if(target.action==='button'){unlockBlackMarket(state,'button');toast('Słychać zamek. Wejście do Czarnego Rynku jest otwarte!');}
  else if(target.action==='door'){const result=unlockBlackMarket(state,'guard');if(!result.ok){toast(result.message);return true;}world.underworld.enter(true);toast('Czarny Rynek. Towar kupujesz na własne ryzyko.');}
  else {const offer=state.blackMarket.offers[target.index],result=buyContraband(state,offer.uid);if(!result.ok){toast(result.message);return true;}world.underworld.refresh();toast('Kupiono: '+result.item.name+'. Sprzedasz go na swoim straganie.');}
  updateUI();save();$('interaction').dataset.signature='';return true;}
 function interaction(){
- const special=world.underworld.target();if(special){$('interaction').dataset.signature='special:'+special.action;targetId=null;targetCustomer=null;$('interaction').hidden=false;$('aim-hint').hidden=true;$('crosshair').classList.add('target');const offer=special.action==='buy'?state.blackMarket.offers[special.index]:null;const detail=offer?'Nielegalny towar · '+money(offer.price)+' zł':special.action==='door'?(state.blackMarket.unlocked?'Wejście odblokowane':'Zapłać 100 000 zł lub znajdź tajny przycisk w oknie.'):'Użyj, aby przejść dalej.';$('interaction').innerHTML='<div class="item-heading"><div><h3>'+special.title+'</h3><p>'+detail+'</p></div></div><button class="item-action" data-underworld><kbd>E</kbd> '+(offer?'Kup przedmiot':special.action==='door'&&!state.blackMarket.unlocked?'Zapłać i wejdź':'Użyj')+'</button>';$('touch-buy').textContent=offer?'Kup / E':'Użyj / E';return;}
+ const special=world.underworld.target();if(special){const signature='special:'+special.action+':'+special.index+':'+state.cash+':'+state.blackMarket.unlocked;targetId=null;targetCustomer=null;$('interaction').hidden=false;$('aim-hint').hidden=true;$('crosshair').classList.add('target');const offer=special.action==='buy'?state.blackMarket.offers[special.index]:null;const detail=offer?'Nielegalny towar · '+money(offer.price)+' zł':special.action==='race'?'Wpisowe 10 000 zł · 3 okrążenia · 9 rywali.':special.action==='door'?(state.blackMarket.unlocked?'Wejście odblokowane':'Zapłać 100 000 zł lub znajdź tajny przycisk w oknie.'):'Użyj, aby przejść dalej.';if($('interaction').dataset.signature!==signature){$('interaction').dataset.signature=signature;$('interaction').innerHTML='<div class="item-heading"><div><h3>'+special.title+'</h3><p>'+detail+'</p></div></div><button class="item-action" data-underworld><kbd>E</kbd> '+(offer?'Kup przedmiot':special.action==='race'?'Zobacz wyścig':special.action==='door'&&!state.blackMarket.unlocked?'Zapłać i wejdź':'Użyj')+'</button>';}$('touch-buy').textContent=offer?'Kup / E':'Użyj / E';return;}
   const candidate=world.pickCustomer(),c=market.customers.find(c=>c.id===candidate),talk=c?.stage==='waiting';targetCustomer=talk?candidate:null;targetId=world.target();
   const kiosk=world.nearKiosk();$('crosshair').classList.toggle('target',targetId!==null||talk||kiosk);$('interaction').hidden=!(targetId!==null||talk||kiosk);$('aim-hint').hidden=!$('interaction').hidden;
   $('touch-buy').textContent=talk?'Rozmawiaj':kiosk?'Stragan':'Kup / E';
@@ -83,10 +93,10 @@ function tapAt(x,y){if(!running)return;const id=world.pickCustomer(x,y);if(id!==
 function anyDialog(){return !!document.querySelector('dialog[open]')}
 function clearInput(){keys.clear();gesture=null;joystick.reset();$('touch-run').setAttribute('aria-pressed','false')}
 function pause(){if(!started)return;running=false;clearInput();$('pause-card').hidden=anyDialog();$('crosshair').hidden=true;$('interaction').hidden=true;$('aim-hint').hidden=true;$('touch-controls').hidden=true;if(document.pointerLockElement)document.exitPointerLock();save()}
-async function start(){if(!world||!worldReady)return;started=true;running=true;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=false;$('aim-hint').hidden=false;$('touch-controls').hidden=!touchMode;canvas.focus({preventScroll:true});market.notifyListings();if(!touchMode)try{const p=canvas.requestPointerLock?.();if(p?.catch)await p}catch{toast('Przytrzymaj mysz i przeciągaj, by się rozejrzeć. Kliknij klienta, by rozmawiać.')}lastTime=performance.now()}
+async function start(){if(!world||!worldReady)return;if(racing?.active){racing.resume();return;}if(racing?.hasPending()){await racing.resumePending();return;}started=true;running=true;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=false;$('aim-hint').hidden=false;$('touch-controls').hidden=!touchMode;canvas.focus({preventScroll:true});market.notifyListings();if(!touchMode)try{const p=canvas.requestPointerLock?.();if(p?.catch)await p}catch{toast('Przytrzymaj mysz i przeciągaj, by się rozejrzeć. Kliknij klienta, by rozmawiać.')}lastTime=performance.now()}
 function closeDialog(dialog){dialog.close()}
-function onClose(event){if(event.target===negotiation&&negotiationId!==null){market.cancelNegotiation(negotiationId);negotiationId=null}if(started&&!running&&!anyDialog()){$('pause-card').hidden=false;canvas.focus({preventScroll:true})}}
-function resetGame(){state=newState();ensureBlackMarket(state);world.attachUnderworld(state);loaded=false;started=false;running=false;activeSeconds=0;lastRefill=0;simTime=0;drafts.clear();inventorySignature='';market=new CustomerMarket(state,onCustomerSale);world.camera.position.set(.2,1.8,7.4);world.yaw=.08;world.pitch=-.055;world.camera.rotation.set(world.pitch,world.yaw,0);world.setOffers(state.offers,CATALOG);syncStock();help.close();$('intro').hidden=false;$('pause-card').hidden=true;$('reset-confirm').hidden=true;$('reset-btn').hidden=false;clearInput();save();updateUI()}
+function onClose(event){if(event.target===negotiation&&negotiationId!==null){market.cancelNegotiation(negotiationId);negotiationId=null}if(started&&!running&&!anyDialog()&&!racing?.active){$('pause-card').hidden=false;canvas.focus({preventScroll:true})}}
+function resetGame(){state=newState();ensureBlackMarket(state);ensureRacing(state);world.attachUnderworld(state);loaded=false;started=false;running=false;activeSeconds=0;lastRefill=0;simTime=0;drafts.clear();inventorySignature='';market=new CustomerMarket(state,onCustomerSale);world.camera.position.set(.2,1.8,7.4);world.yaw=.08;world.pitch=-.055;world.camera.rotation.set(world.pitch,world.yaw,0);world.setOffers(state.offers,CATALOG);syncStock();help.close();$('intro').hidden=false;$('pause-card').hidden=true;$('reset-confirm').hidden=true;$('reset-btn').hidden=false;clearInput();save();updateUI()}
 
 $('start-btn').addEventListener('click',start);$('resume-btn').addEventListener('click',start);$('pause-btn').addEventListener('click',()=>running?pause():started?start():null);
 for(const id of ['inventory-btn','portfolio-btn'])$(id).addEventListener('click',openInventory);
@@ -109,7 +119,7 @@ for(const [id,direction] of [['negotiation-minus',-1],['negotiation-plus',1]])$(
 $('negotiation-price').addEventListener('focus',e=>e.target.select());$('leave-negotiation').addEventListener('click',()=>closeDialog(negotiation));
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeDialog(b.closest('dialog'))));document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',onClose));
 $('reset-btn').addEventListener('click',()=>{$('reset-confirm').hidden=false;$('reset-btn').hidden=true});$('reset-no').addEventListener('click',()=>{$('reset-confirm').hidden=true;$('reset-btn').hidden=false});$('reset-yes').addEventListener('click',resetGame);$('keep-playing').addEventListener('click',()=>{$('win-dialog').close();start()});
-document.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;if(e.repeat)return;if(e.code==='KeyB'&&!help.open&&!negotiation.open&&!$('win-dialog').open){e.preventDefault();if(inventory.open){inventory.close();start()}else openInventory();return}if(anyDialog())return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&started)e.preventDefault();if(e.code==='Escape'&&running){pause();return}if(e.code==='KeyE'&&running){act();return}if(e.code==='KeyN'&&started){advanceDay();return}if(running)keys.add(e.code)});
+document.addEventListener('keydown',e=>{if(racing?.active||racing?.entryOpen)return;if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;if(e.repeat)return;if(e.code==='KeyB'&&!help.open&&!negotiation.open&&!$('win-dialog').open){e.preventDefault();if(inventory.open){inventory.close();start()}else openInventory();return}if(anyDialog())return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&started)e.preventDefault();if(e.code==='Escape'&&running){pause();return}if(e.code==='KeyE'&&running){act();return}if(e.code==='KeyN'&&started){advanceDay();return}if(running)keys.add(e.code)});
 document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if(running)pause();else clearInput()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)pause()});document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&running&&!touchMode)pause()});
 document.addEventListener('mousemove',e=>{if(running&&document.pointerLockElement===canvas)world.look(e.movementX,e.movementY)});
 canvas.addEventListener('pointerdown',e=>{if(!running)return;if(e.pointerType==='touch'&&!touchMode)setTouchMode(true);if(document.pointerLockElement===canvas){const id=world.pickCustomer();if(id!==null&&market.customers.find(c=>c.id===id)?.stage==='waiting')openNegotiation(id);else act();return}if(gesture)return;gesture={id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,time:performance.now(),moved:false};canvas.setPointerCapture(e.pointerId)});
@@ -133,10 +143,11 @@ function prepareMarket(){
 $('retry-models').addEventListener('click',()=>{world.products.retry();if(!worldReady)prepareMarket();});
 $('catalog-note').textContent=`${CATALOG.length} przedmiotów · realistyczne modele 3D`;
 document.body.dataset.catalog=String(CATALOG.length);
-try{world=new MarketWorld(canvas,{mobile:touchMode,onAssetStatus:showModelStatus});world.attachUnderworld(state);market=new CustomerMarket(state,onCustomerSale);world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='loading-models';prepareMarket()}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
+try{world=new MarketWorld(canvas,{mobile:touchMode,onAssetStatus:showModelStatus});world.attachUnderworld(state);market=new CustomerMarket(state,onCustomerSale);racing=setupRacing();world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='loading-models';prepareMarket()}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
 setTouchMode(touchMode);updateUI();if(loaded)save();if(!saveAvailable)$('save-status').textContent='Zapis jest niedostępny w tej przeglądarce.';
 function loop(time){
   const dt=Math.min((time-lastTime)/1000,1);lastTime=time;
+  if(racing?.active){racing.update(dt);requestAnimationFrame(loop);return;}
   if(world){
     const simulating=started&&(running||inventory.open||negotiation.open)&&!document.hidden;
     if(simulating){let remaining=dt;while(remaining>0){const step=Math.min(remaining,.033);simTime+=step;state.elapsed+=step;activeSeconds+=step;const seizure=world.underworld.update(step,simTime);if(seizure){for(const c of market.customers)if(c.negotiation)market.cancelNegotiation(c.id);if(negotiation.open){negotiationId=null;negotiation.close();}syncStock();updateUI();save();toast('POLICJA: konfiskata '+seizure.seized.length+' przedmiotów. Mandat '+money(seizure.fine)+' zł'+(state.policeDebt?' · dług '+money(state.policeDebt)+' zł':''));}market.update(step);if(running)world.move(keys,step,simTime,joystick.value);remaining-=step}world.syncCustomers(market.customers,simTime);

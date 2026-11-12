@@ -68,7 +68,7 @@ export function checkGame(game) {
     execFileSync(process.execPath, ['--check', join(site, path)], { stdio: 'inherit' });
   }
   const tests = {
-    'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js', 'polyhaven.test.js', 'market-stalls.test.js', 'black-market.test.js', 'characters.test.js'],
+    'dziki-sprzedawca': ['economy.test.js', 'customers.test.js', 'market.test.js', 'polyhaven.test.js', 'market-stalls.test.js', 'black-market.test.js', 'characters.test.js', 'racing.test.js'],
     'dziki-bieg': ['tests/mechanics.mjs', 'tests/presentation.mjs', 'tests/rendering.test.mjs', 'tests/camera.test.mjs', 'tests/demo.test.mjs', 'tests/leaderboard.test.mjs', 'backend/worker.test.mjs'],
     'dziki-karabin': ['tests/core.test.mjs', 'tests/runtime.test.mjs', 'tests/touch.test.mjs'],
   }[game.id];
