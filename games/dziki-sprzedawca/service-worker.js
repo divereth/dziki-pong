@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1';
+const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1-black-market-v1';
 const MODEL_CACHE = 'dziki-sprzedawca-models-v1';
 const APP_FILES = [
   './index.html',
@@ -7,6 +7,9 @@ const APP_FILES = [
   './game.js',
   './world.js',
   './market-stalls.js',
+  './black-market.js',
+  './underworld.js',
+  './contraband.js',
   './models.js',
   './polyhaven-models.js',
   './catalog.js',
@@ -75,3 +78,4 @@ self.addEventListener('fetch', event => {
     }
   })());
 });
+
