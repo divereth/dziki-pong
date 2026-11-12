@@ -1,0 +1,19 @@
+{
+  "name": "dziki-sprzedawca-polyhaven-importer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import": "node import-polyhaven.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "meshoptimizer": "1.3.0",
+    "sharp": "0.35.5",
+    "three": "0.170.0"
+  }
+}

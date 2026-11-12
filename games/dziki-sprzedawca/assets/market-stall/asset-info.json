@@ -1,0 +1,12 @@
+{
+  "triangles": 23392,
+  "width_m": 4.6,
+  "depth_m": 2.34,
+  "height_m": 2.95,
+  "counter_height_m": 1.06,
+  "front_gltf": "+Z",
+  "embedded_textures": 7,
+  "wood_canvas_texture_resolution": 1024,
+  "glb_bytes": 7720964,
+  "revision": "Weathered wood and faded stained canvas; albedo, normal and roughness maps"
+}

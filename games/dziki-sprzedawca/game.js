@@ -3,16 +3,16 @@ import {CustomerMarket} from './customers.js';
 import {TouchJoystick} from './joystick.js';
 import {parsePrice,formatPrice,priceStep} from './prices.js';
 import {pict} from './icons.js';
-import {CATALOG,GOAL,CAPACITY,SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
+import {CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
 
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const canvas=$('scene'),frame=$('world'),inventory=$('inventory-dialog'),help=$('help-dialog'),negotiation=$('negotiation-dialog');
 let state,loaded=false,saveAvailable=true;
-try{const raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(LEGACY_SAVE_KEY);if(raw){state=restoreSave(JSON.parse(raw));loaded=!!state}}catch{saveAvailable=false}
+try{const raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(PREVIOUS_SAVE_KEY)||localStorage.getItem(LEGACY_SAVE_KEY);if(raw){state=restoreSave(JSON.parse(raw));loaded=!!state}}catch{saveAvailable=false}
 state||=newState();
-let world,market,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
+let world,market,worldReady=false,startupFailed=false,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
 let targetId=null,targetCustomer=null,negotiationId=null,activeSeconds=0,lastTime=performance.now(),lastUI=0,lastHUD=0,lastRefill=0,lastSave=0,simTime=0,gesture=null,soundEnabled=false,audioContext,toastTimer,deliveryTimer,inventorySignature='';
 const keys=new Set(),drafts=new Map();
 const joystick=new TouchJoystick($('joystick'),$('stick-thumb'),()=>running&&touchMode);
@@ -75,7 +75,7 @@ function tapAt(x,y){if(!running)return;const id=world.pickCustomer(x,y);if(id!==
 function anyDialog(){return !!document.querySelector('dialog[open]')}
 function clearInput(){keys.clear();gesture=null;joystick.reset();$('touch-run').setAttribute('aria-pressed','false')}
 function pause(){if(!started)return;running=false;clearInput();$('pause-card').hidden=anyDialog();$('crosshair').hidden=true;$('interaction').hidden=true;$('aim-hint').hidden=true;$('touch-controls').hidden=true;if(document.pointerLockElement)document.exitPointerLock();save()}
-async function start(){if(!world)return;started=true;running=true;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=false;$('aim-hint').hidden=false;$('touch-controls').hidden=!touchMode;canvas.focus({preventScroll:true});market.notifyListings();if(!touchMode)try{const p=canvas.requestPointerLock?.();if(p?.catch)await p}catch{toast('Przytrzymaj mysz i przeciągaj, by się rozejrzeć. Kliknij klienta, by rozmawiać.')}lastTime=performance.now()}
+async function start(){if(!world||!worldReady)return;started=true;running=true;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=false;$('aim-hint').hidden=false;$('touch-controls').hidden=!touchMode;canvas.focus({preventScroll:true});market.notifyListings();if(!touchMode)try{const p=canvas.requestPointerLock?.();if(p?.catch)await p}catch{toast('Przytrzymaj mysz i przeciągaj, by się rozejrzeć. Kliknij klienta, by rozmawiać.')}lastTime=performance.now()}
 function closeDialog(dialog){dialog.close()}
 function onClose(event){if(event.target===negotiation&&negotiationId!==null){market.cancelNegotiation(negotiationId);negotiationId=null}if(started&&!running&&!anyDialog()){$('pause-card').hidden=false;canvas.focus({preventScroll:true})}}
 function resetGame(){state=newState();loaded=false;started=false;running=false;activeSeconds=0;lastRefill=0;simTime=0;drafts.clear();inventorySignature='';market=new CustomerMarket(state,onCustomerSale);world.camera.position.set(.2,1.8,7.4);world.yaw=.08;world.pitch=-.055;world.camera.rotation.set(world.pitch,world.yaw,0);world.setOffers(state.offers,CATALOG);syncStock();help.close();$('intro').hidden=false;$('pause-card').hidden=true;$('reset-confirm').hidden=true;$('reset-btn').hidden=false;clearInput();save();updateUI()}
@@ -110,7 +110,22 @@ canvas.addEventListener('pointerup',e=>{if(!gesture||e.pointerId!==gesture.id)re
 $('touch-buy').addEventListener('click',act);$('touch-jump').addEventListener('pointerdown',e=>{e.preventDefault();keys.add('Space');e.currentTarget.setPointerCapture(e.pointerId)});for(const event of ['pointerup','pointercancel','lostpointercapture'])$('touch-jump').addEventListener(event,()=>keys.delete('Space'));
 $('touch-run').addEventListener('click',()=>{const on=!keys.has('ShiftLeft');if(on)keys.add('ShiftLeft');else keys.delete('ShiftLeft');$('touch-run').setAttribute('aria-pressed',String(on))});
 
-try{world=new MarketWorld(canvas,{mobile:touchMode});market=new CustomerMarket(state,onCustomerSale);world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='true'}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
+function showModelStatus({loading,failed,ready,total}){
+  failed=Math.max(failed,startupFailed?1:0);
+  const status=$('asset-status');status.hidden=!loading&&!failed;
+  $('asset-message').textContent=failed?'Nie udało się wczytać części przedmiotów.':`Rozpakowuję towary · ${ready}/${total}`;
+  $('retry-models').hidden=!failed;
+}
+function prepareMarket(){
+  startupFailed=false;
+  $('start-btn').disabled=true;
+  const initial=state.offers.filter(offer=>!offer.sold).slice(0,3).map(offer=>getItem(offer.itemId));
+  Promise.all([world.loadStalls(),world.products.preload(initial.length?initial:[CATALOG[0]])]).then(()=>{worldReady=true;$('start-btn').disabled=false;document.body.dataset.ready='true';}).catch(()=>{startupFailed=true;showModelStatus({loading:0,failed:1,ready:0,total:initial.length});});
+}
+$('retry-models').addEventListener('click',()=>{world.products.retry();if(!worldReady)prepareMarket();});
+$('catalog-note').textContent=`${CATALOG.length} przedmiotów · realistyczne modele 3D`;
+document.body.dataset.catalog=String(CATALOG.length);
+try{world=new MarketWorld(canvas,{mobile:touchMode,onAssetStatus:showModelStatus});market=new CustomerMarket(state,onCustomerSale);world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='loading-models';prepareMarket()}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
 setTouchMode(touchMode);updateUI();if(loaded)save();if(!saveAvailable)$('save-status').textContent='Zapis jest niedostępny w tej przeglądarce.';
 function loop(time){
   const dt=Math.min((time-lastTime)/1000,1);lastTime=time;

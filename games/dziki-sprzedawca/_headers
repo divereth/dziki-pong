@@ -5,3 +5,5 @@
   Cache-Control: public, max-age=0, must-revalidate
 /*.css
   Cache-Control: public, max-age=0, must-revalidate
+/assets/polyhaven/*.glb
+  Cache-Control: public, max-age=31536000, immutable
