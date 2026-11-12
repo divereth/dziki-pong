@@ -28,13 +28,16 @@ jobs:
       - name: Download, verify and optimize Poly Haven models
         run: node games/dziki-sprzedawca/tools/import-polyhaven.mjs
       - name: Commit self-contained game models
+        if: always()
         run: |
           git config user.name "Dziki asset import"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- games/dziki-sprzedawca/catalog.js games/dziki-sprzedawca/assets/polyhaven
-          if ! git diff --cached --quiet; then
-            git commit -m "Import optimized CC0 Poly Haven market models"
-            git push origin HEAD:automation/polyhaven-goods-2026-11-12
+          if test -f games/dziki-sprzedawca/assets/polyhaven/manifest.json; then
+            git add -- games/dziki-sprzedawca/catalog.js games/dziki-sprzedawca/assets/polyhaven
+            if ! git diff --cached --quiet; then
+              git commit -m "Import optimized CC0 Poly Haven market models"
+              git push origin HEAD:automation/polyhaven-goods-2026-11-12
+            fi
           fi
       - uses: actions/upload-artifact@v4
         if: always()
