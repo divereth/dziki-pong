@@ -7,7 +7,7 @@ test('courtyard builds all goods and lamps; door targets, collision and lighting
  const previous=globalThis.document;globalThis.document={createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})};
  try{const scene=new T.Scene();scene.background=new T.Color('#aaccee');scene.fog=new T.Fog('#aabbcc',34,100);scene.environmentIntensity=.65;const light=new T.HemisphereLight(0xffffff,0x222222,2);scene.add(light);
  const world={scene,person:MarketWorld.prototype.person,secretWindows:[new T.Vector3(13.3,1.8,-25)],camera:new T.PerspectiveCamera(),renderer:{shadowMap:{}},ray:new T.Raycaster(),pointer:new T.Vector2()};
- const u=new Underworld(world,newState());assert.equal(u.goods.length,8);assert.equal(u.area.children.filter(o=>o.isPointLight).length,8);assert.ok(u.guard.scale.x>1.5);
+ const u=new Underworld(world,newState());assert.equal(u.goods.length,8);assert.equal(u.area.children.filter(o=>o.isPointLight).length,8);assert.equal(u.guard.userData.characterId,'guard');assert.equal(u.police.userData.characterId,'police');
  world.camera.position.set(10,1.76,-12);world.camera.lookAt(13.43,1.2,-12);world.camera.updateMatrixWorld();scene.updateMatrixWorld(true);assert.equal(u.target()?.action,'door');
  u.enter(true);assert.equal(world.camera.position.x,100);assert.equal(light.intensity,.08);assert.ok(u.walkable(100,0));assert.ok(!u.walkable(90,1));
  u.enter(false);assert.equal(light.intensity,2);assert.equal(scene.environmentIntensity,.65);assert.equal(world.camera.position.x,10);

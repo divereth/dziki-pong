@@ -121,14 +121,14 @@ $('touch-run').addEventListener('click',()=>{const on=!keys.has('ShiftLeft');if(
 function showModelStatus({loading,failed,ready,total}){
   failed=Math.max(failed,startupFailed?1:0);
   const status=$('asset-status');status.hidden=!loading&&!failed;
-  $('asset-message').textContent=failed?'Nie udało się wczytać części przedmiotów.':`Rozpakowuję towary · ${ready}/${total}`;
+  $('asset-message').textContent=failed?'Nie udało się wczytać części modeli.':`Rozpakowuję towary · ${ready}/${total}`;
   $('retry-models').hidden=!failed;
 }
 function prepareMarket(){
   startupFailed=false;
   $('start-btn').disabled=true;
   const initial=state.offers.filter(offer=>!offer.sold).slice(0,3).map(offer=>getItem(offer.itemId));
-  Promise.all([world.loadStalls(),world.products.preload(initial.length?initial:[CATALOG[0]])]).then(()=>{worldReady=true;$('start-btn').disabled=false;document.body.dataset.ready='true';}).catch(()=>{startupFailed=true;showModelStatus({loading:0,failed:1,ready:0,total:initial.length});});
+  Promise.all([world.loadCharacters(),world.loadStalls(),world.products.preload(initial.length?initial:[CATALOG[0]])]).then(()=>{worldReady=true;$('start-btn').disabled=false;document.body.dataset.ready='true';}).catch(()=>{startupFailed=true;showModelStatus({loading:0,failed:1,ready:0,total:initial.length});});
 }
 $('retry-models').addEventListener('click',()=>{world.products.retry();if(!worldReady)prepareMarket();});
 $('catalog-note').textContent=`${CATALOG.length} przedmiotów · realistyczne modele 3D`;
