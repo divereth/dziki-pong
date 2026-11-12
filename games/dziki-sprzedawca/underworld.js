@@ -18,6 +18,9 @@ export class Underworld{
   for(const x of [85,115])for(const z of [3,-9,-22,-35]){cylinder(this.area,x,2,z,.055,.09,4,'#282d32');box(this.area,x,4,z,.48,.14,.48,'#10151b');const bulb=sphere(this.area,x,3.8,z,.18,'#ffd38a');bulb.material=bulb.material.clone();bulb.material.emissive.set('#ffb85b');bulb.material.emissiveIntensity=2;const light=new T.PointLight('#ffc67c',90,13,2);light.position.set(x,3.7,z);this.area.add(light);}
   const name=label('CZARNY RYNEK',7,.85,'#171c24','#c59c62');name.position.set(100,3,-38.7);this.area.add(name);
   this.exit=box(this.area,100,1.15,8.7,2,2.3,.15,'#434b4e');this.targets.push({object:this.exit,action:'exit',title:'Powrót na zwykły targ'});
+  const exitLamp=new T.Group();exitLamp.name='black-market-exit-lamp';exitLamp.position.set(100,2.65,8.35);this.area.add(exitLamp);
+  box(exitLamp,0,.07,0,.72,.14,.36,'#1c2328');const exitBulb=box(exitLamp,0,-.035,-.02,.54,.045,.23,'#ffe1aa');exitBulb.material=exitBulb.material.clone();exitBulb.material.emissive.set('#ffbf69');exitBulb.material.emissiveIntensity=3;
+  const exitLight=new T.SpotLight('#ffd48e',55,8,Math.PI/3,.7,2);exitLight.position.set(0,-.1,-.7);exitLight.target.position.set(0,-1.55,.3);exitLamp.add(exitLight,exitLight.target);
   CONTRABAND.forEach((item,i)=>{const x=i%2?110:90,z=1-Math.floor(i/2)*10;const rug=box(this.area,x,.018,z,7,.035,6,i%2?'#574039':'#363f46');
    for(const side of [-1,1])for(let j=0;j<18;j++)box(this.area,x-3.4+j*.4,.025,z+side*3,.05,.02,.25,'#a18b68');
    const vendor=world.person(this.area,x+(i%2?3:-3),z-2,'#403b36',i+3);vendor.rotation.y=i%2?-1:1;
