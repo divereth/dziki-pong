@@ -1,9 +1,10 @@
+import {ensureBlackMarket,unlockBlackMarket,buyContraband} from './black-market.js';
 import {MarketWorld} from './world.js';
 import {CustomerMarket} from './customers.js';
 import {TouchJoystick} from './joystick.js';
 import {parsePrice,formatPrice,priceStep} from './prices.js';
 import {pict} from './icons.js';
-import {CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
+import {GAME_CATALOG as CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
 
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -11,7 +12,7 @@ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const canvas=$('scene'),frame=$('world'),inventory=$('inventory-dialog'),help=$('help-dialog'),negotiation=$('negotiation-dialog');
 let state,loaded=false,saveAvailable=true;
 try{const raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(PREVIOUS_SAVE_KEY)||localStorage.getItem(LEGACY_SAVE_KEY);if(raw){state=restoreSave(JSON.parse(raw));loaded=!!state}}catch{saveAvailable=false}
-state||=newState();
+state||=newState();ensureBlackMarket(state);
 let world,market,worldReady=false,startupFailed=false,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
 let targetId=null,targetCustomer=null,negotiationId=null,activeSeconds=0,lastTime=performance.now(),lastUI=0,lastHUD=0,lastRefill=0,lastSave=0,simTime=0,gesture=null,soundEnabled=false,audioContext,toastTimer,deliveryTimer,inventorySignature='';
 const keys=new Set(),drafts=new Map();
@@ -21,7 +22,7 @@ function toast(message){$('toast').textContent=message;$('toast').classList.add(
 function tone(type='buy'){if(!soundEnabled)return;try{audioContext||=new AudioContext();audioContext.resume();const now=audioContext.currentTime;for(const [i,f] of (type==='sell'?[523,659,784]:[587,880]).entries()){const o=audioContext.createOscillator(),g=audioContext.createGain();o.frequency.value=f;g.gain.setValueAtTime(.001,now+i*.09);g.gain.linearRampToValueAtTime(.04,now+i*.09+.015);g.gain.exponentialRampToValueAtTime(.001,now+i*.09+.3);o.connect(g);g.connect(audioContext.destination);o.start(now+i*.09);o.stop(now+i*.09+.32)}}catch{}}
 function setTouchMode(value){touchMode=value;document.body.classList.toggle('touch-mode',value);$('touch-controls').hidden=!value||!running;$('touch-toggle').setAttribute('aria-pressed',String(value));$('touch-toggle').textContent=`Sterowanie dotykowe: ${value?'wł.':'wył.'}`;$('intro-controls').textContent=value?'Lewy kciuk — ruch · Prawy — rozglądanie · Dotknij klienta, by porozmawiać':'WASD · ruch   Mysz · rozglądanie   E · działanie';if(world){world.renderer.setPixelRatio(Math.min(devicePixelRatio,value?1:1.5));world.resize()}joystick.reset()}
 function updateUI(){
-  $('cash').innerHTML=`${money(state.cash)} <small>zł</small>`;$('stock-count').textContent=`${state.inventory.length}/${CAPACITY}`;$('day-label').textContent=`Dzień ${String(state.day).padStart(2,'0')}`;
+  $('cash').innerHTML=`${money(state.cash)} <small>zł</small>${state.policeDebt?'<small>Mandat do spłaty: '+money(state.policeDebt)+' zł</small>':''}`;$('stock-count').textContent=`${state.inventory.length}/${CAPACITY}`;$('day-label').textContent=`Dzień ${String(state.day).padStart(2,'0')}`;
   $('goal-fill').style.width=`${Math.min(100,wealth(state)/GOAL*100)}%`;
   $('goal-caption').textContent=state.won?'Milion osiągnięty. Grasz dalej!':'Cel: 1 000 000 zł';
   if(!started){$('start-btn').innerHTML=`${loaded||state.trades?'Kontynuuj grę':'Otwieram interes'} ${icon('next')}`;$('intro-copy').innerHTML=loaded||state.trades?`Dzień ${state.day}. W portfelu ${money(state.cash)} zł.<br>Twoje oferty i klienci czekają.`:'Masz 100 zł i własny stragan.<br>Znajdź okazję. Ustal cenę. Dogadaj się z klientem.'}
@@ -35,7 +36,7 @@ function renderInventory(){
   const signature=JSON.stringify([state.inventory,state.market]);
   if(signature!==inventorySignature){
     const active=document.activeElement,activeId=active?.dataset?.price,selection=activeId?[active.selectionStart,active.selectionEnd]:null;
-    $('inventory-list').innerHTML=state.inventory.length?state.inventory.map(e=>`<article class="inventory-row"><span class="item-picture">${pict(getItem(e.itemId).model)}</span><div class="listing-info"><h3>${getItem(e.itemId).name}</h3><p>Kupiono: ${money(e.paid)} zł · Wartość: ${money(itemValue(e,state))} zł</p><span class="listing-state ${e.ask!==null?'listed':''}">${e.ask!==null?`● Wystawiono za ${money(e.ask)} zł`:'W plecaku · wybierz cenę poniżej'}</span>${priceControls(e)}<p class="price-guide">Możesz użyć przycisków lub wpisać kwotę z przecinkiem.</p></div></article>`).join(''):'<div class="empty-state">Twój następny dobry interes czeka na targu.<br>Kup przedmiot, a tutaj wystawisz go z własną ceną.</div>';
+    $('inventory-list').innerHTML=state.inventory.length?state.inventory.map(e=>`<article class="inventory-row"><span class="item-picture">${pict(getItem(e.itemId).model)}</span><div class="listing-info"><h3>${getItem(e.itemId).name}${getItem(e.itemId).illegal?' · NIELEGALNE':''}</h3><p>Kupiono: ${money(e.paid)} zł · Wartość: ${money(itemValue(e,state))} zł</p><span class="listing-state ${e.ask!==null?'listed':''}">${e.ask!==null?`● Wystawiono za ${money(e.ask)} zł`:'W plecaku · wybierz cenę poniżej'}</span>${priceControls(e)}<p class="price-guide">Możesz użyć przycisków lub wpisać kwotę z przecinkiem.</p></div></article>`).join(''):'<div class="empty-state">Twój następny dobry interes czeka na targu.<br>Kup przedmiot, a tutaj wystawisz go z własną ceną.</div>';
     inventorySignature=signature;
     if(activeId&&$(`price-${activeId}`)){const input=$(`price-${activeId}`);input.focus({preventScroll:true});if(selection)input.setSelectionRange(...selection)}
   }
@@ -43,7 +44,7 @@ function renderInventory(){
 }
 function setDraft(uid,value){drafts.set(uid,formatPrice(value));const input=$(`price-${uid}`);if(input)input.value=formatPrice(value)}
 function submitListing(uid){const price=parsePrice($(`price-${uid}`)?.value);if(!Number.isFinite(price)){$('listing-feedback').textContent='Podaj kwotę od 0,01 do 5 000 000 zł, np. 68,50.';return}const result=listItem(state,uid,price);if(!result.ok){toast(result.message);return}drafts.delete(uid);syncStock();updateUI();save();tone();$('listing-feedback').textContent=`Wystawiono: ${result.item.name} za ${money(price)} zł. Klienci mogą już składać oferty.`}
-function openInventory(){if(inventory.open)return;pause();$('pause-card').hidden=true;renderInventory();inventory.showModal();$('listing-feedback').textContent='Gotowe ceny działają jednym dotknięciem. Zatwierdź przyciskiem Wystaw. Targ działa podczas ustalania cen.'}
+function openInventory(){if(inventory.open)return;pause();$('pause-card').hidden=true;renderInventory();inventory.showModal();$('listing-feedback').textContent='Policjant konfiskuje wystawiony nielegalny towar przy swoim patrolu. Mandat: 3× cena zakupu; dług spłacasz ze sprzedaży. Towar schowany w plecaku jest bezpieczny.'}
 function openNegotiation(id){
   if(anyDialog())return;const result=market.beginNegotiation(id);if(!result.ok){toast(result.message);return}pause();$('pause-card').hidden=true;negotiationId=id;renderNegotiation(`„Za tę cenę odpuszczę. Mogę zapłacić ${money(result.counter)} zł.”`);negotiation.showModal();
 }
@@ -59,8 +60,15 @@ function onCustomerSale(result){
   updateUI();save();testWin();
 }
 function testWin(){if(checkWin(state)){save();pause();for(const d of document.querySelectorAll('dialog[open]'))d.close();$('win-detail').textContent=`Masz ${money(state.cash)} zł. Dzień ${state.day}, ${state.playerSales} sprzedaży. Twój dziki interes może rosnąć dalej.`;$('win-dialog').showModal()}}
-function advanceDay(){const result=nextDay(state);activeSeconds=0;targetId=null;world.setOffers(state.offers,CATALOG);syncStock();updateUI();save();toast(result.recovery?'Pomogłeś rozstawić stragany. Masz 25 zł na powrót do handlu.':`Dzień ${state.day}. Nowe oferty i notowania. Twoje ceny pozostają aktywne.`)}
+function advanceDay(){const result=nextDay(state);ensureBlackMarket(state);world.underworld.refresh();activeSeconds=0;targetId=null;world.setOffers(state.offers,CATALOG);syncStock();updateUI();save();toast(result.recovery?'Pomogłeś rozstawić stragany. Masz 25 zł na powrót do handlu.':`Dzień ${state.day}. Nowe oferty i notowania. Twoje ceny pozostają aktywne.`)}
+function underworldAction(){const target=world.underworld.target();if(!target)return false;
+ if(target.action==='exit'){world.underworld.enter(false);toast('Wracasz na zwykły targ.');}
+ else if(target.action==='button'){unlockBlackMarket(state,'button');toast('Słychać zamek. Wejście do Czarnego Rynku jest otwarte!');}
+ else if(target.action==='door'){const result=unlockBlackMarket(state,'guard');if(!result.ok){toast(result.message);return true;}world.underworld.enter(true);toast('Czarny Rynek. Towar kupujesz na własne ryzyko.');}
+ else {const offer=state.blackMarket.offers[target.index],result=buyContraband(state,offer.uid);if(!result.ok){toast(result.message);return true;}world.underworld.refresh();toast('Kupiono: '+result.item.name+'. Sprzedasz go na swoim straganie.');}
+ updateUI();save();$('interaction').dataset.signature='';return true;}
 function interaction(){
+ const special=world.underworld.target();if(special){$('interaction').dataset.signature='special:'+special.action;targetId=null;targetCustomer=null;$('interaction').hidden=false;$('aim-hint').hidden=true;$('crosshair').classList.add('target');const offer=special.action==='buy'?state.blackMarket.offers[special.index]:null;const detail=offer?'Nielegalny towar · '+money(offer.price)+' zł':special.action==='door'?(state.blackMarket.unlocked?'Wejście odblokowane':'Zapłać 100 000 zł lub znajdź tajny przycisk w oknie.'):'Użyj, aby przejść dalej.';$('interaction').innerHTML='<div class="item-heading"><div><h3>'+special.title+'</h3><p>'+detail+'</p></div></div><button class="item-action" data-underworld><kbd>E</kbd> '+(offer?'Kup przedmiot':special.action==='door'&&!state.blackMarket.unlocked?'Zapłać i wejdź':'Użyj')+'</button>';$('touch-buy').textContent=offer?'Kup / E':'Użyj / E';return;}
   const candidate=world.pickCustomer(),c=market.customers.find(c=>c.id===candidate),talk=c?.stage==='waiting';targetCustomer=talk?candidate:null;targetId=world.target();
   const kiosk=world.nearKiosk();$('crosshair').classList.toggle('target',targetId!==null||talk||kiosk);$('interaction').hidden=!(targetId!==null||talk||kiosk);$('aim-hint').hidden=!$('interaction').hidden;
   $('touch-buy').textContent=talk?'Rozmawiaj':kiosk?'Stragan':'Kup / E';
@@ -70,7 +78,7 @@ function interaction(){
   const offer=state.offers.find(o=>o.uid===targetId&&!o.sold);if(!offer)return;const value=itemValue(offer,state),profit=Math.round((value/offer.price-1)*100),available=state.cash>=offer.price&&state.inventory.length<CAPACITY;
   $('interaction').innerHTML=`<div class="item-heading"><span class="item-picture">${pict(getItem(offer.itemId).model)}</span><div><span class="item-kind">${offer.quality>1?'STAN KOLEKCJONERSKI':offer.quality<1?'ŚLADY UŻYWANIA':'BARDZO DOBRY STAN'}</span><h3>${getItem(offer.itemId).name}</h3></div><span class="bargain ${profit<0?'bad':''}">${profit>=0?'+':''}${profit}%</span></div><div class="item-prices"><div>Cena sprzedawcy<br><strong>${money(offer.price)} zł</strong></div><span>Wartość: ${money(value)} zł<br>Cenę sprzedaży ustalisz sam.</span></div><button class="item-action" data-buy ${available?'':'disabled'}><kbd>E</kbd> ${state.inventory.length>=CAPACITY?'Plecak pełny':state.cash<offer.price?'Za mało gotówki':'Kup przedmiot'}</button>`;
 }
-function act(){if(!running)return;if(targetCustomer!==null){openNegotiation(targetCustomer);return}if(world.nearKiosk()){openInventory();return}if(targetId===null){toast('Podejdź i wyceluj w przedmiot lub klienta.');return}const result=buy(state,targetId);if(!result.ok){toast(result.message);return}world.removeOffer(targetId);targetId=null;$('interaction').hidden=true;updateUI();save();tone();toast(`Kupiono: ${result.item.name}. Otwórz plecak i wybierz cenę.`)}
+function act(){if(!running)return;if(underworldAction())return;if(targetCustomer!==null){openNegotiation(targetCustomer);return}if(world.nearKiosk()){openInventory();return}if(targetId===null){toast('Podejdź i wyceluj w przedmiot lub klienta.');return}const result=buy(state,targetId);if(!result.ok){toast(result.message);return}world.removeOffer(targetId);targetId=null;$('interaction').hidden=true;updateUI();save();tone();toast(`Kupiono: ${result.item.name}. Otwórz plecak i wybierz cenę.`)}
 function tapAt(x,y){if(!running)return;const id=world.pickCustomer(x,y);if(id!==null){const c=market.customers.find(c=>c.id===id);if(c?.stage==='waiting')openNegotiation(id);else toast(`${c.name}: „Rozglądam się po targu.”`)}}
 function anyDialog(){return !!document.querySelector('dialog[open]')}
 function clearInput(){keys.clear();gesture=null;joystick.reset();$('touch-run').setAttribute('aria-pressed','false')}
@@ -78,7 +86,7 @@ function pause(){if(!started)return;running=false;clearInput();$('pause-card').h
 async function start(){if(!world||!worldReady)return;started=true;running=true;clearInput();$('intro').hidden=true;$('pause-card').hidden=true;$('crosshair').hidden=false;$('aim-hint').hidden=false;$('touch-controls').hidden=!touchMode;canvas.focus({preventScroll:true});market.notifyListings();if(!touchMode)try{const p=canvas.requestPointerLock?.();if(p?.catch)await p}catch{toast('Przytrzymaj mysz i przeciągaj, by się rozejrzeć. Kliknij klienta, by rozmawiać.')}lastTime=performance.now()}
 function closeDialog(dialog){dialog.close()}
 function onClose(event){if(event.target===negotiation&&negotiationId!==null){market.cancelNegotiation(negotiationId);negotiationId=null}if(started&&!running&&!anyDialog()){$('pause-card').hidden=false;canvas.focus({preventScroll:true})}}
-function resetGame(){state=newState();loaded=false;started=false;running=false;activeSeconds=0;lastRefill=0;simTime=0;drafts.clear();inventorySignature='';market=new CustomerMarket(state,onCustomerSale);world.camera.position.set(.2,1.8,7.4);world.yaw=.08;world.pitch=-.055;world.camera.rotation.set(world.pitch,world.yaw,0);world.setOffers(state.offers,CATALOG);syncStock();help.close();$('intro').hidden=false;$('pause-card').hidden=true;$('reset-confirm').hidden=true;$('reset-btn').hidden=false;clearInput();save();updateUI()}
+function resetGame(){state=newState();ensureBlackMarket(state);world.attachUnderworld(state);loaded=false;started=false;running=false;activeSeconds=0;lastRefill=0;simTime=0;drafts.clear();inventorySignature='';market=new CustomerMarket(state,onCustomerSale);world.camera.position.set(.2,1.8,7.4);world.yaw=.08;world.pitch=-.055;world.camera.rotation.set(world.pitch,world.yaw,0);world.setOffers(state.offers,CATALOG);syncStock();help.close();$('intro').hidden=false;$('pause-card').hidden=true;$('reset-confirm').hidden=true;$('reset-btn').hidden=false;clearInput();save();updateUI()}
 
 $('start-btn').addEventListener('click',start);$('resume-btn').addEventListener('click',start);$('pause-btn').addEventListener('click',()=>running?pause():started?start():null);
 for(const id of ['inventory-btn','portfolio-btn'])$(id).addEventListener('click',openInventory);
@@ -94,7 +102,7 @@ $('inventory-list').addEventListener('click',e=>{const preset=e.target.closest('
   if(withdraw){const uid=Number(withdraw.dataset.withdraw);if(market.reservations.has(uid)){toast('Ten przedmiot jest zarezerwowany do rozmowy.');return}withdrawListing(state,uid);drafts.delete(uid);syncStock();save();updateUI()}
 });
 $('list-all').addEventListener('click',()=>{let count=0;for(const entry of state.inventory)if(entry.ask===null){listItem(state,entry.uid,itemValue(entry,state)*Number($('bulk-strategy').value));drafts.delete(entry.uid);count++}syncStock();save();updateUI();$('listing-feedback').textContent=`Wystawiono ${count} przedmiotów. Twoje wcześniejsze ceny pozostały bez zmian.`});
-$('interaction').addEventListener('click',e=>{const talk=e.target.closest('[data-talk]');if(talk)openNegotiation(Number(talk.dataset.talk));else if(e.target.closest('[data-inventory]'))openInventory();else if(e.target.closest('[data-buy]'))act()});
+$('interaction').addEventListener('click',e=>{if(e.target.closest('[data-underworld]')){act();return;}const talk=e.target.closest('[data-talk]');if(talk)openNegotiation(Number(talk.dataset.talk));else if(e.target.closest('[data-inventory]'))openInventory();else if(e.target.closest('[data-buy]'))act()});
 $('accept-counter').addEventListener('click',()=>{const c=market.customers.find(c=>c.id===negotiationId);if(c?.negotiation)propose(c.negotiation.counter)});
 $('negotiation-form').addEventListener('submit',e=>{e.preventDefault();propose(parsePrice($('negotiation-price').value))});
 for(const [id,direction] of [['negotiation-minus',-1],['negotiation-plus',1]])$(id).addEventListener('click',()=>{const value=parsePrice($('negotiation-price').value);$('negotiation-price').value=formatPrice(priceStep(Number.isFinite(value)?value:1,direction))});
@@ -125,20 +133,21 @@ function prepareMarket(){
 $('retry-models').addEventListener('click',()=>{world.products.retry();if(!worldReady)prepareMarket();});
 $('catalog-note').textContent=`${CATALOG.length} przedmiotów · realistyczne modele 3D`;
 document.body.dataset.catalog=String(CATALOG.length);
-try{world=new MarketWorld(canvas,{mobile:touchMode,onAssetStatus:showModelStatus});market=new CustomerMarket(state,onCustomerSale);world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='loading-models';prepareMarket()}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
+try{world=new MarketWorld(canvas,{mobile:touchMode,onAssetStatus:showModelStatus});world.attachUnderworld(state);market=new CustomerMarket(state,onCustomerSale);world.setOffers(state.offers,CATALOG);syncStock();world.syncCustomers(market.customers,0);document.body.dataset.ready='loading-models';prepareMarket()}catch(error){console.error(error);$('start-btn').disabled=true;const el=document.createElement('div');el.className='webgl-error';el.textContent='Nie udało się uruchomić grafiki 3D. Włącz akcelerację sprzętową i odśwież stronę.';frame.prepend(el);$('intro').hidden=true;document.body.dataset.ready='error'}
 setTouchMode(touchMode);updateUI();if(loaded)save();if(!saveAvailable)$('save-status').textContent='Zapis jest niedostępny w tej przeglądarce.';
 function loop(time){
   const dt=Math.min((time-lastTime)/1000,1);lastTime=time;
   if(world){
     const simulating=started&&(running||inventory.open||negotiation.open)&&!document.hidden;
-    if(simulating){let remaining=dt;while(remaining>0){const step=Math.min(remaining,.033);simTime+=step;state.elapsed+=step;activeSeconds+=step;market.update(step);if(running)world.move(keys,step,simTime,joystick.value);remaining-=step}world.syncCustomers(market.customers,simTime);
+    if(simulating){let remaining=dt;while(remaining>0){const step=Math.min(remaining,.033);simTime+=step;state.elapsed+=step;activeSeconds+=step;const seizure=world.underworld.update(step,simTime);if(seizure){for(const c of market.customers)if(c.negotiation)market.cancelNegotiation(c.id);if(negotiation.open){negotiationId=null;negotiation.close();}syncStock();updateUI();save();toast('POLICJA: konfiskata '+seizure.seized.length+' przedmiotów. Mandat '+money(seizure.fine)+' zł'+(state.policeDebt?' · dług '+money(state.policeDebt)+' zł':''));}market.update(step);if(running)world.move(keys,step,simTime,joystick.value);remaining-=step}world.syncCustomers(market.customers,simTime);
       if(state.elapsed-lastRefill>=1){lastRefill=state.elapsed;const arrivals=refillSoldOffers(state);if(arrivals.length){arrivals.forEach(o=>world.addOffer(o,CATALOG));const noun={one:'przedmiot',few:'przedmioty',many:'przedmiotów',other:'przedmiotu'}[new Intl.PluralRules('pl-PL').select(arrivals.length)];$('delivery-note').textContent=`Nowa dostawa · ${arrivals.length} ${noun}`;$('delivery-note').classList.add('visible');clearTimeout(deliveryTimer);deliveryTimer=setTimeout(()=>$('delivery-note').classList.remove('visible'),3500);save()}}
       if(state.elapsed-lastSave>=8){save();lastSave=state.elapsed}if(activeSeconds>=240&&!negotiation.open)advanceDay();
     }
     if(running&&time-lastUI>100){interaction();lastUI=time}
-    if(time-lastHUD>500){const minutes=9*60+Math.floor(Math.min(240,activeSeconds)/240*9*60);$('clock-label').textContent=`${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;$('area-name').textContent=world.nearKiosk()?'TWÓJ STRAGAN':world.camera.position.z<-40?'NOWY PASAŻ HANDLOWY':world.camera.position.z<-15?'ALEJA SMAKÓW I STYLU':'ALEJA OKAZJI';lastHUD=time}
+    if(time-lastHUD>500){const minutes=9*60+Math.floor(Math.min(240,activeSeconds)/240*9*60);$('clock-label').textContent=`${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;$('area-name').textContent=world.underworld.inside?'CZARNY RYNEK':world.nearKiosk()?'TWÓJ STRAGAN':world.camera.position.z<-40?'NOWY PASAŻ HANDLOWY':world.camera.position.z<-15?'ALEJA SMAKÓW I STYLU':'ALEJA OKAZJI';lastHUD=time}
     world.render(simTime);world.map($('minimap').getContext('2d'),market?.customers||[]);
   }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+

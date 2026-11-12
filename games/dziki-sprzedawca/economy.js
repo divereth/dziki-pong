@@ -1,5 +1,8 @@
 import {STANDS, STAND_THEMES} from './layout.js';
 import {CATALOG} from './catalog.js';
+import {CONTRABAND} from './contraband.js';
+import {collectFine} from './black-market.js';
+export const GAME_CATALOG=[...CATALOG,...CONTRABAND];
 import {LEGACY_ITEMS} from './legacy-items.js';
 export {CATALOG} from './catalog.js';
 export const GOAL=1_000_000, CAPACITY=8, SAVE_KEY='dziki-sprzedawca-save-v3', PREVIOUS_SAVE_KEY='dziki-sprzedawca-save-v2', LEGACY_SAVE_KEY='fliper-save-v1';
@@ -12,7 +15,7 @@ export const CATEGORIES=[
   {id:'food',name:'Jedzenie',short:'Prosto od wystawców',model:'food_apple_01'},
   {id:'other',name:'Różności',short:'Każda rzecz ma swojego kupca',model:'rubber_duck_toy'},
 ];
-const itemIndex=new Map(CATALOG.map(item=>[item.id,item]));
+const itemIndex=new Map(GAME_CATALOG.map(item=>[item.id,item]));
 export const LEVELS=[{at:0,name:'Łowca okazji',desc:'Każdy milion zaczyna się od stówki.'},{at:500,name:'Bywalec targu',desc:'Masz oko do dobrych interesów.'},{at:2500,name:'Sprytny handlarz',desc:'Droższe towary czekają na odkrycie.'},{at:15000,name:'Znawca przedmiotów',desc:'Klienci zaczynają Cię znać.'},{at:80000,name:'Inwestor',desc:'Duże okazje. Jeszcze większy zysk.'},{at:350000,name:'Gruba ryba',desc:'Milion jest już na horyzoncie.'},{at:GOAL,name:'Dziki milioner',desc:'Twój stragan wyrósł na imperium.'}];
 export const round=n=>Math.round(n*100)/100;
 export const getItem=id=>itemIndex.get(id)||itemIndex.get(LEGACY_ITEMS[id]);
@@ -77,7 +80,7 @@ export function customerPurchase(state,customer,stand='player',reservations=new 
   customer.budget=round(customer.budget-price);entry.sold=true;entry.soldTo='npc';entry.soldAt=state.elapsed;state.marketSales++;return {ok:true,player:false,uid:entry.uid,item,price,name:customer.name};
 }
 function completePlayerSale(state,customer,entry,price){
-  const item=getItem(entry.itemId);customer.budget=round(customer.budget-price);state.inventory.splice(state.inventory.findIndex(e=>e.uid===entry.uid),1);state.cash=round(state.cash+price);const profit=round(price-entry.paid);state.totalProfit=round(state.totalProfit+profit);state.trades++;state.playerSales++;state.peak=Math.max(state.peak,wealth(state));
+  const item=getItem(entry.itemId);customer.budget=round(customer.budget-price);state.inventory.splice(state.inventory.findIndex(e=>e.uid===entry.uid),1);state.cash=round(state.cash+price);collectFine(state);const profit=round(price-entry.paid);state.totalProfit=round(state.totalProfit+profit);state.trades++;state.playerSales++;state.peak=Math.max(state.peak,wealth(state));
   state.history.unshift({name:customer.name,itemId:item.id,price,profit,day:state.day});state.history=state.history.slice(0,5);return {ok:true,player:true,uid:entry.uid,item,price,profit,name:customer.name};
 }
 export function negotiationLimit(state,customer,entry){return round(Math.min(customer.budget,willingness(entry,state,customer)*1.08))}
@@ -113,3 +116,4 @@ export function restoreSave(raw,rng=Math.random){
   if(raw?.version!==1||!Number.isFinite(raw.cash)||raw.cash<0||!Array.isArray(raw.inventory)||raw.inventory.length>CAPACITY||!Number.isInteger(raw.day)||raw.day<1||!raw.inventory.every(e=>getItem(e.itemId)&&Number.isFinite(e.paid)&&e.paid>=0&&[.85,1,1.15].includes(e.quality)&&Number.isInteger(e.uid)))return null;
   const s=newState(rng);s.cash=raw.cash;s.day=raw.day;s.inventory=raw.inventory.map(e=>({...e,itemId:getItem(e.itemId).id,ask:null,listedAt:null}));s.trades=Number.isInteger(raw.trades)?raw.trades:0;s.totalProfit=Number.isFinite(raw.totalProfit)?raw.totalProfit:0;s.peak=Math.max(raw.cash,Number.isFinite(raw.peak)?raw.peak:100);s.won=raw.won===true;s.nextId=Math.max(s.nextId,...s.inventory.map(e=>e.uid+1));restock(s,rng);return validSave(s)?s:null;
 }
+
