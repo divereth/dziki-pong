@@ -1,3 +1,6 @@
+import { findRequest } from './history.mjs';
+import { getGame } from './games.mjs';
+import { requestDescription } from './notify.mjs';
 import { Client, GatewayIntentBits } from 'discord.js';
 
 const {
@@ -77,21 +80,26 @@ client.on('messageCreate', async (message) => {
   try {
     if (message.author.bot || message.guildId !== DISCORD_GUILD_ID || message.channelId !== DISCORD_CHANNEL_ID) return;
 
-    const promoteMatch = message.content.trim().match(/^!dziki\s+promote\s+([A-Za-z0-9_-]{3,80})$/i);
+    const promoteMatch = message.content.trim().match(/^!dziki\s+promote\s+([A-Za-z0-9_-]{3,40})$/i);
     if (promoteMatch) {
       if (!isAdmin(message)) {
         await message.reply('Only the configured Discord admin role can publish a request live.');
         return;
       }
       const requestId = promoteMatch[1];
+      const metadata = await findRequest(getGame('dziki-pong'), requestId, { GITHUB_REPOSITORY, GITHUB_DISPATCH_TOKEN });
+      if (metadata.channel_id && metadata.channel_id !== message.channelId) throw new Error('Request belongs to a different channel');
       await dispatch('dziki_promote', {
+        game_id: 'dziki-pong',
+        discord_channel_id: message.channelId,
+        request_text: metadata.request_text,
         request_id: requestId,
         is_admin: true,
         discord_user_id: message.author.id,
         discord_user_name: message.author.tag,
         received_at: new Date().toISOString(),
       });
-      await message.reply(`Publish queued for request \`${requestId}\`. GitHub will merge it and deploy production after checks.`);
+      await message.reply(`Publish queued for request \`${requestId}\`. Zlecona zmiana: ${requestDescription(metadata.request_text)}. GitHub will merge it and deploy production after checks.`);
       return;
     }
 
@@ -113,7 +121,7 @@ client.on('messageCreate', async (message) => {
       received_at: new Date().toISOString(),
     });
     await message.reply(
-      `Queued as \`${requestId}\`. A separate Cloudflare preview will be created. An admin can publish it with \`!dziki promote ${requestId}\` after reviewing the PR.`,
+      `Queued as \`${requestId}\`. Zlecona zmiana: ${requestDescription(text)}. A separate Cloudflare preview will be created. An admin can publish it with \`!dziki promote ${requestId}\` after reviewing the PR.`,
     );
   } catch (error) {
     console.error(error);

@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {getGame} from './games.mjs';
-import {inspectGeneratedChange} from './request.mjs';
+import {inspectGeneratedChange,metadataFor,readMetadata} from './request.mjs';
 import {progressMessage} from './notify.mjs';
 
 function fixture(fn){
@@ -45,3 +45,24 @@ test('no-change inspection preserves the security boundary for unexpected files'
  writeFileSync(join(root,'unsafe.js'),'bad');
  assert.throws(()=>inspectGeneratedChange(getGame('dziki-bieg'),env,root),/Blocked unexpected file change/);
 }));
+
+test('all numbered progress messages include the request, and results describe changes or failure',()=>{
+ const env={GAME_ID:'dziki-karabin',REQUEST_ID:'123',REQUEST_TEXT:'Zmień model dzika 3D',JOB_STATUS:'success',REQUEST_CHANGED:'true',REQUEST_SUMMARY_B64:Buffer.from('Dodano model i animację.').toString('base64')};
+ for(const stage of ['started','generated','preview','result','promotion','production']) assert.match(progressMessage(stage,env),/Zmień model dzika 3D/);
+ assert.match(progressMessage('result',env),/Dodano model i animację/);
+ assert.match(progressMessage('result',{...env,JOB_STATUS:'failure',FAILURE_REASON:'Test animacji zakończył się błędem.'}),/Test animacji zakończył się błędem/);
+});
+test('successful generation retains the actual implementation summary',()=>fixture((root,env)=>{
+ writeFileSync(join(root,'games/dziki-bieg/dist/index.html'),'<title>Changed</title>');
+ writeFileSync(join(env.RUNNER_TEMP,'dziki-output.md'),'Dodano animację modelu.');
+ const result=inspectGeneratedChange(getGame('dziki-bieg'),env,root);
+ assert.equal(Buffer.from(result.summary_b64,'base64').toString('utf8'),'Dodano animację modelu.');
+}));
+
+test('PR metadata retains the implementation summary for production notifications',()=>{
+ const text='Zmień model dzika 3D',summary='Dodano model i animację.';
+ const metadata=metadataFor({REQUEST_ID:'123',REQUEST_TEXT:text,REQUEST_SUMMARY_B64:Buffer.from(summary).toString('base64')},getGame('dziki-karabin'));
+ const restored=readMetadata(`<!-- dziki-pong-request:start -->\n${JSON.stringify(metadata)}\n<!-- dziki-pong-request:end -->`);
+ const message=progressMessage('production',{GAME_ID:restored.game_id,REQUEST_ID:restored.request_id,REQUEST_TEXT_B64:Buffer.from(restored.request_text).toString('base64'),REQUEST_SUMMARY_B64:Buffer.from(restored.change_summary).toString('base64'),JOB_STATUS:'success'});
+ assert.ok(message.includes(text));assert.ok(message.includes(summary));
+});

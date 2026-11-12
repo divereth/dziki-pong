@@ -12,18 +12,17 @@ export function validateRequest(env) {
 }
 
 export function metadataFor(env, game) {
-  return { request_id: env.REQUEST_ID, game_id: game.id, channel_id: env.DISCORD_CHANNEL_ID || '', author_discord_id: env.DISCORD_USER_ID || '', request_text: env.REQUEST_TEXT,
+  return { request_id: env.REQUEST_ID, game_id: game.id, channel_id: env.DISCORD_CHANNEL_ID || '', author_discord_id: env.DISCORD_USER_ID || '', request_text: env.REQUEST_TEXT, change_summary: Buffer.from(env.REQUEST_SUMMARY_B64 || '', 'base64').toString('utf8'),
     ...(game.id === 'dziki-bieg' ? { source_version: 'robot-uniboar-attack-v1' } : {}) };
 }
 
 export function inspectGeneratedChange(game, env = process.env, cwd = repositoryRoot) {
   const paths = validateChanges(game, cwd, {allowEmpty: true});
   let summary = '';
-  if (!paths.length) {
-    try { summary = readFileSync(join(env.RUNNER_TEMP, 'dziki-output.md'), 'utf8').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, 1000); }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
-    summary ||= 'Generator nie zmienił żadnego pliku gry i nie podał wyjaśnienia. Sprawdź zakres zlecenia lub spróbuj ponownie.';
-  }
+  try { summary = readFileSync(join(env.RUNNER_TEMP, 'dziki-output.md'), 'utf8').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, 1000); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (!paths.length) summary ||= 'Generator nie zmienił żadnego pliku gry i nie podał wyjaśnienia. Sprawdź zakres zlecenia lub spróbuj ponownie.';
+  if (paths.length && !summary) summary = `Zmieniono pliki: ${paths.slice(0, 8).join(', ')}.`;
   const result = {changed: paths.length > 0, summary_b64: Buffer.from(summary).toString('base64')};
   if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `changed=${result.changed}\nsummary_b64=${result.summary_b64}\n`);
   if (!result.changed) console.log('No game edits were generated. Explanation: ' + summary);
@@ -75,6 +74,6 @@ if (command === 'inspect') {
   const paths = gh('pr', 'diff', number, '--repo', env.GITHUB_REPOSITORY, '--name-only').split('\n').filter(Boolean);
   const metadata = validatePromotion(pr, game, env.REQUEST_ID, env.DISCORD_CHANNEL_ID, paths);
   gh('pr', 'merge', number, '--repo', env.GITHUB_REPOSITORY, '--squash', '--match-head-commit', pr.headRefOid, '--subject', `Publish ${game.name} request ${env.REQUEST_ID}`);
-  const payload = { event_type: 'deploy_production', client_payload: { request_id: env.REQUEST_ID, game_id: game.id, discord_channel_id: metadata.channel_id || env.DISCORD_CHANNEL_ID, discord_user_id: metadata.author_discord_id, pr_number: number, request_text_b64: Buffer.from(metadata.request_text || '').toString('base64') } };
+  const payload = { event_type: 'deploy_production', client_payload: { request_id: env.REQUEST_ID, game_id: game.id, discord_channel_id: metadata.channel_id || env.DISCORD_CHANNEL_ID, discord_user_id: metadata.author_discord_id, pr_number: number, request_text_b64: Buffer.from(metadata.request_text || '').toString('base64'), summary_b64: Buffer.from(metadata.change_summary || '').toString('base64') } };
   execFileSync('gh', ['api', '--method', 'POST', `repos/${env.GITHUB_REPOSITORY}/dispatches`, '--input', '-'], { input: JSON.stringify(payload), stdio: ['pipe', 'inherit', 'inherit'] });
 }

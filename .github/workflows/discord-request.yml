@@ -11,6 +11,7 @@ permissions:
 env:
   GAME_ID: ${{ github.event.client_payload.game_id || 'dziki-pong' }}
   REQUEST_ID: ${{ github.event.client_payload.request_id }}
+  REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
   DISCORD_CHANNEL_ID: ${{ github.event.client_payload.discord_channel_id }}
   DISCORD_DEV_CHANNEL_ID: '1398036719101542601'
 
@@ -18,12 +19,13 @@ jobs:
   request:
     if: github.event.action == 'dziki_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     outputs:
       preview_url: ${{ steps.preview.outputs.url }}
       pr_url: ${{ steps.pr.outputs.url }}
       changed: ${{ steps.changes.outputs.changed }}
       summary_b64: ${{ steps.changes.outputs.summary_b64 }}
+      failure_reason: ${{ steps.failure.outputs.reason }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +56,8 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
         run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" started
       - name: Run Codex
-        timeout-minutes: 30
+        id: generate
+        timeout-minutes: 60
         uses: openai/codex-action@v1.11
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -77,6 +80,7 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
         run: node "$RUNNER_TEMP/dziki-tools/notify.mjs" generated
       - name: Validate game boundary and run game checks
+        id: validate
         if: steps.changes.outputs.changed == 'true'
         run: |
           node "$RUNNER_TEMP/dziki-tools/game-tools.mjs" validate
@@ -88,6 +92,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REQUEST_TEXT: ${{ github.event.client_payload.request_text }}
+          REQUEST_SUMMARY_B64: ${{ steps.changes.outputs.summary_b64 }}
           DISCORD_USER_ID: ${{ github.event.client_payload.discord_user_id }}
         run: |
           gh auth setup-git
@@ -114,6 +119,14 @@ jobs:
           npx --yes wrangler@latest pages deploy ".artifacts/$GAME_ID" --project-name "$CF_PROJECT" --branch "discord-$REQUEST_ID" --commit-dirty=true
           echo "url=https://discord-$REQUEST_ID.$CF_PROJECT.pages.dev/" >> "$GITHUB_OUTPUT"
 
+      - name: Capture failure stage
+        if: failure() || cancelled()
+        id: failure
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+        run: |
+          node -e 'const steps=JSON.parse(process.env.STEPS_JSON); const labels={generate:"Generator nie ukończył zmiany (błąd lub limit czasu).",changes:"Zmiany naruszają dozwolony zakres plików gry.",validate:"Walidacja, testy lub budowanie gry zakończyły się błędem.",pr:"Nie udało się zapisać zmiany lub utworzyć PR.",preview:"Nie udało się przesłać podglądu do Cloudflare."}; const failed=Object.keys(steps).find(k=>["failure","cancelled"].includes(steps[k].outcome)); require("node:fs").appendFileSync(process.env.GITHUB_OUTPUT,"reason="+(labels[failed] || "Przygotowanie zadania nie powiodło się lub zadanie anulowano.")+"\n");'
+
   promote:
     if: github.event.action == 'dziki_promote' && github.event.client_payload.is_admin == true
     runs-on: ubuntu-latest
@@ -138,6 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -157,6 +171,8 @@ jobs:
           PREVIEW_URL: ${{ needs.request.outputs.preview_url }}
           REQUEST_CHANGED: ${{ needs.request.outputs.changed }}
           REQUEST_SUMMARY_B64: ${{ needs.request.outputs.summary_b64 }}
+          GH_TOKEN: ${{ github.token }}
+          FAILURE_REASON: ${{ needs.request.outputs.failure_reason }}
           JOB_STATUS: ${{ github.event.action == 'dziki_request' && needs.request.result || needs.promote.result }}
           REPORT_STAGE: ${{ github.event.action == 'dziki_request' && 'result' || 'promotion' }}
         run: node automation/notify.mjs "$REPORT_STAGE"

@@ -43,6 +43,16 @@ export async function recentChanges(game, env, { send = fetch, limit = 5 } = {})
   return result.slice(0, limit);
 }
 
+export async function findRequest(game, requestId, env) {
+  if (!/^[A-Za-z0-9_-]{3,40}$/.test(requestId) || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY || '')) throw new Error('Invalid request lookup');
+  const response = await fetch('https://api.github.com/repos/' + env.GITHUB_REPOSITORY + '/pulls?state=all&head=' + encodeURIComponent(env.GITHUB_REPOSITORY.split('/')[0] + ':discord/' + requestId), {headers:{accept:'application/vnd.github+json','user-agent':'dziki-request-context', authorization:'Bearer ' + env.GITHUB_DISPATCH_TOKEN},signal:AbortSignal.timeout(8000)});
+  if (!response.ok) throw new Error('Nie udało się pobrać opisu zlecenia z GitHuba (' + response.status + ').');
+  const prs = await response.json();
+  const metadata = requestMetadata(prs[0]?.body);
+  if (!metadata || metadata.request_id !== requestId || (metadata.game_id || 'dziki-pong') !== game.id) throw new Error('Nie znaleziono zlecenia tej gry.');
+  return metadata;
+}
+
 const summary = text => text.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[\\`*_{}[\]()~>|]/g, '\\$&').slice(0, 700);
 
 export function historyMessage(game, entries) {
