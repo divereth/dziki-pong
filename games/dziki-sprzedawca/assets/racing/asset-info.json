@@ -1,0 +1,12 @@
+{
+  "creator": "Kenney",
+  "pack": "Racing Kit",
+  "source": "https://kenney.nl/assets/racing-kit",
+  "download": "https://raw.githubusercontent.com/shorepine/kenney/main/3d/racing/raceCarWhite.glb",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "file": "race-car-v1.glb",
+  "bytes": 105864,
+  "sha256": "b1e50959852ec6f91070f802edd1be42896b2c87fbacfebab72f6e1017832cd0",
+  "modifications": "Shared model with ten paint colours applied at runtime. All ten cars use identical physics."
+}

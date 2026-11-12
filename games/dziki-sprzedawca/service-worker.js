@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1-black-market-v1-reward-code-v1-door-light-v1-characters-v1';
+const CACHE_NAME = 'dziki-sprzedawca-shell-v3-polyhaven-stalls-v1-black-market-v1-reward-code-v1-door-light-v1-characters-v1-racing-v1';
 const MODEL_CACHE = 'dziki-sprzedawca-models-v1';
 const APP_FILES = [
   './index.html',
@@ -7,6 +7,10 @@ const APP_FILES = [
   './game.js',
   './world.js',
   './characters.js',
+  './racing.js',
+  './race-world.js',
+  './race-ui.js',
+  './racing.css',
   './market-stalls.js',
   './black-market.js',
   './underworld.js',
