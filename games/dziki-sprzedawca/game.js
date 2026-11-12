@@ -4,7 +4,7 @@ import {CustomerMarket} from './customers.js';
 import {TouchJoystick} from './joystick.js';
 import {parsePrice,formatPrice,priceStep} from './prices.js';
 import {pict} from './icons.js';
-import {GAME_CATALOG as CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
+import {redeemCode,GAME_CATALOG as CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
 
 const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -150,4 +150,7 @@ function loop(time){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+
+$('reward-code-toggle').addEventListener('click',()=>{const form=$('reward-code-form');form.hidden=!form.hidden;$('reward-code-toggle').setAttribute('aria-expanded',String(!form.hidden));if(!form.hidden)$('reward-code-input').focus();});
+$('reward-code-form').addEventListener('submit',event=>{event.preventDefault();const result=redeemCode(state,$('reward-code-input').value);$('reward-code-feedback').textContent=result.message;if(result.ok){$('reward-code-input').value='';updateUI();save();toast(result.message);testWin();}});
 
