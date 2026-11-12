@@ -12,7 +12,7 @@ const canvas=$('scene'),frame=$('world'),inventory=$('inventory-dialog'),help=$(
 let state,loaded=false,saveAvailable=true;
 try{const raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(PREVIOUS_SAVE_KEY)||localStorage.getItem(LEGACY_SAVE_KEY);if(raw){state=restoreSave(JSON.parse(raw));loaded=!!state}}catch{saveAvailable=false}
 state||=newState();
-let world,market,worldReady=false,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
+let world,market,worldReady=false,startupFailed=false,started=false,running=false,touchMode=matchMedia('(any-pointer:coarse)').matches||navigator.maxTouchPoints>0;
 let targetId=null,targetCustomer=null,negotiationId=null,activeSeconds=0,lastTime=performance.now(),lastUI=0,lastHUD=0,lastRefill=0,lastSave=0,simTime=0,gesture=null,soundEnabled=false,audioContext,toastTimer,deliveryTimer,inventorySignature='';
 const keys=new Set(),drafts=new Map();
 const joystick=new TouchJoystick($('joystick'),$('stick-thumb'),()=>running&&touchMode);
@@ -111,14 +111,16 @@ $('touch-buy').addEventListener('click',act);$('touch-jump').addEventListener('p
 $('touch-run').addEventListener('click',()=>{const on=!keys.has('ShiftLeft');if(on)keys.add('ShiftLeft');else keys.delete('ShiftLeft');$('touch-run').setAttribute('aria-pressed',String(on))});
 
 function showModelStatus({loading,failed,ready,total}){
+  failed=Math.max(failed,startupFailed?1:0);
   const status=$('asset-status');status.hidden=!loading&&!failed;
   $('asset-message').textContent=failed?'Nie udało się wczytać części przedmiotów.':`Rozpakowuję towary · ${ready}/${total}`;
   $('retry-models').hidden=!failed;
 }
 function prepareMarket(){
+  startupFailed=false;
   $('start-btn').disabled=true;
   const initial=state.offers.filter(offer=>!offer.sold).slice(0,3).map(offer=>getItem(offer.itemId));
-  Promise.all([world.loadStalls(),world.products.preload(initial.length?initial:[CATALOG[0]])]).then(()=>{worldReady=true;$('start-btn').disabled=false;document.body.dataset.ready='true';}).catch(()=>showModelStatus({loading:0,failed:1,ready:0,total:initial.length}));
+  Promise.all([world.loadStalls(),world.products.preload(initial.length?initial:[CATALOG[0]])]).then(()=>{worldReady=true;$('start-btn').disabled=false;document.body.dataset.ready='true';}).catch(()=>{startupFailed=true;showModelStatus({loading:0,failed:1,ready:0,total:initial.length});});
 }
 $('retry-models').addEventListener('click',()=>{world.products.retry();if(!worldReady)prepareMarket();});
 $('catalog-note').textContent=`${CATALOG.length} przedmiotów · realistyczne modele 3D`;
