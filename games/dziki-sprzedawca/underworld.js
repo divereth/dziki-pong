@@ -2,15 +2,22 @@ import * as T from './vendor/three.module.min.js';
 import {box,cylinder,sphere,label} from './models.js';
 import {CONTRABAND,contrabandModel} from './contraband.js';
 import {ensureBlackMarket,PolicePatrol} from './black-market.js';
+import {ArmoryMarket,ensureArmory} from './armory.js';
 export class Underworld{
  constructor(world,state){
-  this.world=world;this.state=state;this.inside=false;this.targets=[];this.goods=[];this.patrol=new PolicePatrol();const b=ensureBlackMarket(state);
+  this.world=world;this.state=state;this.inside=false;this.armoryInside=false;this.targets=[];this.goods=[];this.patrol=new PolicePatrol();const b=ensureBlackMarket(state);ensureArmory(state);
   this.mainLights=world.scene.children.filter(o=>o.isLight).map(o=>[o,o.intensity]);this.dayBackground=world.scene.background;this.dayFog=world.scene.fog;this.environmentIntensity=world.scene.environmentIntensity;
   this.guard=world.person(world.scene,11,-12,'#25232b',2,'guard');this.guard.rotation.y=-Math.PI/2;
   const door=box(world.scene,13.43,1.2,-12,.08,2.4,1.5,'#1b2424');this.targets.push({object:door,action:'door',title:'Ochroniarz · wejście do Czarnego Rynku'});
   const plaque=label('TEREN PRYWATNY',1.2,.24,'#27292c','#9a8d74');plaque.position.set(12.95,2.7,-12);plaque.rotation.y=-Math.PI/2;world.scene.add(plaque);
   const windows=world.secretWindows||[],spot=windows[b.window%windows.length];
   if(spot){const button=box(world.scene,spot.x,spot.y-.27,spot.z,.12,.12,.12,'#702f28');this.targets.push({object:button,action:'button',title:'Mały przycisk pod ramą okna'});}
+  this.armoryGuard=world.person(world.scene,-10.65,-27.8,'#262d2b',19,'guard');this.armoryGuard.rotation.y=Math.PI/2;
+  const armorySign=label('ARSENAŁ  ·  WEJŚCIE 1 000 ZŁ',3.8,.48,'#29332f','#e4cf9a',58);armorySign.position.set(-12.48,3.13,-27.8);armorySign.rotation.y=Math.PI/2;world.scene.add(armorySign);
+  box(world.scene,-13.34,1.18,-27.8,.2,2.42,1.58,'#3e5148');
+  const armoryDoor=box(world.scene,-13.22,1.13,-27.8,.08,2.18,1.02,'#202b29');this.targets.push({object:armoryDoor,action:'armory-door',title:'Wejście do targu karabinów'});
+  for(const z of [-28.55,-27.05])box(world.scene,-13.12,1.2,z,.24,2.45,.16,'#b6a27c');box(world.scene,-13.12,2.42,-27.8,.24,.18,1.66,'#b6a27c');
+  const guardHit=box(world.scene,-10.65,.97,-27.8,.75,1.9,.66,'#222222');guardHit.material=new T.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false});guardHit.castShadow=false;this.targets.push({object:guardHit,action:'armory-guard',title:'Ochroniarz arsenału'});
   this.police=world.person(world.scene,this.patrol.x,this.patrol.z,'#183359',0,'police');
   this.area=new T.Group();world.scene.add(this.area);box(this.area,100,-.13,-15,36,.25,48,'#24272c');
   for(const x of [82,118])box(this.area,x,2,-15,.4,4,48,'#272830');for(const z of [-39,9])box(this.area,100,2,z,36,4,.4,'#272830');
@@ -27,6 +34,7 @@ export class Underworld{
   const raceFee=label('10 000 ZŁ  /  3 OKRĄŻENIA',4.2,.3,'#183c35','#e2d6b3',70);raceFee.position.set(100,2.55,-38.59);this.area.add(raceFee);
   const raceLamp=new T.Group();raceLamp.position.set(100,3.22,-38.25);this.area.add(raceLamp);const raceGlow=box(raceLamp,0,0,0,.8,.07,.18,'#e5dfbb');raceGlow.material=raceGlow.material.clone();raceGlow.material.emissive.set('#a9c47b');raceGlow.material.emissiveIntensity=2;
   const raceLight=new T.SpotLight('#dcebb0',55,10,Math.PI/3,.7,2);raceLight.position.set(0,-.05,1);raceLight.target.position.set(0,-1.7,-.3);raceLamp.add(raceLight,raceLight.target);
+  this.armory=new ArmoryMarket(world,state);this.targets.push(...this.armory.targets);
   CONTRABAND.forEach((item,i)=>{const x=i%2?110:90,z=1-Math.floor(i/2)*10;const rug=box(this.area,x,.018,z,7,.035,6,i%2?'#574039':'#363f46');
    for(const side of [-1,1])for(let j=0;j<18;j++)box(this.area,x-3.4+j*.4,.025,z+side*3,.05,.02,.25,'#a18b68');
    const vendor=world.person(this.area,x+(i%2?3:-3),z-2,'#403b36',i+3);vendor.rotation.y=i%2?-1:1;
@@ -34,12 +42,14 @@ export class Underworld{
    const sign=label('',4,.45,'#171d24','#d1b88a');sign.position.set(x,.75,z+3.2);this.area.add(sign);this.goods.push({model,hit,sign,item});this.targets.push({object:hit,action:'buy',index:i,title:item.name});
   });this.refresh();this.area.visible=false;
  }
- refresh(){const b=ensureBlackMarket(this.state);this.goods.forEach((g,i)=>{g.model.visible=g.hit.visible=!b.offers[i].sold;g.sign.visible=!b.offers[i].sold;const text=`${g.item.name} · ${b.offers[i].price.toLocaleString('pl-PL')} zł`;if(g.text!==text){const old=g.sign;const sign=label(text,5,.42,'#171d24','#d1b88a',55);sign.position.copy(old.position);this.area.add(sign);old.removeFromParent();old.geometry.dispose();old.material.map?.dispose();old.material.dispose();g.sign=sign;g.text=text;}});}
- target(){const w=this.world;w.ray.setFromCamera(w.pointer,w.camera);const candidates=this.targets.filter(t=>this.inside?['buy','exit','race'].includes(t.action)&&t.object.visible:['door','button'].includes(t.action));const hits=w.ray.intersectObjects(candidates.map(t=>t.object),false);const hit=hits.find(h=>h.distance<(this.inside?8:3.8));return hit?candidates.find(t=>t.object===hit.object):null;}
- enter(inside){this.inside=inside;const w=this.world;this.area.visible=inside;w.camera.position.set(inside?100:10,1.76,inside?5:-12);w.yaw=inside?0:-Math.PI/2;w.pitch=0;w.camera.rotation.set(0,w.yaw,0);w.jump=undefined;w.jumpHeight=0;
-  this.mainLights.forEach(([light,intensity])=>light.intensity=inside?(light.isHemisphereLight?.08:0):intensity);w.scene.background=inside?new T.Color('#070a12'):this.dayBackground;w.scene.fog=inside?new T.Fog('#090d16',12,52):this.dayFog;w.scene.environmentIntensity=inside?.06:this.environmentIntensity;w.renderer.shadowMap.needsUpdate=true;
+ refresh(){const b=ensureBlackMarket(this.state);this.goods.forEach((g,i)=>{g.model.visible=g.hit.visible=!b.offers[i].sold;g.sign.visible=!b.offers[i].sold;const text=`${g.item.name} · ${b.offers[i].price.toLocaleString('pl-PL')} zł`;if(g.text!==text){const old=g.sign;const sign=label(text,5,.42,'#171d24','#d1b88a',55);sign.position.copy(old.position);this.area.add(sign);old.removeFromParent();old.geometry.dispose();old.material.map?.dispose();old.material.dispose();g.sign=sign;g.text=text;}});this.armory?.refresh();}
+ target(){const w=this.world;w.ray.setFromCamera(w.pointer,w.camera);const actions=this.armoryInside?['weapon-buy','armory-exit','shoot-target']:this.inside?['buy','exit','race']:['door','button',ensureArmory(this.state).unlocked?'armory-door':'armory-guard'];const candidates=this.targets.filter(t=>actions.includes(t.action)&&t.object.visible);const hits=w.ray.intersectObjects(candidates.map(t=>t.object),false);const hit=hits.find(h=>h.distance<(this.armoryInside&&['shoot-target'].includes(candidates.find(t=>t.object===h.object)?.action)?35:this.inside?8:3.8));return hit?candidates.find(t=>t.object===hit.object):null;}
+ enter(inside){const wasArmory=this.armoryInside;this.inside=inside;this.armoryInside=false;this.armory.state=this.state;const w=this.world;this.area.visible=inside;this.armory.group.visible=false;w.camera.position.set(inside?100:wasArmory?-11.35:10,1.76,inside?5:wasArmory?-27.8:-12);w.yaw=inside?0:wasArmory?Math.PI/2:-Math.PI/2;w.pitch=0;w.camera.rotation.set(0,w.yaw,0);w.jump=undefined;w.jumpHeight=0;
+  this.mainLights.forEach(([light,intensity])=>light.intensity=inside?(light.isHemisphereLight?.08:0):intensity);w.scene.background=inside?new T.Color('#070a12'):this.dayBackground;w.scene.fog=inside?new T.Fog('#090d16',12,52):this.dayFog;w.scene.environmentIntensity=inside?.06:this.environmentIntensity;this.armory.refresh();w.renderer.shadowMap.needsUpdate=true;
  }
- walkable(x,z){return x>82.6&&x<117.4&&z>-38.5&&z<8.2&&!this.goods.some(g=>g.model.visible&&Math.abs(x-g.model.position.x)<(g.item.shape==='tank'?4:2.2)&&Math.abs(z-g.model.position.z)<1.7);}
- update(dt,time){const lastX=this.patrol.x,lastZ=this.patrol.z,result=this.patrol.update(dt,this.state);this.police.position.set(this.patrol.x,0,this.patrol.z);this.police.rotation.y=this.patrol.heading;this.police.userData.walking=Math.hypot(this.patrol.x-lastX,this.patrol.z-lastZ)>.0001;return result;}
+ enterArmory(){this.inside=true;this.armoryInside=true;this.armory.state=this.state;const w=this.world;this.area.visible=false;this.armory.group.visible=true;w.camera.position.set(145,1.76,5.1);w.yaw=0;w.pitch=0;w.camera.rotation.set(0,0,0);w.jump=undefined;w.jumpHeight=0;this.mainLights.forEach(([light])=>light.intensity=0);w.scene.background=new T.Color('#090d10');w.scene.fog=new T.Fog('#111719',16,58);w.scene.environmentIntensity=.05;this.armory.refresh();w.renderer.shadowMap.needsUpdate=true;}
+ shoot(time){return this.armoryInside?this.armory.fire(time):{ok:false,message:'Wyceluj w tarczę strzelnicy.'};}
+ walkable(x,z){if(this.armoryInside)return this.armory.walkable(x,z);return x>82.6&&x<117.4&&z>-38.5&&z<8.2&&!this.goods.some(g=>g.model.visible&&Math.abs(x-g.model.position.x)<(g.item.shape==='tank'?4:2.2)&&Math.abs(z-g.model.position.z)<1.7);}
+ update(dt,time){const lastX=this.patrol.x,lastZ=this.patrol.z,result=this.patrol.update(dt,this.state);this.police.position.set(this.patrol.x,0,this.patrol.z);this.police.rotation.y=this.patrol.heading;this.police.userData.walking=Math.hypot(this.patrol.x-lastX,this.patrol.z-lastZ)>.0001;this.armory.update(dt,time,this.armoryInside);return result;}
 }
 
