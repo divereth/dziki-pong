@@ -4,10 +4,12 @@ import {PolyhavenProducts} from './polyhaven-models.js';
 import {RoomEnvironment} from './vendor/RoomEnvironment.js';
 import {contrabandModel} from './contraband.js';
 import {Underworld} from './underworld.js';
-import {MarketStalls} from './market-stalls.js';
+import {MarketStalls,CANOPY_COLORS} from './market-stalls.js';
 import {MarketCharacters} from './characters.js';
 import {STANDS,STAND_NAMES,STAND_THEMES,PLAYER_SHOP,BOUNDS} from './layout.js';
 export {STANDS} from './layout.js';
+
+const PLAYER_STALL_COLOR_INDEX=1;
 
 function disposeGroup(group){group.removeFromParent();group.traverse(o=>{o.userData.releaseModel?.();if(o.isMesh&&!o.userData.polyhavenShared){o.geometry.dispose();if(o.userData.ownedMaterial){o.material.map?.dispose();o.material.dispose()}}})}
 function textureCanvas(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.anisotropy=4;return map}
@@ -82,7 +84,7 @@ export class MarketWorld{
     for(const x of [-11,11])for(const z of [7,-10,-28,-46,-64])this.tree(x,z,.85+rand()*.15);
     for(const z of [-3,-15,-27,-39,-51,-63])for(let i=0;i<19;i++){const xx=-8.2+i*.91,yy=4.45-Math.sin(i/18*Math.PI)*.7;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute([-.23,0,0,.23,0,0,0,-.43,0],3));geo.computeVertexNormals();const flag=mesh(geo,new T.MeshStandardMaterial({color:['#c97851','#e6c273','#5c9278','#7c94a2'][i%4],side:T.DoubleSide}),this.scene,xx,yy,z);this.flags.push({mesh:flag,phase:i*.6});if(i<18)lineBetween(this.scene,[xx,yy,z],[xx+.91,4.45-Math.sin((i+1)/18*Math.PI)*.7,z],'#746a50',.01)}
     const kiosk=new T.Group();kiosk.position.set(PLAYER_SHOP.x,0,PLAYER_SHOP.z);kiosk.rotation.y=-.55;this.scene.add(kiosk);this.playerKiosk=kiosk;
-    this.stallPlacements.push({root:kiosk,color:0,scale:[.74,1.44/1.06,.8]});
+    this.stallPlacements.push({root:kiosk,color:PLAYER_STALL_COLOR_INDEX,scale:[.74,1.44/1.06,.8]});
     const sign=label('TWÓJ STRAGAN',2.85,.4,'#264d3b','#f2dc99',70);sign.position.set(0,2.87,.96);kiosk.add(sign);const sub=label('TY USTALASZ CENĘ',2.4,.3,'#315c47','#ead4a0',61);sub.position.set(0,.73,.66);kiosk.add(sub);box(kiosk,0,1.73,-.48,2.7,.08,.45,'#bda375');
     this.obstacles.push({x0:5.1,x1:8.6,z0:6.4,z1:9});
     for(const x of [-10.3,10.3])for(const z of [1,-18,-36]){cylinder(this.scene,x,2.25,z,.045,.085,4.5,palette.iron,8);box(this.scene,x,4.45,z,.35,.08,.35,palette.iron);box(this.scene,x,4.18,z,.25,.43,.25,'#eed7a0');cylinder(this.scene,x,4.52,z,0,.27,.25,palette.iron,4)}
@@ -128,6 +130,6 @@ export class MarketWorld{
     }
   }
   render(time=0){this.characters.update(time,this.camera);this.products.update(this.camera,time);this.products.updatePreviews(this.renderer,this.scene.environment);this.flags.forEach(f=>f.mesh.rotation.y=Math.sin(time*1.5+f.phase)*.13);this.renderer.render(this.scene,this.camera)}
-  map(ctx,customers=[]){if(this.underworld?.inside){ctx.fillStyle='#101722';ctx.fillRect(0,0,144,144);ctx.fillStyle='#d4b27a';ctx.font='11px sans-serif';ctx.fillText('CZARNY RYNEK',23,25);ctx.fillText('Wyjście: południe',18,130);return;}const scale=1.55,ox=72,oz=119;ctx.clearRect(0,0,144,144);ctx.fillStyle='#f0eadb';ctx.fillRect(0,0,144,144);ctx.fillStyle='#e0d8c3';ctx.fillRect(45,8,54,131);ctx.save();ctx.translate(ox,oz);ctx.scale(scale,scale);for(const [i,[x,z,r]] of STANDS.entries()){ctx.save();ctx.translate(x,z);ctx.rotate(-r);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(-2.2,-1.1,4.4,2.2);ctx.restore()}ctx.fillStyle='#bd9650';ctx.fillRect(PLAYER_SHOP.x-1.5,PLAYER_SHOP.z-1,3,2);ctx.fillStyle='#9d8e73';for(const c of customers){ctx.beginPath();ctx.arc(c.x,c.z,.55,0,Math.PI*2);ctx.fill()}ctx.translate(this.camera.position.x,this.camera.position.z);ctx.rotate(-this.yaw);ctx.beginPath();ctx.moveTo(0,-1.9);ctx.lineTo(-1.1,1.1);ctx.lineTo(0,.65);ctx.lineTo(1.1,1.1);ctx.closePath();ctx.fillStyle='#315b48';ctx.fill();ctx.restore();ctx.font='8px Consolas';ctx.fillStyle='#7a826b';ctx.fillText('N',69,10)}
+  map(ctx,customers=[]){if(this.underworld?.inside){ctx.fillStyle='#101722';ctx.fillRect(0,0,144,144);ctx.fillStyle='#d4b27a';ctx.font='11px sans-serif';ctx.fillText('CZARNY RYNEK',23,25);ctx.fillText('Wyjście: południe',18,130);return;}const scale=1.55,ox=72,oz=119;ctx.clearRect(0,0,144,144);ctx.fillStyle='#f0eadb';ctx.fillRect(0,0,144,144);ctx.fillStyle='#e0d8c3';ctx.fillRect(45,8,54,131);ctx.save();ctx.translate(ox,oz);ctx.scale(scale,scale);for(const [i,[x,z,r]] of STANDS.entries()){ctx.save();ctx.translate(x,z);ctx.rotate(-r);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(-2.2,-1.1,4.4,2.2);ctx.restore()}ctx.fillStyle=CANOPY_COLORS[PLAYER_STALL_COLOR_INDEX];ctx.fillRect(PLAYER_SHOP.x-1.5,PLAYER_SHOP.z-1,3,2);ctx.fillStyle='#9d8e73';for(const c of customers){ctx.beginPath();ctx.arc(c.x,c.z,.55,0,Math.PI*2);ctx.fill()}ctx.translate(this.camera.position.x,this.camera.position.z);ctx.rotate(-this.yaw);ctx.beginPath();ctx.moveTo(0,-1.9);ctx.lineTo(-1.1,1.1);ctx.lineTo(0,.65);ctx.lineTo(1.1,1.1);ctx.closePath();ctx.fillStyle='#315b48';ctx.fill();ctx.restore();ctx.font='8px Consolas';ctx.fillStyle='#7a826b';ctx.fillText('N',69,10)}
 }
 
