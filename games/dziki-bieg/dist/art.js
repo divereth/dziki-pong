@@ -59,9 +59,9 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.assetTasks=[];this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
+    this.assetTasks=[];this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',image=>{this.forestReady=true;this.preparePixelPanorama(image);});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
   }
-  resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
+  resize(){const r=this.canvas.getBoundingClientRect(),width=Math.max(160,Math.round((r.width||W)*.5)),height=Math.round(width*H/W);if(this.canvas.width!==width)this.canvas.width=width;if(this.canvas.height!==height)this.canvas.height=height;this.ctx.imageSmoothingEnabled=false;}
   terrainDensity(){return Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W*2)));}
   loadAsset(src,prepare){
     const image=new Image();
@@ -70,6 +70,15 @@ export class Renderer{
       image.onerror=resolve;image.src=src;
     }));
     return image;
+  }
+  preparePixelPanorama(image){
+    const low=document.createElement('canvas');low.width=320;low.height=180;
+    const lc=low.getContext('2d');lc.imageSmoothingEnabled=true;lc.drawImage(image,0,0,low.width,low.height);
+    const pixel=document.createElement('canvas');pixel.width=960;pixel.height=540;
+    const pc=pixel.getContext('2d');pc.imageSmoothingEnabled=false;pc.drawImage(low,0,0,pixel.width,pixel.height);
+    const url=pixel.toDataURL('image/webp',.9),title=document.querySelector('.title-art');
+    if(title)title.src=url;
+    document.documentElement.style.setProperty('--voxel-panorama',`url("${url}")`);
   }
   warmArtwork(){
     // Upload rarely used frames and compile effect shaders before live input.
@@ -178,9 +187,10 @@ export class Renderer{
   }
   drawWishIcons(){
     const draw=canvas=>{
-      const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);
+      const pixelScale=4,stage=document.createElement('canvas');stage.width=Math.max(1,Math.ceil(canvas.width/pixelScale));stage.height=Math.max(1,Math.ceil(canvas.height/pixelScale));const c=stage.getContext('2d');c.setTransform(stage.width/canvas.width,0,0,stage.height/canvas.height,0,0);c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width*.52,canvas.height*.9);const scale=Math.min(canvas.width/110,canvas.height/82);c.scale(scale,scale);
       const previous=this.ctx;
       try{this.ctx=c;this.hero({animState:'run',grounded:true,anim:.35});}finally{this.ctx=previous;c.restore();}
+      const output=canvas.getContext('2d');output.imageSmoothingEnabled=false;output.clearRect(0,0,canvas.width,canvas.height);output.drawImage(stage,0,0,canvas.width,canvas.height);
     };
     for(const canvas of document.querySelectorAll('.life canvas'))draw(canvas);
     for(const id of ['title-uniboar','wish-uniboar']){const canvas=document.getElementById(id);if(canvas)draw(canvas);}
@@ -197,15 +207,7 @@ export class Renderer{
     if(right<left)return cell;const crop=document.createElement('canvas');crop.width=right-left+1;crop.height=bottom-top+1;crop.getContext('2d').drawImage(cell,left,top,crop.width,crop.height,0,0,crop.width,crop.height);return crop;
   }
   loadWoodlandAssets(){
-    this.groves=[];this.treeImages=Array(6).fill(null);this.treeCells=new Map();this.fairyFrames=[];
-    ['tree-oak.webp','tree-birch.webp','tree-pine.webp','tree-beech.webp','tree-spruce.webp','tree-rowan.webp'].forEach((src,i)=>{
-      this.loadAsset(src,image=>{
-        const tree=document.createElement('canvas');tree.width=image.naturalWidth;tree.height=image.naturalHeight;const c=tree.getContext('2d');c.drawImage(image,0,0);
-        // Blend roots into their own depth's mist instead of floating over it.
-        c.globalCompositeOperation='destination-in';const fade=c.createLinearGradient(0,0,0,tree.height);fade.addColorStop(0,'#000');fade.addColorStop(.76,'#000');fade.addColorStop(1,'#0000');c.fillStyle=fade;c.fillRect(0,0,tree.width,tree.height);
-        this.treeImages[i]=tree;this.groves=this.treeImages.filter(Boolean);
-      });
-    });
+    this.groves=[];this.treeImages=[];this.treeCells=new Map();this.fairyFrames=[];
     this.loadAsset('forest-fairy.webp',fairies=>{
       // Three complete poses, using inspected gutters instead of blind grid cuts.
       const scale=fairies.naturalWidth/2172;
@@ -239,10 +241,40 @@ export class Renderer{
   drawForestTrees(distance,cameraY,layer){
     const c=this.ctx;
     for(const tree of this.forestTrees(distance,cameraY,layer)){
-      const image=this.treeImages[tree.variant];if(!image)continue;const w=tree.height*image.width/image.height;
+      const w=tree.height*(layer===0?.48:layer===1?.58:.68);
       if(tree.x+w/2< -2||tree.x-w/2>W+2)continue;
-      c.save();c.globalAlpha=tree.alpha;c.translate(tree.x,tree.base);if(tree.flip)c.scale(-1,1);c.drawImage(image,-w/2,-tree.height,w,tree.height);c.restore();
+      this.drawVoxelTree(tree,layer,w);
     }
+  }
+  drawVoxelTree(tree,layer,width){
+    const c=this.ctx,cell=[12,16,20][layer],x=Math.round(tree.x/cell)*cell,top=tree.base-tree.height*.94,crownEnd=tree.base-tree.height*.28;
+    const maxHalf=Math.max(2,Math.floor(width/(cell*2))),rows=Math.max(1,Math.ceil((crownEnd-top)/cell)),pine=tree.variant%3===1;
+    const leafSets=[['#426b35','#527f3a','#31562f'],['#527a3b','#638d43','#3b6132'],['#3d6939','#4b7c3e','#2e5632']][tree.variant%3];
+    c.save();c.globalAlpha=tree.alpha;
+    const block=(bx,by,size,color,seed)=>{
+      c.fillStyle=color;c.fillRect(bx,by,size+.3,size+.3);
+      c.fillStyle='#c0d477';c.globalAlpha=tree.alpha*.36;c.fillRect(bx,by,size+.3,Math.max(1,size*.13));c.globalAlpha=tree.alpha;
+      c.fillStyle='#203e2b';c.globalAlpha=tree.alpha*.42;c.fillRect(bx+size*.78,by,size*.22,size+.3);c.globalAlpha=tree.alpha;
+      c.fillStyle='#1f482b';c.globalAlpha=tree.alpha*.25;c.fillRect(bx,by+size*.84,size+.3,size*.16);c.globalAlpha=tree.alpha;
+      if(rand(seed)>.78){c.fillStyle='#8fae4e';c.globalAlpha=tree.alpha*.75;c.fillRect(bx+size*.22,by+size*.3,Math.max(1,size*.18),Math.max(1,size*.18));c.globalAlpha=tree.alpha;}
+    };
+    for(let row=0;row<rows;row++){
+      const progress=(row+.5)/rows;
+      let half=pine?Math.min(maxHalf,1+Math.floor(progress*maxHalf*1.35)):Math.max(1,Math.round(maxHalf*(.3+Math.sin(progress*Math.PI)*.72)));
+      if(pine&&row%Math.max(2,Math.round(rows*.28))===0)half=Math.max(1,half-1);
+      const by=Math.floor(top/cell)*cell+row*cell;
+      for(let col=-half;col<=half;col++){
+        const edge=Math.abs(col)===half,seed=tree.variant*79+layer*41+row*17+col*11;
+        if(edge&&rand(seed+7)<(pine?.12:.2))continue;
+        const color=leafSets[Math.floor(rand(seed+2)*leafSets.length)];block(x+col*cell-cell/2,by,cell,color,seed+4);
+      }
+    }
+    const trunkCell=cell,tx=x-trunkCell*.45,wood=['#79502d','#8c6034','#694526'];
+    for(let y=Math.floor((tree.base-tree.height*.48)/trunkCell)*trunkCell;y<tree.base+tree.height*.2;y+=trunkCell){
+      const color=wood[Math.floor(rand(y+tree.variant*13)*wood.length)];c.fillStyle=color;c.fillRect(tx,y,trunkCell*.9,trunkCell+.4);
+      c.fillStyle='#a77a42';c.globalAlpha=tree.alpha*.65;c.fillRect(tx,y,trunkCell*.18,trunkCell+.4);c.fillStyle='#4d3926';c.globalAlpha=tree.alpha*.55;c.fillRect(tx+trunkCell*.72,y,trunkCell*.18,trunkCell+.4);c.globalAlpha=tree.alpha;
+    }
+    c.restore();
   }
   forestBackground(distance,cameraY=0){
     const image=this.forestImage,c=this.ctx;

@@ -171,3 +171,43 @@ canvas.wish-spirit{left:32%;top:24%;width:36%;height:auto;aspect-ratio:16/10;bac
 .demo-controls>span{position:absolute;left:50%;top:calc(clamp(28px,4.2cqw,40px) + 2cqw);transform:translateX(-50%);padding:.5em .8em;border:1px solid #abc58288;border-radius:8px;background:#173c2de8}
 .demo-controls button{position:absolute;right:calc(clamp(70px,10cqw,100px) + 2cqw);top:1cqw;min-height:clamp(28px,4.2cqw,40px);padding:.5em .8em;border:1px solid #c2d79499;border-radius:8px;background:#173c2de6;color:inherit;font:inherit;touch-action:manipulation;pointer-events:auto}
 .demo-controls.demo-menu>span{display:none}
+
+/* Blocky forest palette and crisp pixels for the voxel edition. */
+.game-frame{box-shadow:inset 0 0 0 4px #382f21,inset 0 0 0 7px #8f7741,0 8px 26px #0009}
+canvas,.title-art{image-rendering:pixelated}
+.title-art{filter:saturate(1.12) contrast(1.08)}
+.forest-logo{font-family:'Courier New',ui-monospace,monospace;font-weight:900;letter-spacing:.04em;color:#e5dda0;-webkit-text-stroke:.7px #293920;text-shadow:3px 3px #55462b,6px 6px #192c20}
+.magic{font-family:'Courier New',ui-monospace,monospace;font-weight:700;color:#f0e9ba;text-shadow:2px 2px #263c27,4px 4px #14251d}
+.play,.instructions button,.result button,.paused button{padding:.28em .55em;border:3px solid #d0c27a;background:#415c32ed;box-shadow:inset 0 0 0 3px #263e28,3px 3px 0 #18251c;text-shadow:2px 2px #172619}
+.play:hover,.instructions button:hover,.result button:hover,.paused button:hover{color:#fff3b5;text-shadow:2px 2px #172619,0 0 8px #b9d66a}
+.instructions p{font-family:'Courier New',ui-monospace,monospace;font-weight:700}
+.purple-screen{background:#263d29}
+.intro{background:linear-gradient(180deg,#385c32 0 46%,#443b29 46% 51%,#293d27 51%)}
+.result{background-color:#293e29;background-image:linear-gradient(45deg,#324a2d 25%,transparent 25%,transparent 75%,#324a2d 75%),linear-gradient(45deg,#324a2d 25%,transparent 25%,transparent 75%,#324a2d 75%),linear-gradient(#243b2b99,#243b2b99),var(--voxel-panorama,url('forest-panorama.webp'));background-position:0 0,14px 14px,center,center;background-size:28px 28px,28px 28px,cover,cover}
+.paused{background:#182a20ed}
+.forest-logo,.magic,.hud #score,.result-total,.wish-score,.settings-card,.leaderboard,.demo-controls,.dash-hint{font-family:'Courier New',ui-monospace,monospace}
+.hud #score{font-style:normal;font-weight:900;font-variant-numeric:tabular-nums;color:#fff1b1;text-shadow:2px 2px #263921,4px 4px #172719}
+.life svg{filter:drop-shadow(2px 2px 0 #253923)}
+.life.used:after{text-shadow:2px 2px #273a22}
+.wish-score{border:2px solid #b8ad66;border-radius:0;background:#304d31;color:#f0e9ba;text-shadow:2px 2px #1e3224;box-shadow:inset 0 0 0 2px #1c3325}
+.result-total{font-family:'Courier New',ui-monospace,monospace;font-style:normal;font-weight:900;text-shadow:3px 3px #19281a}
+.result-head-wrap{image-rendering:pixelated}
+#result-head{image-rendering:pixelated;filter:drop-shadow(3px 3px 0 #18281b)}
+.leaderboard{border:3px solid #ad9b58;border-radius:0;background:#203827ed;box-shadow:inset 0 0 0 3px #314d30}
+.leaderboard h2{font-family:'Courier New',ui-monospace,monospace;font-style:normal;text-shadow:2px 2px #18281b}
+.leaderboard thead{background:#203827}
+.leaderboard th,.leaderboard td{border-color:#c8ce774d}
+.leaderboard input,.result .leaderboard button{border:2px solid #b5aa67;border-radius:0;background:#d4d0a1;color:#233727;box-shadow:2px 2px 0 #15251b}
+.result .leaderboard button{background:#617b3d;color:#fff0b5;font-weight:700}
+.leaderboard nav{gap:4px}
+.leaderboard nav button{min-height:2.2em}
+.in-game-button,.menu-actions button,.demo-controls>span,.demo-controls button,.dash-hint,.dash-hint kbd{border:2px solid #b5aa67;border-radius:0;background:#263e2beF;color:#f2e9b7;box-shadow:3px 3px 0 #14251b}
+.menu-actions button,.demo-controls button{font-family:'Courier New',ui-monospace,monospace;font-weight:700}
+.settings-screen{background:#172b20ed}
+.settings-card{border:4px solid #a99958;border-radius:0;background:#2c482d;box-shadow:inset 0 0 0 3px #1e3424,6px 6px 0 #101d17}
+.settings-card h2{font-family:'Courier New',ui-monospace,monospace;font-style:normal;text-shadow:2px 2px #1b2c1e}
+.settings-card button{border:2px solid #c3b66d;border-radius:0;background:#56733b;color:#fff1b7;box-shadow:3px 3px 0 #18291d;font-family:'Courier New',ui-monospace,monospace;font-weight:700}
+.settings-card input[type=range]{accent-color:#c1b967}
+.touch-controls .touch-half{font-family:'Courier New',ui-monospace,monospace}
+.touch-hint{text-shadow:2px 2px #1a2b1d}
+button:focus-visible,label:focus-visible,.leaderboard input:focus-visible,.leaderboard button:focus-visible{outline:3px solid #f1dc75;outline-offset:2px}
