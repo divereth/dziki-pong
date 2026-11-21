@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dziki-karabin-shell-v1';
+const CACHE_NAME = 'dziki-karabin-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
