@@ -1,9 +1,20 @@
 const random=n=>{const value=Math.sin(n*127.1+19.17)*43758.5453;return value-Math.floor(value);};
 const canvas=(w,h)=>typeof OffscreenCanvas!=='undefined'?new OffscreenCanvas(w,h):Object.assign(document.createElement('canvas'),{width:w,height:h});
 export function createTerrainMaterials(image){
- const rock=canvas(768,256),moss=canvas(768,256),w=image.width||image.naturalWidth,h=image.height||image.naturalHeight;
- rock.getContext('2d').drawImage(image,0,0,w,h/2,0,0,768,256);
- moss.getContext('2d').drawImage(image,0,h/2,w,h/2,0,0,768,256);
+ const rock=canvas(768,256),moss=canvas(768,256);
+ const paintBlocks=(target,palette,seed)=>{
+  const c=target.getContext('2d'),size=16;
+  for(let y=0;y<target.height;y+=size)for(let x=0;x<target.width;x+=size){
+   const n=Math.floor(random(x*1.7+y*3.1+seed)*palette.length),base=palette[n];
+   c.fillStyle=base;c.fillRect(x,y,size,size);
+   c.fillStyle='#ffffff16';c.fillRect(x,y,size,2);c.fillRect(x,y,2,size);
+   c.fillStyle='#10211730';c.fillRect(x+size-2,y+2,2,size-2);c.fillRect(x+2,y+size-2,size-2,2);
+   if(random(x*2+y+seed)>0.72){c.fillStyle='#f2e9b218';c.fillRect(x+4,y+5,4,3);}
+  }
+ };
+ paintBlocks(rock,['#795638','#85613e','#6c4c35','#927047','#735238'],31);
+ paintBlocks(moss,['#729b3f','#83aa49','#648b38','#91ae51','#557d34'],79);
+ void image;
  return {rock,moss,contexts:new WeakMap()};
 }
 let materialTask;
@@ -30,15 +41,17 @@ export function paintForestTerrain(platform,c,profile,materials){
   const cap=new Path2D();cap.moveTo(...points[0]);for(const point of points.slice(1))cap.lineTo(...point);
   for(let i=points.length-1;i>=0;i--){const [x,y]=points[i];cap.lineTo(x,y+24+Math.sin(x*.041+seed*15)*7+random(Math.floor(x/20)+seed)*9);}cap.closePath();
   c.fillStyle=patterns.moss;c.fill(cap);
+  c.save();c.clip(shape);
+  const start=points[0][0],end=points[points.length-1][0];
+  for(let x=Math.ceil(start/16)*16;x<end;x+=16){
+   const index=Math.min(points.length-1,Math.max(0,Math.floor((x-start)/3))),y=points[index][1],tone=random(x+seed*13);
+   c.fillStyle=tone>.72?'#86a947':tone>.34?'#789c40':'#6d923b';c.fillRect(x,y+2,16,13);
+   c.fillStyle='#b9d27475';c.fillRect(x,y+2,16,2);
+   c.fillStyle='#36552f75';c.fillRect(x+14,y+3,2,12);
+   c.fillStyle='#54743780';c.fillRect(x+1,y+14,13,1);
+  }
+  c.restore();
   c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y+1):c.moveTo(x,y+1));c.strokeStyle='#c4d98548';c.lineWidth=4;c.stroke();c.strokeStyle='#e0eab787';c.lineWidth=1.05;c.stroke();
  }
  c.restore();
- // Fine edge foliage lives on the same sampled walkable contour, never a
- // separate raised ledge. Its silhouette stays within a few cosmetic pixels.
- for(const points of segments){
-  for(let i=6;i<points.length-5;i+=15+Math.floor(random(i+seed)*13)){
-   const [x,y]=points[i],height=3+random(i+seed+5)*6;
-   c.beginPath();c.moveTo(x-4,y+1);c.quadraticCurveTo(x-2,y-height,x+1,y-1);c.quadraticCurveTo(x+4,y-height*.6,x+5,y+2);c.fillStyle=i%3?'#89a65b':'#bed07a';c.fill();
-  }
- }
 }

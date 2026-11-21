@@ -9,7 +9,7 @@ export class WoodlandEffects{
   return ['#ecdf9a','#c7d694','#a6bd75'].map((color,index)=>{
    const canvas=document.createElement('canvas');canvas.width=32;canvas.height=32;const c=canvas.getContext('2d');
    const glow=c.createRadialGradient(16,16,0,16,16,15);glow.addColorStop(0,color+'b0');glow.addColorStop(.2,color+'3b');glow.addColorStop(1,color+'00');c.fillStyle=glow;c.fillRect(0,0,32,32);
-   c.fillStyle=color;c.beginPath();c.ellipse(16,16,index?3.5:1.7,index?1.3:1.7,-.55,0,TAU);c.fill();return canvas;
+   c.fillStyle=color;c.fillRect(13,14,6,5);c.fillRect(index?10:14,16,index?4:3,3);c.fillStyle='#fff4bd';c.fillRect(15,13,3,2);return canvas;
   });
  }
  reset(wish){
@@ -20,7 +20,9 @@ export class WoodlandEffects{
  setDeerImage(image){
   const boxes=[[60,10,592,520,295,290],[772,54,742,375,378,216],[177,508,480,376,238,220],[903,537,533,449,237,205]];
   this.frames=boxes.map(([x,y,w,h,cx,cy])=>{
-   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(image,x,y,w,h,0,0,w,h);return {image:canvas,cx,cy};
+   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(image,x,y,w,h,0,0,w,h);
+   const sample=document.createElement('canvas');sample.width=Math.max(28,Math.round(w/11));sample.height=Math.max(22,Math.round(h/11));sample.getContext('2d').drawImage(canvas,0,0,sample.width,sample.height);
+   const blocks=document.createElement('canvas');blocks.width=w;blocks.height=h;const c=blocks.getContext('2d');c.imageSmoothingEnabled=false;c.drawImage(sample,0,0,w,h);return {image:blocks,cx,cy};
   });
  }
  update(g,time,view,enabled=true){
