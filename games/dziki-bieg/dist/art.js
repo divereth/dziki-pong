@@ -17,6 +17,39 @@ function smoothShape(c,pts){
 function line(c,pts,color,width=1){path(c,pts,false);c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.lineJoin='round';c.stroke();}
 function oval(c,x,y,rx,ry,color,stroke,width=1){c.beginPath();c.ellipse(x,y,Math.max(.01,rx),Math.max(.01,ry),0,0,TAU);if(color){c.fillStyle=color;c.fill();}if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.stroke();}}
 function starPoints(x,y,r){return Array.from({length:10},(_,i)=>{const a=-Math.PI/2+i*Math.PI/5,z=i%2?r*.45:r;return[x+Math.cos(a)*z,y+Math.sin(a)*z];});}
+function pixelatedArtwork(source,sampleWidth){
+  const width=source.width||source.naturalWidth,height=source.height||source.naturalHeight;
+  if(!width||!height)return source;
+  const sample=document.createElement('canvas');sample.width=Math.max(1,Math.round(sampleWidth));sample.height=Math.max(1,Math.round(sampleWidth*height/width));
+  const low=sample.getContext('2d');low.imageSmoothingEnabled=true;low.drawImage(source,0,0,sample.width,sample.height);
+  const result=document.createElement('canvas');result.width=width;result.height=height;
+  const c=result.getContext('2d');c.imageSmoothingEnabled=false;c.drawImage(sample,0,0,width,height);return result;
+}
+function voxelTree(variant){
+  const image=document.createElement('canvas');image.width=180;image.height=286;
+  const c=image.getContext('2d'),palettes=[['#79a949','#638f3d','#4e7835'],['#83af48','#6e9941','#527a37'],['#719b42','#5b8539','#456c31'],['#8cab50','#718d42','#526f38'],['#648d3e','#507833','#3d632d'],['#91aa55','#769446','#5b7639']],palette=palettes[variant%palettes.length];
+  const cube=(x,y,size,front,top,side)=>{
+    c.fillStyle=side;c.fillRect(x+size-4,y+3,4,size-3);
+    c.fillStyle=front;c.fillRect(x,y+3,size-4,size-3);
+    c.fillStyle=top;c.beginPath();c.moveTo(x,y+3);c.lineTo(x+4,y);c.lineTo(x+size,y);c.lineTo(x+size-4,y+3);c.closePath();c.fill();
+  };
+  const rows=[1,3,5,7,9,9,7,5,3,1];
+  rows.forEach((count,row)=>{
+    const start=(180-count*18)/2,y=4+row*18;
+    for(let col=0;col<count;col++){
+      const x=start+col*18,seed=variant*97+row*19+col*7;
+      const front=palette[Math.floor(rand(seed)*palette.length)],top=palette[0],side=palette[2];
+      cube(x,y,19,front,top,side);
+      if((row+col+variant)%4===0){c.fillStyle='#bdd078';c.fillRect(x+5,y+6,3,3);}
+    }
+  });
+  for(let y=184;y<image.height;y+=22){
+    const bark=(Math.floor(y/22)+variant)%3===0?'#70472b':'#855633';
+    cube(73,y,18,bark,'#a06a3d','#553821');cube(91,y,18,'#70472b','#94613a','#4d3423');
+    if(y%44===8){c.fillStyle='#bd8950';c.fillRect(78,y+8,4,3);}
+  }
+  return image;
+}
 function surface(p,x){if(p.templateId)return nativeSurfaceY(p,p.x+x);const pts=p.points;if(!pts?.length)return p.y;x=clamp(x,0,p.width);for(let i=1;i<pts.length;i++)if(x<=pts[i].x){const a=pts[Math.max(0,i-2)].y,b=pts[i-1].y,z=pts[i].y,d=pts[Math.min(pts.length-1,i+1)].y,f=(x-pts[i-1].x)/(pts[i].x-pts[i-1].x||1);return p.y+(2*b+(-a+z)*f+(2*a-5*b+4*z-d)*f*f+(-a+3*b-3*z+d)*f*f*f)/2;}return p.y+pts[pts.length-1].y;}
 
 // Bronze wild boar fallback: compact legs and a prismatic horn, mane and tail.
@@ -59,7 +92,7 @@ export function drawBoar(c,x,y,scale=1,phase=0,dashing=false,airborne=false){
 export class Renderer{
   constructor(canvas){
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.effects=[];this.lastTime=0;this.lastJumps=0;this.lastDash=false;this.lastDistance=0;this.effectTime=0;this.leafSpawn=0;this.dustSpawn=0;this.landingArmed=false;this.lastGrounded=false;this.effectSerial=0;this.coneStates=new WeakMap();this.leafSprites=this.makeLeafSprites();
-    this.assetTasks=[];this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',()=>{this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
+    this.assetTasks=[];this.woodland=new WoodlandEffects();this.ambientParticles=true;this.forestReady=false;this.forestImage=this.loadAsset('forest-panorama.webp',image=>{this.forestImage=pixelatedArtwork(image,136);const title=document.querySelector('.title-art');if(title)title.src=this.forestImage.toDataURL('image/png');this.forestReady=true;});this.spriteFrames=[];this.profileCache=new Map();this.terrainCache=new Map();this.terrainPaintCache=new Map();this.terrainCacheBytes=0;this.terrainCacheDensity=0;this.terrainJobs=new Map();this.terrainQueue=[];this.terrainPlatforms=new Set();this.initTerrainWorker();this.loadBoar();this.loadWoodlandAssets();this.loadAsset('forest-terrain-atlas.webp',image=>{this.materials=createTerrainMaterials(image);});this.loadAsset('deer-leap.webp',image=>this.woodland.setDeerImage(image));this.ready=Promise.all(this.assetTasks).then(()=>{this.drawWishIcons();this.warmArtwork();this.assetsReady=true;});this.resize();
   }
   resize(){const r=this.canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round((r.width||W)*dpr));this.canvas.height=Math.max(1,Math.round((r.height||H)*dpr));}
   terrainDensity(){return Math.min(2,Math.max(1,Math.ceil(this.canvas.width/W*2)));}
@@ -137,7 +170,7 @@ export class Renderer{
           cell.getContext('2d').drawImage(image,index%4*cw,Math.floor(index/4)*ch,cw,ch,0,0,cell.width,cell.height);
           const crop=document.createElement('canvas');crop.width=f.width;crop.height=f.height;
           crop.getContext('2d').drawImage(cell,f.x,f.y,f.width,f.height,0,0,f.width,f.height);
-          return {image:crop,width:f.width,height:f.height,centerY:f.centerY};
+          return {image:pixelatedArtwork(crop,Math.max(34,Math.round(f.width/10))),width:f.width,height:f.height,centerY:f.centerY};
         });
         this.deathFragmentCache=null;return;
       }
@@ -154,7 +187,7 @@ export class Renderer{
         left=Math.max(0,left-1);right=Math.min(cell.width-1,right+1);top=Math.max(0,top-1);bottom=Math.min(cell.height-1,bottom+1);
         const crop=document.createElement('canvas');crop.width=right-left+1;crop.height=bottom-top+1;crop.getContext('2d').drawImage(cell,left,top,crop.width,crop.height,0,0,crop.width,crop.height);
         let mass=0,cy=0;for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){const a=data[(y*cell.width+x)*4+3];if(a>40){mass+=a;cy+=(y-top)*a;}}
-        frames.push({image:crop,width:crop.width,height:crop.height,centerY:mass?cy/mass:crop.height*.55});
+        frames.push({image:pixelatedArtwork(crop,Math.max(34,Math.round(crop.width/10))),width:crop.width,height:crop.height,centerY:mass?cy/mass:crop.height*.55});
       }
       this.spriteFrames=frames;this.deathFragmentCache=null;
     });
@@ -167,7 +200,7 @@ export class Renderer{
     if(this.spriteFrames.length!==8){drawBoar(this.ctx,0,0,1,p.anim||0,p.dash>0,!p.grounded);return;}
     const charging=p.animState?p.animState==='charge':p.dash>0,running=p.animState?p.animState==='run':p.grounded;
     const index=charging?5:!running?Math.floor(clamp((p.gravity||0)*8.75/301,0,.999)*8):Math.floor(mod(p.anim||0,TAU)/TAU*8),f=this.spriteFrames[index],scale=84/f.width;
-    this.ctx.imageSmoothingEnabled=true;this.ctx.imageSmoothingQuality='high';
+    this.ctx.imageSmoothingEnabled=false;
     if(p.grounded){
       // Keep the compact torso steady while every planted hoof meets the terrain.
       // Only the lower leg portion is normalized; the airborne poses stay intact.
@@ -197,26 +230,18 @@ export class Renderer{
     if(right<left)return cell;const crop=document.createElement('canvas');crop.width=right-left+1;crop.height=bottom-top+1;crop.getContext('2d').drawImage(cell,left,top,crop.width,crop.height,0,0,crop.width,crop.height);return crop;
   }
   loadWoodlandAssets(){
-    this.groves=[];this.treeImages=Array(6).fill(null);this.treeCells=new Map();this.fairyFrames=[];
-    ['tree-oak.webp','tree-birch.webp','tree-pine.webp','tree-beech.webp','tree-spruce.webp','tree-rowan.webp'].forEach((src,i)=>{
-      this.loadAsset(src,image=>{
-        const tree=document.createElement('canvas');tree.width=image.naturalWidth;tree.height=image.naturalHeight;const c=tree.getContext('2d');c.drawImage(image,0,0);
-        // Blend roots into their own depth's mist instead of floating over it.
-        c.globalCompositeOperation='destination-in';const fade=c.createLinearGradient(0,0,0,tree.height);fade.addColorStop(0,'#000');fade.addColorStop(.76,'#000');fade.addColorStop(1,'#0000');c.fillStyle=fade;c.fillRect(0,0,tree.width,tree.height);
-        this.treeImages[i]=tree;this.groves=this.treeImages.filter(Boolean);
-      });
-    });
+    this.groves=[];this.treeImages=Array.from({length:6},(_,i)=>voxelTree(i));this.treeCells=new Map();this.fairyFrames=[];
     this.loadAsset('forest-fairy.webp',fairies=>{
       // Three complete poses, using inspected gutters instead of blind grid cuts.
       const scale=fairies.naturalWidth/2172;
       this.fairyFrames=[[0,535,350],[540,500,320],[1042,536,320]].map(([x,w,anchor])=>{
         const canvas=document.createElement('canvas');canvas.width=160;canvas.height=160;
         canvas.getContext('2d').drawImage(fairies,x*scale,0,w*scale,fairies.naturalHeight,80-anchor*.2,8,w*.2,144.8);
-        return canvas;
+        return pixelatedArtwork(canvas,25);
       });
     });
-    this.loadAsset('pine-cone-round.webp',cone=>{this.coneArtwork=this.cropArtwork(cone);this.pineConeSprite=null;this.coneFragments=null;this.pineConeFragments();});
-    this.loadAsset('boar-head-wrecked.webp',head=>{this.wreckedHead=this.cropArtwork(head);const canvas=document.getElementById('result-head');if(canvas)this.drawWishHead(canvas);});
+    this.loadAsset('pine-cone-round.webp',cone=>{this.coneArtwork=pixelatedArtwork(this.cropArtwork(cone),34);this.pineConeSprite=null;this.coneFragments=null;this.pineConeFragments();});
+    this.loadAsset('boar-head-wrecked.webp',head=>{this.wreckedHead=pixelatedArtwork(this.cropArtwork(head),78);const canvas=document.getElementById('result-head');if(canvas)this.drawWishHead(canvas);});
   }
   forestTrees(distance,cameraY,layer){
     const speeds=[.065,.15,.31],spacings=[260,340,440],spacing=spacings[layer],scroll=distance*speeds[layer],first=Math.floor(scroll/spacing)-2,result=[];
@@ -247,7 +272,7 @@ export class Renderer{
   forestBackground(distance,cameraY=0){
     const image=this.forestImage,c=this.ctx;
     // The distant light source stays fixed: it is never tiled or mirrored.
-    if(this.forestReady)c.drawImage(image,0,0,W,H);
+    if(this.forestReady){c.save();c.imageSmoothingEnabled=false;c.drawImage(image,0,0,W,H);c.restore();}
     this.drawForestTrees(distance,cameraY,0);
     const mist=c.createLinearGradient(0,130,0,H);mist.addColorStop(0,'#d9e4bd00');mist.addColorStop(1,'#d5e0b74a');c.fillStyle=mist;c.fillRect(0,130,W,H-130);
     this.drawForestTrees(distance,cameraY,1);this.drawForestTrees(distance,cameraY,2);
@@ -448,7 +473,7 @@ export class Renderer{
   }
   makePineCone(){
     if(!this.coneArtwork)return null;
-    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const c=canvas.getContext('2d'),image=this.coneArtwork,h=108,w=Math.min(116,h*image.width/image.height);
+    const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const c=canvas.getContext('2d'),image=this.coneArtwork,h=108,w=Math.min(116,h*image.width/image.height);c.imageSmoothingEnabled=false;
     c.scale(2,2);c.translate(64,64);c.drawImage(image,-w/2,55.4-h,w,h);return canvas;
   }
   pineConeFragments(){
@@ -576,7 +601,7 @@ export class Renderer{
     const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);
     const image=this.wreckedHead||this.deathFragments(death||{pose:{grounded:true,anim:0}}).find(p=>p.kind==='head')?.image;if(!image)return;
     const scale=Math.min(canvas.width/image.width,canvas.height/image.height)*.96,w=image.width*scale,h=image.height*scale;
-    c.drawImage(image,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
+    c.imageSmoothingEnabled=false;c.drawImage(image,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
   }
   fireball(x,y,r,frame,alpha=1){
     if(r<1||alpha<=0)return;const c=this.ctx;c.save();c.translate(x,y);c.globalAlpha*=alpha;
@@ -620,7 +645,7 @@ export class Renderer{
     this.view=cameraView(g);
     const density=this.terrainDensity();
     this.terrainPlatforms=new Set((g.platforms||[]).map(p=>this.terrainPrefix(p,density)));
-    c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.clearRect(0,0,W,H);this.updateEffects(g,t);
+    c.setTransform(this.canvas.width/W,0,0,this.canvas.height/H,0,0);c.imageSmoothingEnabled=false;c.clearRect(0,0,W,H);this.updateEffects(g,t);
     this.woodland.update(g,t,this.view,this.ambientParticles);
     this.background(distance,cameraY,decorTime,reduced);this.woodland.drawMotes(c,false,this.ambientParticles,reduced);
     c.save();c.scale(this.view.scale,this.view.scale);c.translate(-this.view.left,-this.view.top);c.translate(reduced?0:(g.cameraX||0),0);

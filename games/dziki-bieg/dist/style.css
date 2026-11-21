@@ -171,3 +171,18 @@ canvas.wish-spirit{left:32%;top:24%;width:36%;height:auto;aspect-ratio:16/10;bac
 .demo-controls>span{position:absolute;left:50%;top:calc(clamp(28px,4.2cqw,40px) + 2cqw);transform:translateX(-50%);padding:.5em .8em;border:1px solid #abc58288;border-radius:8px;background:#173c2de8}
 .demo-controls button{position:absolute;right:calc(clamp(70px,10cqw,100px) + 2cqw);top:1cqw;min-height:clamp(28px,4.2cqw,40px);padding:.5em .8em;border:1px solid #c2d79499;border-radius:8px;background:#173c2de6;color:inherit;font:inherit;touch-action:manipulation;pointer-events:auto}
 .demo-controls.demo-menu>span{display:none}
+
+/* A voxel forest keeps the woodland palette and turns its art into crisp blocks. */
+.game-frame>canvas#game,.title-art,canvas.title-hero,canvas.wish-spirit{image-rendering:pixelated}
+.forest-logo{font-family:'Courier New',monospace;font-weight:900;letter-spacing:.08cqw;text-shadow:3px 4px 0 #536c3b,6px 7px 0 #233e2b}
+.forest-logo span{font-family:'Courier New',monospace;font-weight:900;letter-spacing:.65cqw}
+.magic{font-family:'Courier New',monospace;font-weight:700;letter-spacing:0;text-shadow:2px 3px 0 #29442d,0 0 5px #a5c96e}
+.play,.instructions button,.result button,.paused button{padding:.42em .8em;border:3px solid #c7d995;background:#567d38;box-shadow:inset -4px -4px #31552f,inset 4px 4px #88a84d,0 4px 0 #1b3527;color:#f0f6d5;text-shadow:2px 2px #31472a}
+.play:hover,.instructions button:hover,.result button:hover,.paused button:hover{background:#709748;color:#fffbe2;text-shadow:2px 2px #334a2d}
+.purple-screen{background:linear-gradient(180deg,#83acc0 0 42%,#4d713c 42% 100%);}
+.paused{background:#173324e8}
+.result{background-color:#3a6337;background-image:repeating-linear-gradient(90deg,#0000 0 20px,#203b3040 20px 22px),repeating-linear-gradient(0deg,#0000 0 20px,#203b3040 20px 22px),linear-gradient(180deg,#81a9be 0 34%,#5b7f3e 34% 100%)}
+.in-game-button,.menu-actions button,.demo-controls button,.settings-card,.settings-card button,.leaderboard{border-radius:0}
+.in-game-button,.menu-actions button,.demo-controls button{box-shadow:inset -3px -3px #102b23,inset 3px 3px #47664a}
+.settings-card{border:3px solid #aec780;background:#315438;box-shadow:inset -4px -4px #233f2e,inset 4px 4px #547344,0 8px 0 #11291d}
+.leaderboard{border-radius:0;border-color:#aec780}
