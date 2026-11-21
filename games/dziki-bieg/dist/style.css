@@ -171,3 +171,40 @@ canvas.wish-spirit{left:32%;top:24%;width:36%;height:auto;aspect-ratio:16/10;bac
 .demo-controls>span{position:absolute;left:50%;top:calc(clamp(28px,4.2cqw,40px) + 2cqw);transform:translateX(-50%);padding:.5em .8em;border:1px solid #abc58288;border-radius:8px;background:#173c2de8}
 .demo-controls button{position:absolute;right:calc(clamp(70px,10cqw,100px) + 2cqw);top:1cqw;min-height:clamp(28px,4.2cqw,40px);padding:.5em .8em;border:1px solid #c2d79499;border-radius:8px;background:#173c2de6;color:inherit;font:inherit;touch-action:manipulation;pointer-events:auto}
 .demo-controls.demo-menu>span{display:none}
+
+/* Pixel blocks and a spruce-green palette give the runner a voxel-world look. */
+html,body{background:#151b18;color:#f5f1d8;font-family:'Courier New',monospace}
+.game-frame{background:#78b8dc;border:4px solid #26342b;box-shadow:0 0 0 4px #111713,0 8px 0 #080b09}
+.title-art{image-rendering:pixelated;filter:saturate(.72) contrast(1.12) brightness(.84)}
+.forest-logo{font-family:'Courier New',monospace;font-weight:900;letter-spacing:0;color:#ffe786;text-shadow:4px 4px 0 #664326,8px 8px 0 #1a2b22}
+.forest-logo span{letter-spacing:.35cqw;text-shadow:3px 3px 0 #664326,6px 6px 0 #1a2b22}
+.magic{font-family:'Courier New',monospace;font-weight:900;color:#fff0b3;text-shadow:3px 3px 0 #4d3521}
+#title-actions .play,.instructions button,.result #next,.paused button,#begin{padding:.48em .78em;border:3px solid #392818;border-radius:0;background:linear-gradient(#b88a51 0 18%,#987044 18% 82%,#765332 82%);box-shadow:inset 3px 3px 0 #d2a466,inset -3px -3px 0 #63452d,4px 5px 0 #18261d;color:#fff1bf;font:900 max(13px,2.8cqw)/1.2 'Courier New',monospace;letter-spacing:0;text-shadow:2px 2px 0 #4e3520;cursor:pointer}
+#title-actions .play:hover,.instructions button:hover,.result #next:hover,.paused button:hover,#begin:hover{background:linear-gradient(#d09b56 0 18%,#ae8044 18% 82%,#825b32 82%);color:#fff8d8;text-shadow:2px 2px 0 #4e3520}
+.instructions p{font:700 max(10px,2cqw)/1.3 'Courier New',monospace;color:#fff3c4;text-shadow:2px 2px 0 #344629}
+.purple-screen,.paused{background:#283c2c}
+.intro{background:linear-gradient(#75afd1 0 42%,#4a7545 42% 100%)}
+.result{background:#2c4331}
+.result .wish-score{border:2px solid #253522;border-radius:0;background:#556e3d;box-shadow:inset 3px 3px 0 #829354,3px 3px 0 #18261c;color:#fff0bb;font-family:'Courier New',monospace;text-shadow:2px 2px 0 #283624}
+.result .result-total{color:#ffe67c;font-family:'Courier New',monospace;font-style:normal;text-shadow:3px 3px 0 #574426}
+.result-head-wrap canvas{image-rendering:pixelated;filter:drop-shadow(4px 4px 0 #1a261d)}
+.hud #score{font:900 3.8cqw 'Courier New',monospace;color:#ffe886;text-shadow:3px 3px 0 #243623}
+.life canvas,canvas.title-hero,canvas.wish-spirit{image-rendering:pixelated}
+.in-game-button,.menu-actions button,.touch-hint{border-radius:0;background:#3d5d3c;color:#f8efc5;box-shadow:inset 3px 3px 0 #759052,3px 3px 0 #17241a;font-family:'Courier New',monospace;text-shadow:2px 2px 0 #263522}
+.in-game-button{border:2px solid #243425}
+.menu-actions button{border:2px solid #243425}
+.touch-symbol{font-family:'Courier New',monospace}
+.dash-hint{border:2px solid #293a28;border-radius:0;background:#385b39;color:#fff1b8;box-shadow:3px 3px 0 #1a291f;font-family:'Courier New',monospace}
+.dash-hint kbd{border:2px solid #3d482b;border-radius:0;background:#977240;color:#fff3bd}
+.settings-screen{background:#14251edb;color:#f8f0cc}
+.settings-card{border:3px solid #243522;border-radius:0;background:#496440;box-shadow:inset 4px 4px 0 #718a4b,6px 6px 0 #111a14;color:#fff1bd;font-family:'Courier New',monospace}
+.settings-card h2{font:900 clamp(18px,3cqw,30px)/1.1 'Courier New',monospace;color:#ffe987;text-shadow:3px 3px 0 #4e3d25}
+.settings-card button,.result .leaderboard button{border:2px solid #2b3927;border-radius:0;background:#937047;box-shadow:inset 3px 3px 0 #c69b5a,3px 3px 0 #1c2a20;color:#fff2bd;font-family:'Courier New',monospace}
+.settings-card input[type=range]{accent-color:#b0d455}
+.leaderboard{border:2px solid #1d2d21;border-radius:0;background:#304936;color:#f2edcf;font-family:'Courier New',monospace}
+.leaderboard h2{font:900 clamp(12px,2.15cqw,23px)/1.2 'Courier New',monospace;color:#ffe98b;text-shadow:2px 2px 0 #3a4328}
+.leaderboard thead{background:#304936}
+.leaderboard th,.leaderboard td{border-bottom:1px solid #b9c68b55}
+.leaderboard input{border:2px solid #32402a;border-radius:0;background:#ece6c9;color:#273a2b;font-family:'Courier New',monospace}
+.leaderboard button{border-radius:0!important}
+@media(prefers-reduced-motion:reduce){.title-art{filter:saturate(.72) contrast(1.12) brightness(.84)}}
