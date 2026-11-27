@@ -31,6 +31,7 @@ function material(color,extra={}){const key=color+(extra.map?extra.map.uuid:JSON
 const raycastWalls=[];
 function box(w,h,d,x,y,z,color,parent=scene,shadow=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof color==='string'?material(color):color);m.position.set(x,y,z);m.castShadow=shadow;m.receiveShadow=true;parent.add(m);return m;}
 function label(text,bg='#c5f576',fg='#25382b',w=256,h=128){const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);ctx.fillStyle=fg;ctx.font=`900 ${h*.7}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,w/2,h*.53);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return material('#ffffff',{map:tex});}
+function mapTitleLabel(text,bg,fg){const c=document.createElement('canvas');c.width=1024;c.height=192;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle=fg;ctx.font='900 124px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,c.width/2,c.height/2,c.width*.9);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return material('#ffffff',{map:tex});}
 
 function makeMap(){
   box(180,.5,180,0,-.36,0,'#a6a18a',scene,false);
@@ -61,8 +62,11 @@ function makeMap(){
     }else if(o.kind==='tower'){
       box(5.45,.28,6.45,0,6.4,0,'#d6d1b7');
       box(5.08,.65,6.08,0,4.9,0,'#6b9e8a');
-      const sign=box(2,1.5,.04,0,3.5,3.04,label('07','#d4a879','#33463a'));
-      box(2,1.5,.04,0,3.5,-3.04,label('07','#a1c2a2','#33463a')).rotation.y=Math.PI;
+      const titleWarm=mapTitleLabel('DZIKI KARABIN','#d4a879','#33463a'),titleCool=mapTitleLabel('DZIKI KARABIN','#a1c2a2','#33463a');
+      box(5.5,1.15,.08,0,3.5,3.08,titleWarm);
+      const northTitle=box(5.5,1.15,.08,0,3.5,-3.08,titleCool);northTitle.rotation.y=Math.PI;
+      const eastTitle=box(5.5,1.15,.08,3.08,3.5,0,titleWarm);eastTitle.rotation.y=Math.PI/2;
+      const westTitle=box(5.5,1.15,.08,-3.08,3.5,0,titleCool);westTitle.rotation.y=-Math.PI/2;
       box(.17,4.4,.17,.8,8.5,0,'#566e5d');
       box(2.7,.1,.1,.8,10.3,0,'#566e5d');
       box(.09,.09,2.3,.8,9.8,0,'#566e5d');
