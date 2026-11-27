@@ -61,8 +61,12 @@ function makeMap(){
     }else if(o.kind==='tower'){
       box(5.45,.28,6.45,0,6.4,0,'#d6d1b7');
       box(5.08,.65,6.08,0,4.9,0,'#6b9e8a');
-      const sign=box(2,1.5,.04,0,3.5,3.04,label('07','#d4a879','#33463a'));
-      box(2,1.5,.04,0,3.5,-3.04,label('07','#a1c2a2','#33463a')).rotation.y=Math.PI;
+      // The central tower marks the middle of the arena with the map name.
+      const signMaterial=label('DZIKA','#c5f576','#25382b',512,144);
+      box(4.7,1.35,.04,0,3.5,3.07,signMaterial);
+      box(4.7,1.35,.04,0,3.5,-3.07,signMaterial).rotation.y=Math.PI;
+      box(4.7,1.35,.04,2.57,3.5,0,signMaterial).rotation.y=Math.PI/2;
+      box(4.7,1.35,.04,-2.57,3.5,0,signMaterial).rotation.y=-Math.PI/2;
       box(.17,4.4,.17,.8,8.5,0,'#566e5d');
       box(2.7,.1,.1,.8,10.3,0,'#566e5d');
       box(.09,.09,2.3,.8,9.8,0,'#566e5d');
