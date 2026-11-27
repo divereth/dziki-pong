@@ -31,6 +31,15 @@ function material(color,extra={}){const key=color+(extra.map?extra.map.uuid:JSON
 const raycastWalls=[];
 function box(w,h,d,x,y,z,color,parent=scene,shadow=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof color==='string'?material(color):color);m.position.set(x,y,z);m.castShadow=shadow;m.receiveShadow=true;parent.add(m);return m;}
 function label(text,bg='#c5f576',fg='#25382b',w=256,h=128){const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);ctx.fillStyle=fg;ctx.font=`900 ${h*.7}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,w/2,h*.53);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return material('#ffffff',{map:tex});}
+const centralTower=OBSTACLES.find(o=>o.kind==='tower');
+const ladder={x:1.8,faceZ:centralTower.d/2,playerZ:centralTower.d/2+.42,top:centralTower.h+.14};
+function brandLabel(){
+  const c=document.createElement('canvas');c.width=640;c.height=240;const ctx=c.getContext('2d');
+  ctx.fillStyle='#294337';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#c5f576';ctx.lineWidth=12;ctx.strokeRect(8,8,c.width-16,c.height-16);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 82px Arial';ctx.fillStyle='#c5f576';ctx.fillText('DZIKI',320,82);
+  ctx.font='900 70px Arial';ctx.fillStyle='#e8e9d5';ctx.fillText('KARABIN',320,167);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return material('#ffffff',{map:tex});
+}
 
 function makeMap(){
   box(180,.5,180,0,-.36,0,'#a6a18a',scene,false);
@@ -61,13 +70,16 @@ function makeMap(){
     }else if(o.kind==='tower'){
       box(5.45,.28,6.45,0,6.4,0,'#d6d1b7');
       box(5.08,.65,6.08,0,4.9,0,'#6b9e8a');
-      const sign=box(2,1.5,.04,0,3.5,3.04,label('07','#d4a879','#33463a'));
+      box(3.35,1.35,.08,-.45,4.35,3.08,brandLabel());
       box(2,1.5,.04,0,3.5,-3.04,label('07','#a1c2a2','#33463a')).rotation.y=Math.PI;
       box(.17,4.4,.17,.8,8.5,0,'#566e5d');
       box(2.7,.1,.1,.8,10.3,0,'#566e5d');
       box(.09,.09,2.3,.8,9.8,0,'#566e5d');
       box(1.4,1.1,.1,1.4,9.3,0,'#c5f576');
-      for(let n=0;n<4;n++){box(.06,.06,1.4,2.55,1+n*.7,0,'#526a5b');box(.06,3.1,.06,2.55,2.05,-.7,'#526a5b');box(.06,3.1,.06,2.55,2.05,.7,'#526a5b');}
+      const ladderRail='#526a5b';
+      for(const x of [ladder.x-.48,ladder.x+.48])box(.11,7.1,.12,x,3.55,ladder.faceZ+.08,ladderRail);
+      for(let y=.48;y<=6.65;y+=.55)box(1.02,.09,.13,ladder.x,y,ladder.faceZ+.08,'#75856a');
+      box(1.2,.1,.2,ladder.x,.13,ladder.playerZ,'#d0c7a5');
     }else if(o.kind==='crate'){
       box(o.w+.08,.16,o.d+.08,o.x,.22,o.z,'#5c7060');box(o.w+.08,.16,o.d+.08,o.x,o.h-.22,o.z,'#5c7060');
       for(const s of [-1,1])box(.15,o.h+.04,o.d+.05,o.x+s*(o.w/2-.25),o.h/2,o.z,'#b1ac89');
@@ -199,7 +211,7 @@ function makeViewWeapon(){
 }
 
 let state='menu',scores=[0,0],round=1,roundElapsed=0,wallet=10,selectedWeapon=WEAPONS[0],owned=new Set(['k24']);
-let equipped=1,ammo=24,reserve=72,reloading=0,nextShot=0,yaw=Math.PI/2,pitch=0,verticalSpeed=0,eyeHeight=1.72,playerGround=0;
+let equipped=1,ammo=24,reserve=72,reloading=0,nextShot=0,yaw=Math.PI/2,pitch=0,verticalSpeed=0,eyeHeight=1.72,playerGround=0,ladderClimbing=false;
 let mouseDown=false,aiming=false,windowedMouse=false,keySet=new Set(),interactionTarget=null,interactProgress=0,walkTime=0,recoil=0,flashTime=0,hitTime=0,damageTime=0;
 let audioEnabled=true,audioContext=null,sensitivity=.0021,toastTimer,transitionTime=0,feed=[],lastHud='',lastScoreboard='',lastTime=0,spectateTarget=null;
 let particles=[],tracers=[],deathBursts=[],frame=0,menuTime=0,scoreboardOpen=false;
@@ -222,6 +234,8 @@ function setTouchMode(enabled,remember=false){
   $('controls-touch').setAttribute('aria-pressed',String(enabled));$('controls-mouse').setAttribute('aria-pressed',String(!enabled));
   $('sensitivity-label').textContent=enabled?'Czułość dotyku':'Czułość myszy';
   $('interaction-key').textContent=enabled?'▣':'E';
+  $('ladder-key').textContent=enabled?'JOYSTICK ↑ / ↓':'W / S';
+  $('game-ladder-key').textContent=enabled?'JOYSTICK':'W / S';
   $('scoreboard-help').textContent=enabled?'Dotknij ×, aby wrócić do gry.':'Przytrzymaj TAB, aby zobaczyć wyniki.';
   if(remember){controlPreference=enabled?'touch':'mouse';try{localStorage.setItem('dzikikarabin-controls',controlPreference);}catch{}}
 }
@@ -260,7 +274,7 @@ function spawnRound(){
     if(a.mesh){a.mesh.visible=true;a.mesh.scale.setScalar(1);a.mesh.position.set(a.x,0,a.z);a.mesh.rotation.set(0,a.team===0?Math.PI/2:-Math.PI/2,0);a.mesh.userData.body.rotation.set(0,0,0);}
   }
   for(const c of chests){c.opened=false;c.lid.rotation.x=0;c.glow.visible=true;}
-  eyeHeight=1.72;playerGround=0;verticalSpeed=0;yaw=-Math.PI/2;pitch=0;equipped=1;ammo=selectedWeapon.mag;reserve=selectedWeapon.reserve;reloading=0;nextShot=0;recoil=0;mouseDown=false;
+  eyeHeight=1.72;playerGround=0;verticalSpeed=0;ladderClimbing=false;yaw=-Math.PI/2;pitch=0;equipped=1;ammo=selectedWeapon.mag;reserve=selectedWeapon.reserve;reloading=0;nextShot=0;recoil=0;mouseDown=false;
   roundElapsed=0;interactProgress=0;transitionTime=0;spectateTarget=null;feed=[];$('killfeed').innerHTML='';
   makeViewWeapon();gunRig.visible=true;viewGun.visible=true;knifeMesh.visible=false;
   show('spectate',false);show('interaction',false);show('round-banner',false);lastHud='';updateHud();
@@ -448,14 +462,18 @@ function equip(slot){if(!player?.alive)return;equipped=slot;reloading=0;viewGun.
 function movePlayerBody(body,dx,dz,feet){
   const clear=(x,z)=>OBSTACLES.every(o=>{
     const overlaps=Math.abs(x-o.x)<o.w/2+.37&&Math.abs(z-o.z)<o.d/2+.37;
-    return !overlaps||o.kind==='building'&&feet>=o.h+.245;
+    const surface=o.kind==='building'?o.h+.245:o.kind==='tower'?o.h+.14:Infinity;
+    return !overlaps||feet>=surface-.01;
   });
   if(clear(body.x+dx,body.z))body.x+=dx;
   if(clear(body.x,body.z+dz))body.z+=dz;
 }
 function roofHeightAt(x,z){
   let height=0;
-  for(const o of OBSTACLES)if(o.kind==='building'&&Math.abs(x-o.x)<o.w/2-.18&&Math.abs(z-o.z)<o.d/2-.18)height=Math.max(height,o.h+.245);
+  for(const o of OBSTACLES){
+    const surface=o.kind==='building'?o.h+.245:o.kind==='tower'?o.h+.14:0;
+    if(surface&&Math.abs(x-o.x)<o.w/2-.18&&Math.abs(z-o.z)<o.d/2-.18)height=Math.max(height,surface);
+  }
   return height;
 }
 function updatePlayer(dt){
@@ -475,15 +493,39 @@ function updatePlayer(dt){
   const length=Math.max(1,Math.hypot(forward,side));
   const dx=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)/length*speed*dt;
   const dz=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)/length*speed*dt;
-  const wasGrounded=eyeHeight<=playerGround+1.721,previousFeet=eyeHeight-1.72;
-  if((keySet.has('Space')||touchInput.jump)&&wasGrounded)verticalSpeed=15;
-  verticalSpeed-=18*dt;
-  let nextEyeHeight=eyeHeight+verticalSpeed*dt;
-  movePlayerBody(player,dx,dz,Math.max(previousFeet,nextEyeHeight-1.72));
-  const floor=roofHeightAt(player.x,player.z),nextFeet=nextEyeHeight-1.72;
-  if(nextFeet<=floor&&previousFeet>=floor){nextEyeHeight=floor+1.72;verticalSpeed=0;}
-  else if(nextFeet<floor){nextEyeHeight=floor+1.72;verticalSpeed=0;}
-  playerGround=floor;eyeHeight=Math.max(1.72,nextEyeHeight);
+  let previousFeet=eyeHeight-1.72;
+  const nearLadder=Math.hypot(player.x-ladder.x,player.z-ladder.playerZ)<.85&&previousFeet<=ladder.top+.15;
+  if(!ladderClimbing&&nearLadder&&Math.abs(forward)>.25){ladderClimbing=true;verticalSpeed=0;playerGround=0;player.x=ladder.x;player.z=ladder.playerZ;}
+  if(ladderClimbing){
+    playerGround=0;
+    previousFeet=eyeHeight-1.72;
+    if(Math.abs(side)>.75){
+      movePlayerBody(player,Math.cos(yaw)*side*speed*dt,-Math.sin(yaw)*side*speed*dt,previousFeet);
+      if(Math.hypot(player.x-ladder.x,player.z-ladder.playerZ)>.9)ladderClimbing=false;
+    }
+    if(ladderClimbing){
+      if(forward>.2)eyeHeight=Math.min(ladder.top+1.72,eyeHeight+3.5*dt);
+      else if(forward<-.2)eyeHeight=Math.max(1.72,eyeHeight-3.5*dt);
+      verticalSpeed=0;
+      if(eyeHeight>=ladder.top+1.71){eyeHeight=ladder.top+1.72;playerGround=ladder.top;player.z=ladder.faceZ-.65;ladderClimbing=false;}
+      else if(eyeHeight<=1.72&&forward<-.2){eyeHeight=1.72;playerGround=0;player.z=ladder.playerZ;ladderClimbing=false;}
+    }
+  }
+  if(!ladderClimbing){
+    previousFeet=eyeHeight-1.72;
+    const wasGrounded=eyeHeight<=playerGround+1.721;
+    if((keySet.has('Space')||touchInput.jump)&&wasGrounded)verticalSpeed=15;
+    verticalSpeed-=18*dt;
+    let nextEyeHeight=eyeHeight+verticalSpeed*dt;
+    movePlayerBody(player,dx,dz,Math.max(previousFeet,nextEyeHeight-1.72));
+    const floor=roofHeightAt(player.x,player.z),nextFeet=nextEyeHeight-1.72;
+    if(nextFeet<=floor&&previousFeet>=floor){nextEyeHeight=floor+1.72;verticalSpeed=0;}
+    else if(nextFeet<floor){nextEyeHeight=floor+1.72;verticalSpeed=0;}
+    playerGround=floor;eyeHeight=Math.max(1.72,nextEyeHeight);
+  }
+  const feet=eyeHeight-1.72;
+  const ladderPrompt=ladderClimbing||nearLadder;
+  show('ladder-prompt',ladderPrompt);
   walkTime+=dt*(moving?(sprint?13:9):2);
   const bob=moving?Math.sin(walkTime)*.035:Math.sin(walkTime)*.007;
   camera.position.set(player.x,eyeHeight+bob,player.z);camera.rotation.set(pitch,yaw,0);
