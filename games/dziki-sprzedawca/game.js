@@ -8,7 +8,7 @@ import {parsePrice,formatPrice,priceStep} from './prices.js';
 import {pict} from './icons.js';
 import {redeemCode,GAME_CATALOG as CATALOG,GOAL,CAPACITY,SAVE_KEY,PREVIOUS_SAVE_KEY,LEGACY_SAVE_KEY,getItem,itemValue,suggestedPrice,wealth,listedItems,newState,buy,listItem,withdrawListing,nextDay,refillSoldOffers,checkWin,restoreSave} from './economy.js';
 
-const $=id=>document.getElementById(id),money=n=>new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const $=id=>document.getElementById(id),money=n=>Math.abs(n)>=1e12?Number(n).toExponential(0).replace('e+',' × 10^'):new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const canvas=$('scene'),frame=$('world'),inventory=$('inventory-dialog'),help=$('help-dialog'),negotiation=$('negotiation-dialog');

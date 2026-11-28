@@ -25,12 +25,19 @@ export const itemValue=(entry,state)=>round(marketValue(getItem(entry.itemId),st
 export const suggestedPrice=(entry,state)=>round(itemValue(entry,state)*1.02);
 export const inventoryValue=state=>round(state.inventory.reduce((sum,e)=>sum+itemValue(e,state),0));
 export const wealth=state=>round(state.cash+inventoryValue(state));
+const REWARD_CODES={
+  DZIKJESTDZIKI:'100000',
+  LOLO:'90000000000000000000000000000000000000',
+};
 export function redeemCode(state,code){
-  if(typeof code!=='string'||code.trim().toUpperCase()!=='DZIKJESTDZIKI')return {ok:false,message:'Nieprawidłowy kod.'};
+  const normalized=typeof code==='string'?code.trim().toUpperCase():'';
+  const reward=REWARD_CODES[normalized];
+  if(!reward)return {ok:false,message:'Nieprawidłowy kod.'};
   const used=Array.isArray(state.redeemedCodes)?state.redeemedCodes:[];
-  if(used.includes('DZIKJESTDZIKI'))return {ok:false,message:'Ten kod został już wykorzystany w tym zapisie gry.'};
-  state.cash=round(state.cash+100000);state.redeemedCodes=[...used,'DZIKJESTDZIKI'];state.peak=Math.max(state.peak,wealth(state));
-  return {ok:true,message:'Kod przyjęty! Otrzymujesz 100 000 zł.'};
+  if(used.includes(normalized))return {ok:false,message:'Ten kod został już wykorzystany w tym zapisie gry.'};
+  state.cash=round(state.cash+Number(reward));state.redeemedCodes=[...used,normalized];state.peak=Math.max(state.peak,wealth(state));
+  const formattedReward=reward.replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  return {ok:true,message:`Kod przyjęty! Otrzymujesz ${formattedReward} zł.`};
 }
 export const listedItems=state=>state.inventory.filter(e=>e.ask!==null);
 
